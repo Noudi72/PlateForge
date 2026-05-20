@@ -139,6 +139,9 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .guide-h{left:0;right:0;height:1px}
 .guide-line.minor{background:rgba(240,165,0,.2);box-shadow:none}
 .guide-line.edge{background:rgba(255,255,255,.12)}
+.safe-layer{position:absolute;inset:0;pointer-events:none;z-index:36}
+.guide-safe{position:absolute;border:1px dashed rgba(230,57,80,.72);box-sizing:border-box;box-shadow:0 0 0 1px rgba(0,0,0,.25) inset}
+.guide-safe-lbl{position:absolute;font-size:.58rem;letter-spacing:1px;color:rgba(230,57,80,.9);text-transform:uppercase;white-space:nowrap;font-family:'Oswald',sans-serif}
 
 /* BADGE PICKER */
 .badge-btns{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
@@ -420,6 +423,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="tog-row"><span class="tog-lbl">Nationalität</span><div class="tog" id="togNat" onclick="togOpt('nat')"></div></div>
       <div class="tog-row"><span class="tog-lbl">Liga</span><div class="tog on" id="togLeague" onclick="togOpt('league')"></div></div>
       <div class="tog-row"><span class="tog-lbl">Hilfslinien</span><div class="tog on" id="togGuides" onclick="togOpt('guides')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Druckrand (3&nbsp;mm)</span><div class="tog on" id="togSafeMargin" onclick="togOpt('safeMargin')"></div></div>
       <div class="tog-row"><span class="tog-lbl">Logo-Bereich (Seitenstreifen)</span><div class="tog on" id="togLogoBand" onclick="togOpt('logoBand')"></div></div>
     </div>
     <div class="sb-sec">
@@ -458,6 +462,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="font-size:.65rem;color:var(--mut);margin-top:5px;line-height:1.5">
         Logo 1, Logo 2, Name und Nummer per Drag&amp;Drop verschieben (auch per Touch).<br>
         <strong>Hilfslinien:</strong> Mitte, Drittel und Randlinien; Elemente rasten beim Ziehen ein.<br>
+        <strong>Druckrand:</strong> roter Rahmen = 3&nbsp;mm Sicherheitszone (bei 400×110&nbsp;mm Schild); Inhalte bleiben beim Ziehen darin.<br>
         <strong>Vertikal:</strong> „Linie“ = erste Textzeile an der y-Position (Standard), „Mitte“ / „Unten“ = Block an Mittelpunkt bzw. untere Kante.<br>
         Element antippen → mit Pfeiltasten fein verschieben (Shift = grob).<br>
         Beim Ziehen rastet die Mitte ein. Logo-Ecke ziehen = skalieren.
@@ -509,7 +514,20 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 // CONSTANTS
 // ══════════════════════════════════════════
 const W=2000,H=550;
+// Physische Schildgrösse für mm→px (2000×550 px); Druckrand = 3 mm je Seite
+const PLATE_PRINT_W_MM=400,PLATE_PRINT_H_MM=110,SAFE_MARGIN_MM=3;
 let PREV_SCALE=0.45; // recalculated on render
+
+function safeMarginPx(){
+  return{
+    x:Math.round(SAFE_MARGIN_MM*W/PLATE_PRINT_W_MM),
+    y:Math.round(SAFE_MARGIN_MM*H/PLATE_PRINT_H_MM),
+  };
+}
+function getSafeRect(){
+  const m=safeMarginPx();
+  return{left:m.x,top:m.y,right:W-m.x,bottom:H-m.y};
+}
 
 const TMPL=[
   {name:'NHL Classic',  bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
@@ -541,7 +559,7 @@ const S={
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
   nameMode:'last', // last | first | both | firstlast | initial
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
-  frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,
+  frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
@@ -938,7 +956,7 @@ function getDesignSnapshotBase(){
     nameMode:S.nameMode||getVal('selNameMode'),
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,
+    frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
     showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
     shadowOn:S.shadowOn,glowOn:S.glowOn,glowColor:S.glowColor,
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
@@ -1022,6 +1040,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.logoBand=snap.logoBand!==false;
   S.showPos=snap.showPos!==false;S.showNat=!!snap.showNat;S.showLeague=snap.showLeague!==false;
   S.showGuides=snap.showGuides!==false;
+  S.showSafeMargin=snap.showSafeMargin!==false;
   S.shadowOn=snap.shadowOn!==false;S.glowOn=!!snap.glowOn;S.glowColor=snap.glowColor||'#00BFFF';
   S.shBlur=snap.shBlur??10;S.shDist=snap.shDist??4;S.glowSize=snap.glowSize??26;
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
@@ -1511,11 +1530,12 @@ function ehcLogo(ctx,cx,cy,r){
 // ══════════════════════════════════════════
 // TOGGLES
 // ══════════════════════════════════════════
-const TOG_MAP={frame:'frame',screws:'screws',bar:'bar',logoBand:'logoBand',pos:'showPos',nat:'showNat',league:'showLeague',shadow:'shadowOn',glow:'glowOn',guides:'showGuides'};
+const TOG_MAP={frame:'frame',screws:'screws',bar:'bar',logoBand:'logoBand',pos:'showPos',nat:'showNat',league:'showLeague',shadow:'shadowOn',glow:'glowOn',guides:'showGuides',safeMargin:'showSafeMargin'};
 const ROSTER_KEY='plateforge_roster';
 const SESSION_KEY='plateforge_session';
 function togElId(k){
   if(k==='logoBand')return'togLogoBand';
+  if(k==='safeMargin')return'togSafeMargin';
   return'tog'+k.charAt(0).toUpperCase()+k.slice(1);
 }
 function togOpt(k){
@@ -1611,6 +1631,57 @@ function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   return{R,halfW:R*1.2,halfH:R*1.2};
 }
 
+// Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
+function getElementPlateBounds(key,anchor,opts){
+  const platePos={...getPos(key),...anchor};
+  const{nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign,badge,badgeScale}=opts;
+  const vA=textVAlign||'alphabetic';
+  const p=activeP();
+  const nameText=getDisplayName(p);
+  const badgeOn=badge&&badge!=='none';
+  if(key==='nr'&&badgeOn){
+    const bb=badgeBoundsHalf(p.nr,nrSz,font,badgeScale??S.badgeScale??72,badge);
+    return{left:platePos.x-bb.halfW,top:platePos.y-bb.halfH,right:platePos.x+bb.halfW,bottom:platePos.y+bb.halfH};
+  }
+  if(key==='name'){
+    const lines=nameText.split('\n');
+    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+    const bm=nameBlockMetrics(nameSz,lines.length);
+    const oc=document.createElement('canvas').getContext('2d');
+    oc.font=`${nameSz}px ${font},sans-serif`;
+    let maxW=0;
+    lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
+    const top=lineYs[0]-bm.asc;
+    const bot=lineYs[lines.length-1]+bm.des;
+    let left=platePos.x;
+    if(textAlign==='center')left-=maxW/2;
+    else if(textAlign==='right')left-=maxW;
+    return{left,top,right:left+maxW,bottom:bot};
+  }
+  if(key==='nr'){
+    const text=String(p.nr||'');
+    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
+    const m=measureText(text,nrSz,font,W,H);
+    let left=platePos.x;
+    if(textAlign==='center')left-=m.w/2;
+    else if(textAlign==='right')left-=m.w;
+    return{left,top:baseline-m.ascent,right:left+m.w,bottom:baseline+m.descent};
+  }
+  const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
+  return{left:platePos.x-lsz/2,top:platePos.y-lsz/2,right:platePos.x+lsz/2,bottom:platePos.y+lsz/2};
+}
+function constrainToSafe(key,x,y,opts){
+  if(S.showSafeMargin===false)return{x,y};
+  const safe=getSafeRect();
+  const b=getElementPlateBounds(key,{x,y},opts);
+  let nx=x,ny=y;
+  if(b.left<safe.left)nx+=safe.left-b.left;
+  if(b.right>safe.right)nx-=b.right-safe.right;
+  if(b.top<safe.top)ny+=safe.top-b.top;
+  if(b.bottom>safe.bottom)ny-=b.bottom-safe.bottom;
+  return{x:nx,y:ny};
+}
+
 function buildDragHandles(opts){
   const wrap=document.getElementById('cvWrap');
   wrap.querySelectorAll('.dh').forEach(e=>e.remove());
@@ -1699,6 +1770,9 @@ function buildDragHandles(opts){
         const onup=()=>{
           document.removeEventListener('mousemove',onmove);document.removeEventListener('mouseup',onup);
           document.removeEventListener('touchmove',onmove);document.removeEventListener('touchend',onup);
+          const pp=getPos(item.key);
+          const c=constrainToSafe(item.key,pp.x,pp.y,buildRenderOpts());
+          if(c.x!==pp.x||c.y!==pp.y){S.pos[item.key]={...pp,x:c.x,y:c.y};render()}
         };
         document.addEventListener('mousemove',onmove);document.addEventListener('mouseup',onup);
         document.addEventListener('touchmove',onmove,{passive:false});document.addEventListener('touchend',onup);
@@ -1727,21 +1801,37 @@ function buildDragHandles(opts){
 // ── HILFSLINIEN ───────────────────────────
 function buildGuideLines(){
   const wrap=document.getElementById('cvWrap');
-  wrap.querySelectorAll('.guide-layer').forEach(e=>e.remove());
-  if(!S.showGuides)return;
+  wrap.querySelectorAll('.guide-layer,.safe-layer').forEach(e=>e.remove());
   const cv=document.getElementById('plateCanvas');
   const sc=cv.width/W;
-  const layer=document.createElement('div');
-  layer.className='guide-layer';
-  const add=(cls,style)=>{const d=document.createElement('div');d.className='guide-line '+cls;Object.assign(d.style,style);layer.appendChild(d)};
   const z=v=>Math.round(v*sc)+'px';
-  add('guide-v',{left:z(W/2)});
-  add('guide-h',{top:z(H/2)});
-  [W/3,2*W/3].forEach(x=>add('guide-v minor',{left:z(x)}));
-  [H/3,2*H/3].forEach(y=>add('guide-h minor',{top:z(y)}));
-  [W*.1,W*.9].forEach(x=>add('guide-v edge',{left:z(x)}));
-  [H*.12,H*.88].forEach(y=>add('guide-h edge',{top:z(y)}));
-  wrap.insertBefore(layer,wrap.firstChild.nextSibling);
+  if(S.showGuides){
+    const layer=document.createElement('div');
+    layer.className='guide-layer';
+    const add=(cls,style)=>{const d=document.createElement('div');d.className='guide-line '+cls;Object.assign(d.style,style);layer.appendChild(d)};
+    add('guide-v',{left:z(W/2)});
+    add('guide-h',{top:z(H/2)});
+    [W/3,2*W/3].forEach(x=>add('guide-v minor',{left:z(x)}));
+    [H/3,2*H/3].forEach(y=>add('guide-h minor',{top:z(y)}));
+    [W*.1,W*.9].forEach(x=>add('guide-v edge',{left:z(x)}));
+    [H*.12,H*.88].forEach(y=>add('guide-h edge',{top:z(y)}));
+    wrap.insertBefore(layer,wrap.firstChild.nextSibling);
+  }
+  if(S.showSafeMargin!==false){
+    const safe=getSafeRect();
+    const layer=document.createElement('div');
+    layer.className='safe-layer';
+    const box=document.createElement('div');
+    box.className='guide-safe';
+    box.style.cssText=`left:${z(safe.left)};top:${z(safe.top)};width:${z(safe.right-safe.left)};height:${z(safe.bottom-safe.top)}`;
+    layer.appendChild(box);
+    const lbl=document.createElement('div');
+    lbl.className='guide-safe-lbl';
+    lbl.textContent='3 mm Druckrand';
+    lbl.style.cssText=`left:${z(safe.left+4)};top:${z(safe.top+3)}`;
+    layer.appendChild(lbl);
+    wrap.insertBefore(layer,wrap.firstChild.nextSibling);
+  }
 }
 
 // ── SNAPPING ──────────────────────────────
@@ -1757,6 +1847,11 @@ function snapAxis(v,targets,tol){
 function applySnap(x,y){
   const vT=[W/2,W/3,2*W/3,W*.1,W*.9];
   const hT=[H/2,H/3,2*H/3,H*.12,H*.88];
+  if(S.showSafeMargin!==false){
+    const s=getSafeRect();
+    vT.push(s.left,s.right);
+    hT.push(s.top,s.bottom);
+  }
   let sx=snapAxis(x,vT,SNAP_TOL);
   if(!sx.on)sx=snapAxis(x,vT,SNAP_MINOR);
   let sy=snapAxis(y,hT,SNAP_TOL);
@@ -1781,7 +1876,9 @@ function moveDrag(e){
   const cur=getPos(key);
   let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
   const sn=applySnap(nx,ny);
-  S.pos[key]={...cur,x:sn.x,y:sn.y};
+  const opts=buildRenderOpts();
+  const c=constrainToSafe(key,sn.x,sn.y,opts);
+  S.pos[key]={...cur,x:c.x,y:c.y};
   showSnap(sn.snV,sn.snH,sn.x,sn.y);
   if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
     const cv=document.getElementById('plateCanvas');
@@ -1817,7 +1914,10 @@ document.addEventListener('keydown',e=>{
   if(!d)return;
   e.preventDefault();
   const cur=getPos(S.sel);
-  S.pos[S.sel]={...cur,x:Math.max(0,Math.min(W,cur.x+d[0])),y:Math.max(0,Math.min(H,cur.y+d[1]))};
+  const opts=buildRenderOpts();
+  const raw={x:Math.max(0,Math.min(W,cur.x+d[0])),y:Math.max(0,Math.min(H,cur.y+d[1]))};
+  const c=constrainToSafe(S.sel,raw.x,raw.y,opts);
+  S.pos[S.sel]={...cur,x:c.x,y:c.y};
   persistSession();render();
 });
 
