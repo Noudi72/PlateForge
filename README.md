@@ -58,6 +58,10 @@ Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badg
 - Nummer: **— wie Name —** oder eigene Schrift (z. B. Bebas für den Namen, Teko für die Ziffer).
 - Eigene Fonts: zuerst **Name**- oder **Nummer**-Dropdown fokussieren, dann Font hochladen oder in der Liste wählen.
 
+### Lange Namen (z. B. GROSSNIKLAUS)
+
+Unter **Design → Badge & Grössen**: Toggle **Lange Namen separat**, dann **Ab Zeichen** (Standard 10) und **Schriftgrösse (lang)**. Kurze Namen (SERI, MATHEY) behalten **Name (kurz)**; ab der eingestellten Zeichenlänge gilt die kleinere Schrift. In der Spieler-Navigation steht dann z. B. `· Name 150px`.
+
 ### Zwei Logos & Hilfslinien
 
 - **Club-Logo 1 / 2** – separates Upload, Grösse unter Design → Badge & Grössen, Drag & Ecke zum Skalieren  
