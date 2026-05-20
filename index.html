@@ -286,7 +286,13 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
           <button class="align-btn"    data-b="diamond" onclick="setBadge('diamond')"><span class="badge-ico">◆</span>Raute</button>
         </div>
       </div>
-      <div class="fg"><label class="fl">Badge-Farbe</label><div class="sw-row" id="swBadge"></div></div>
+      <div id="badgeExtraRow" style="display:none">
+        <div class="fg"><label class="fl">Badge-Füllung</label><div class="sw-row" id="swBadge"></div></div>
+        <div class="fg"><label class="fl">Füllung Deckkraft</label>
+          <div class="sl-row"><input type="range" min="0" max="100" value="100" id="slBadgeFillOp" oninput="S.badgeFillOp=+this.value/100;render();sv('slBadgeFillOp','vlBadgeFillOp','%')"><span class="sl-v" id="vlBadgeFillOp">100%</span></div>
+        </div>
+        <div class="fg"><label class="fl">Umrandung</label><div class="sw-row" id="swBadgeBorder"></div></div>
+      </div>
       <div class="fg" id="badgeScaleRow">
         <label class="fl">Badge-Grösse</label>
         <div class="sl-row"><input type="range" min="25" max="160" value="72" id="slBadgeScale" oninput="S.badgeScale=+this.value;render();sv('slBadgeScale','vlBadgeScale','%')"><span class="sl-v" id="vlBadgeScale">72%</span></div>
@@ -463,6 +469,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
             </select></div>
         </div>
         <div class="tog-row" style="margin-top:4px"><span class="tog-lbl">Schnittmarken</span><div class="tog on" id="togPdfCutMarks" onclick="togPdfCutMarks()"></div></div>
+        <div class="tog-row"><span class="tog-lbl">+ Einzelseiten (Canva)</span><div class="tog on" id="togPdfSingle" onclick="togPdfSingle()"></div></div>
       </div>
       <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="exportPrintPdfCurrent()">📄 PDF Druck (200×55 mm)</button>
       <div id="expFormatHint" style="font-size:.65rem;color:var(--mut);margin-top:6px;line-height:1.5">
@@ -581,10 +588,10 @@ const S={
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
-  badge:'none',badgeColor:'#C8102E',badgeScale:72,
+  badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,
   userTplId:null, // id der geladenen eigenen Vorlage
   // export
-  exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,
+  exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
   // currently selected drag element (for keyboard nudging)
   sel:null,
   club:'EHC BIEL-BIENNE',leagueTxt:'NATIONAL LEAGUE',
@@ -776,6 +783,13 @@ function refreshSwatches(){
   [['swBg1','bg1'],['swBg2','bg2'],['swAcc','acc'],['swNc','nc'],['swNrc','nrc']].forEach(([id,k])=>mkSwatch(id,k));
   mkSwatchG('swGlow', ()=>S.glowColor, v=>S.glowColor=v);
   mkSwatchG('swBadge',()=>S.badgeColor,v=>S.badgeColor=v);
+  mkSwatchG('swBadgeBorder',()=>S.badgeBorderColor||'#FFFFFF',v=>S.badgeBorderColor=v);
+}
+function hexToRgba(hex,a){
+  const h=String(hex||'#000').replace('#','');
+  if(h.length!==6)return`rgba(0,0,0,${a})`;
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return`rgba(${r},${g},${b},${Math.max(0,Math.min(1,a))})`;
 }
 
 // ══════════════════════════════════════════
@@ -969,7 +983,7 @@ function getDesignSnapshotBase(){
   return{
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
-    badge:S.badge,badgeColor:S.badgeColor,badgeScale:S.badgeScale??72,
+    badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
@@ -979,7 +993,7 @@ function getDesignSnapshotBase(){
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub'),leagueTxt:getVal('iLeague'),
     pos:JSON.parse(JSON.stringify(S.pos||{})),
-    exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,
+    exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,pdfIncludeSingle:S.pdfIncludeSingle!==false,
   };
 }
 async function buildDesignSnapshot(includeImages){
@@ -1019,6 +1033,7 @@ function applyStateToUI(){
   document.getElementById('slName').value=S.nameSz;sv('slName','vlName');
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
+  document.getElementById('slBadgeFillOp').value=Math.round((S.badgeFillOp??1)*100);sv('slBadgeFillOp','vlBadgeFillOp','%');
   document.getElementById('slFrame').value=S.frameW;sv('slFrame','vlFrame');
   document.getElementById('slBgOp').value=Math.round((S.bgOp??.4)*100);sv('slBgOp','vlBgOp','%');
   document.getElementById('slLogoOp').value=Math.round((S.logoOp??1)*100);sv('slLogoOp','vlLogoOp','%');
@@ -1029,11 +1044,14 @@ function applyStateToUI(){
   document.getElementById('selExpFormat').value=S.exportFormat;
   const ps=document.getElementById('selPdfSheet');if(ps)ps.value=S.pdfSheet||'a4';
   const cm=document.getElementById('togPdfCutMarks');if(cm)cm.classList.toggle('on',S.pdfCutMarks!==false);
+  const ps1=document.getElementById('togPdfSingle');if(ps1)ps1.classList.toggle('on',S.pdfIncludeSingle!==false);
   syncExportUi();
   ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===S.textAlign));
   syncVAlignUi();
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===S.badge));
-  document.getElementById('badgeScaleRow').style.display=(S.badge&&S.badge!=='none')?'block':'none';
+  const badgeOn=S.badge&&S.badge!=='none';
+  document.getElementById('badgeScaleRow').style.display=badgeOn?'block':'none';
+  const be=document.getElementById('badgeExtraRow');if(be)be.style.display=badgeOn?'block':'none';
   Object.entries(TOG_MAP).forEach(([k,prop])=>{
     const id='tog'+(k==='logoBand'?'LogoBand':k.charAt(0).toUpperCase()+k.slice(1));
     const el=document.getElementById(id);
@@ -1052,6 +1070,8 @@ async function applyDesignSnapshot(snap,opts={}){
   S.textVAlign=snap.textVAlign||'alphabetic';
   S.badge=snap.badge||'none';
   S.badgeColor=snap.badgeColor||'#C8102E';
+  S.badgeFillOp=snap.badgeFillOp??1;
+  S.badgeBorderColor=snap.badgeBorderColor||'#FFFFFF';
   S.badgeScale=snap.badgeScale??72;
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
@@ -1066,7 +1086,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
   S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';
-  S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;
+  S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;S.pdfIncludeSingle=snap.pdfIncludeSingle!==false;
   persistActiveFont();
   applyStateToUI();
   setBadge(S.badge);
@@ -1271,8 +1291,11 @@ function importTemplatesJson(inp){
 function setBadge(shape){
   S.badge=shape;
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===shape));
+  const on=shape!=='none';
   const row=document.getElementById('badgeScaleRow');
-  if(row)row.style.display=shape!=='none'?'block':'none';
+  if(row)row.style.display=on?'block':'none';
+  const extra=document.getElementById('badgeExtraRow');
+  if(extra)extra.style.display=on?'block':'none';
   persistSession();render();
 }
 
@@ -2071,7 +2094,7 @@ function drawPlate(canvas,w,h,opts,thumb){
     ctx.fillText(nrText,nrX,nrY);ctx.shadowColor='transparent';
   }else if(hasBadge){
     const Rp=Z(badgeR(nr,nrSz,font,opts.badgeScale??S.badgeScale??72));
-    drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.shadowOn);
+    drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.badgeFillOp??1,opts.badgeBorderColor||'#FFFFFF',opts.shadowOn);
     ctx.textAlign='center';ctx.textBaseline='middle';
     drawFxText(ctx,nrText,nrX,nrY,c.nrc,opts,Z);
   }else{
@@ -2181,10 +2204,10 @@ function drawFxText(ctx,text,x,y,color,opts,Z){
 // ══════════════════════════════════════════
 // NUMBER BADGE – circle / shield / hexagon / diamond
 // ══════════════════════════════════════════
-function drawBadge(ctx,shape,cx,cy,R,color,withShadow){
+function drawBadge(ctx,shape,cx,cy,R,fillColor,fillOp,borderColor,withShadow){
   ctx.save();
   if(withShadow){ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=R*.30;ctx.shadowOffsetY=R*.12}
-  ctx.fillStyle=color;
+  ctx.fillStyle=hexToRgba(fillColor,fillOp==null?1:fillOp);
   ctx.beginPath();
   if(shape==='circle'){
     ctx.arc(cx,cy,R*1.16,0,Math.PI*2);
@@ -2203,10 +2226,9 @@ function drawBadge(ctx,shape,cx,cy,R,color,withShadow){
     ctx.closePath();
   }
   ctx.fill();
-  // inner ring outline
   ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
   ctx.lineWidth=Math.max(2,R*.08);
-  ctx.strokeStyle='rgba(255,255,255,.8)';
+  ctx.strokeStyle=borderColor||'#FFFFFF';
   ctx.stroke();
   ctx.restore();
 }
@@ -2266,7 +2288,13 @@ function togPdfCutMarks(){
   S.pdfCutMarks=!S.pdfCutMarks;
   const el=document.getElementById('togPdfCutMarks');
   if(el)el.classList.toggle('on',S.pdfCutMarks);
-  persistSession();
+  syncExportUi();persistSession();
+}
+function togPdfSingle(){
+  S.pdfIncludeSingle=!S.pdfIncludeSingle;
+  const el=document.getElementById('togPdfSingle');
+  if(el)el.classList.toggle('on',S.pdfIncludeSingle);
+  syncExportUi();persistSession();
 }
 function getSheetSizeMm(sheet){
   return SHEET_SIZES[sheet||S.pdfSheet||'a4']||SHEET_SIZES.a4;
@@ -2294,8 +2322,9 @@ function syncExportUi(){
     if(pdfOn){
       const sh=(S.pdfSheet||'a4').toUpperCase();
       const n=sheetLayout().perPage;
-      const cuts=S.pdfCutMarks!==false?' mit Schnittmarken':'';
-      hint.innerHTML=`PDF <strong>${sh}</strong>: bis <strong>${n} Schilder</strong>/Seite (je 200×55&nbsp;mm)${cuts}. „Alle“ = ein PDF. Auflösung = Bildschärfe.`;
+      const cuts=S.pdfCutMarks!==false?' · Schnittmarken':'';
+      const canva=S.pdfIncludeSingle!==false?' · danach <strong>Einzelseiten</strong> (200×55&nbsp;mm, Canva)':'';
+      hint.innerHTML=`PDF <strong>${sh}</strong>: bis <strong>${n}</strong>/Bogen${cuts}${canva}. Auflösung = Bildschärfe.`;
     }else hint.innerHTML='„📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.';
   }
 }
@@ -2392,6 +2421,11 @@ function addPlateToPdfPage(doc,cv,slot,layout){
   doc.addImage(cv.toDataURL('image/png',1),'PNG',x,y,w,h,undefined,'FAST');
   drawCutMarks(doc,x,y,w,h);
 }
+function addSinglePlatePdfPage(doc,cv){
+  doc.addPage([PLATE_PRINT_W_MM,PLATE_PRINT_H_MM],'landscape');
+  doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
+  if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM);
+}
 async function buildPdfFromPlayers(players,filename){
   const sheet=S.pdfSheet||'a4';
   const doc=await newPrintPdfDoc();
@@ -2401,18 +2435,26 @@ async function buildPdfFromPlayers(players,filename){
     if(i>0&&slot===0)doc.addPage(sheet,'p');
     addPlateToPdfPage(doc,renderExportCanvas(p),slot,layout);
   });
+  let singleCount=0;
+  if(S.pdfIncludeSingle!==false){
+    players.forEach(p=>{
+      addSinglePlatePdfPage(doc,renderExportCanvas(p));
+      singleCount++;
+    });
+  }
   doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
-  return layout;
+  return{...layout,singleCount,tiledPages:Math.ceil(players.length/layout.perPage)};
 }
-async function downloadPdfCanvas(cv,filename){
-  const doc=await newPrintPdfDoc();
-  const layout=sheetLayout();
-  addPlateToPdfPage(doc,cv,0,layout);
-  doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
-}
-async function downloadExport(cv,filename){
+async function downloadExport(cv,filename,player){
   if(S.exportFormat==='pdf'||/\.pdf$/i.test(filename)){
-    await downloadPdfCanvas(cv,filename);
+    if(player)await buildPdfFromPlayers([player],filename);
+    else{
+      const doc=await newPrintPdfDoc();
+      const layout=sheetLayout();
+      addPlateToPdfPage(doc,cv,0,layout);
+      if(S.pdfIncludeSingle!==false)addSinglePlatePdfPage(doc,cv);
+      doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
+    }
     return;
   }
   dlCv(cv,filename);
@@ -2421,10 +2463,12 @@ async function exportCurrent(){
   const p=activeP();
   const ext=S.exportFormat==='pdf'?'pdf':S.exportFormat;
   try{
-    await downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+ext);
+    if(S.exportFormat==='pdf')await buildPdfFromPlayers([p],exportFileName(p)+'.pdf');
+    else await downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+ext);
     if(S.exportFormat==='pdf'){
-      const layout=sheetLayout();
-      showOk(`PDF ${(S.pdfSheet||'a4').toUpperCase()} – 1 Schild (bis ${layout.perPage}/Seite).`);
+      const r=sheetLayout();
+      const extra=S.pdfIncludeSingle!==false?' + 1 Canva-Seite':'';
+      showOk(`PDF ${(S.pdfSheet||'a4').toUpperCase()} (Bogen${extra}).`);
     }
   }catch(e){showErr('Export fehlgeschlagen: '+(e.message||e))}
 }
@@ -2442,8 +2486,8 @@ async function exportPrintPdfCurrent(){
 }
 async function exportAllPdf(){
   const layout=await buildPdfFromPlayers(S.roster,safeName(S.club||'team')+'_nameplates.pdf');
-  const pages=Math.ceil(S.roster.length/layout.perPage);
-  showOk(`${S.roster.length} Schilder auf ${pages} ${layout.sheet.toUpperCase()}-Seite(n) (${layout.perPage}/Seite).`);
+  const canva=layout.singleCount?` + ${layout.singleCount} Einzelseiten (Canva)`:'';
+  showOk(`${S.roster.length} Schilder: ${layout.tiledPages} ${layout.sheet.toUpperCase()}-Bogen${canva}.`);
 }
 async function exportAll(){
   if(!S.roster.length){alert('Kein Roster!');return}
@@ -2489,7 +2533,11 @@ function renderBatch(){
     drawPlate(cv,bw,bh,makeFullOpts(p),false);
     const lbl=document.createElement('div');lbl.className='batch-lbl';lbl.textContent=`#${p.nr} ${(p.last||p.first)}`;
     const dlb=document.createElement('button');dlb.className='batch-dl';dlb.textContent='💾';
-    dlb.onclick=()=>downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+(S.exportFormat==='pdf'?'pdf':S.exportFormat));
+    dlb.onclick=()=>{
+      const fn=exportFileName(p)+'.'+(S.exportFormat==='pdf'?'pdf':S.exportFormat);
+      if(S.exportFormat==='pdf')buildPdfFromPlayers([p],fn).catch(e=>showErr('PDF: '+(e.message||e)));
+      else downloadExport(renderExportCanvas(p),fn);
+    };
     wrap.appendChild(cv);wrap.appendChild(lbl);wrap.appendChild(dlb);g.appendChild(wrap);
   });
 }

@@ -67,6 +67,12 @@ Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badg
 
 - **Optionen → Export → PDF (Druck)** oder **📄 PDF Druck (200×55 mm)**  
 - Jedes Schild bleibt **200 × 55 mm** gross, mehrere pro Bogen: **A4** (5/Seite) oder **A3** (7/Seite)  
+- **+ Einzelseiten (Canva):** zusätzlich je Schild eine eigene PDF-Seite (200×55 mm) – ideal für Canva/Online-Druck  
 - **Schnittmarken** an Ecken und Kantenmitte zum Zuschneiden (ein/aus)  
-- **📦 Alle PDF** / Batch: ein PDF mit allen Spielern, automatisch auf Bogen verteilt  
+- **📦 Alle PDF** / Batch: ein PDF mit allen Spielern (Bogen + optional Einzelseiten)  
 - **Auflösung** 2× empfohlen für schärfere Rastergrafik im PDF
+
+### Nummern-Badge (Erweitert)
+
+- **Badge-Füllung** + **Deckkraft** (Transparenz im Kreis)  
+- **Umrandung** – eigene Farbe wählbar (Standard: Weiss)
