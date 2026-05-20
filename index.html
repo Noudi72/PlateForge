@@ -202,12 +202,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Eigene Vorlagen</div>
-      <button class="btn btn-r btn-sm" type="button" style="width:100%;margin-bottom:8px" onclick="createNewDesign()">✨ Neu erstellen</button>
-      <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:8px">
-        Leeres Design von Grund auf – überschreibt keine gespeicherte Vorlage. Roster bleibt erhalten.
-      </div>
       <div class="fg">
-        <label class="fl">Name (beim Speichern)</label>
+        <label class="fl">Name</label>
         <input class="fi" id="userTplName" placeholder="z. B. Team Spirit 2026" maxlength="40">
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
@@ -231,7 +227,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="sb-ttl">Layout</div>
       <div class="fg">
         <label class="fl">Ausrichtung</label>
-        <select class="fi" id="selLayout" onchange="onLayoutChange()">
+        <select class="fi" id="selLayout" onchange="resetPos()">
           <option value="L">Logo Links</option>
           <option value="R">Logo Rechts</option>
           <option value="S">Split (Nr | Name)</option>
@@ -256,9 +252,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </div>
     </div>
     <div class="sb-sec">
-      <div class="sb-ttl">Schriftarten</div>
-      <label class="fl">Name</label>
-      <select class="fi" id="selFont" style="margin-bottom:5px" onfocus="S.fontPickTarget='name'" onchange="S.font=this.value;persistFonts();buildFontGrid('name');buildFontGrid('nr');render()">
+      <div class="sb-ttl">Schriftart</div>
+      <select class="fi" id="selFont" style="margin-bottom:7px" onchange="S.font=this.value;persistActiveFont();render()">
         <option value="'Bebas Neue'">Bebas Neue</option>
         <option value="'Oswald'">Oswald</option>
         <option value="'Anton'">Anton</option>
@@ -269,21 +264,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <option value="'Saira Condensed'">Saira Condensed</option>
         <option value="'Rajdhani'">Rajdhani</option>
       </select>
-      <div class="font-grid" id="fontGridName"></div>
-      <label class="fl" style="margin-top:8px">Nummer</label>
-      <select class="fi" id="selNrFont" style="margin-bottom:5px" onfocus="S.fontPickTarget='nr'" onchange="onNrFontChange(this.value)">
-        <option value="">— wie Name —</option>
-        <option value="'Bebas Neue'">Bebas Neue</option>
-        <option value="'Oswald'">Oswald</option>
-        <option value="'Anton'">Anton</option>
-        <option value="'Russo One'">Russo One</option>
-        <option value="'Black Ops One'">Black Ops One</option>
-        <option value="'Teko'">Teko</option>
-        <option value="'Barlow Condensed'">Barlow Condensed</option>
-        <option value="'Saira Condensed'">Saira Condensed</option>
-        <option value="'Rajdhani'">Rajdhani</option>
-      </select>
-      <div class="font-grid" id="fontGridNr"></div>
+      <div class="font-grid" id="fontGrid"></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Farben</div>
@@ -319,19 +300,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="fg"><label class="fl">Nummer (Schrift)</label>
         <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div>
       </div>
-      <div class="fg"><label class="fl">Name (kurz)</label>
+      <div class="fg"><label class="fl">Name</label>
         <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
-      </div>
-      <div class="fg">
-        <div class="tog-row"><span class="tog-lbl">Lange Namen separat</span><div class="tog" id="togNameLong" onclick="togNameLong()"></div></div>
-        <div id="nameLongRows" style="display:none;margin-top:6px">
-          <label class="fl">Ab Zeichen (längste Zeile)</label>
-          <div class="sl-row"><input type="range" min="6" max="18" value="10" id="slNameLongLen" oninput="S.nameLongMinLen=+this.value;render();sv('slNameLongLen','vlNameLongLen')"><span class="sl-v" id="vlNameLongLen">10</span></div>
-          <label class="fl">Schriftgrösse (lang)</label>
-          <div class="sl-row"><input type="range" min="40" max="340" value="150" id="slNameSzLong" oninput="render();sv('slNameSzLong','vlNameSzLong')"><span class="sl-v" id="vlNameSzLong">150</span></div>
-          <div class="tog-row" style="margin-top:6px"><span class="tog-lbl">An Breite anpassen</span><div class="tog on" id="togNameAutoFit" onclick="togNameAutoFit()"></div></div>
-          <div style="font-size:.62rem;color:var(--mut);line-height:1.45;margin-top:4px">Zu breite Namen werden automatisch verkleinert, bis sie in die Zone passen.</div>
-        </div>
       </div>
       <div class="fg"><label class="fl">Logo 1 (längste Seite)</label>
         <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
@@ -608,8 +578,6 @@ const S={
   tpl:0,
   c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
   font:"'Bebas Neue'",
-  nrFont:'', // leer = gleiche Schrift wie Name
-  fontPickTarget:'name',
   layout:'L',
   textAlign:'left',
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
@@ -617,7 +585,6 @@ const S={
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
-  nameSzLong:150,nameLongOn:false,nameLongMinLen:10,nameAutoFit:true,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
@@ -659,122 +626,25 @@ function getDisplayName(p){
   if(mode==='initial') return (f?f[0]+'. ':'')+l;
   return l||f;
 }
-function nameLongestLen(nameText){
-  const lines=String(nameText||'').split('\n');
-  return Math.max(0,...lines.map(l=>l.trim().length));
-}
-function nameMaxWidthPlate(opts){
-  const safe=getSafeRect();
-  const pad=32;
-  const layout=opts.layout||getActiveLayout();
-  const namePos=getPos('name');
-  const ta=opts.textAlign||'left';
-  if(layout==='S'){
-    const zoneLeft=W*0.46+pad;
-    const zoneRight=safe.right-pad;
-    if(ta==='center')return Math.max(100,zoneRight-zoneLeft);
-    if(ta==='right')return Math.max(100,namePos.x-zoneLeft);
-    return Math.max(100,zoneRight-namePos.x);
-  }
-  if(layout==='F'){
-    const half=Math.min(namePos.x-safe.left,safe.right-namePos.x)-pad;
-    return Math.max(100,Math.max(0,half)*2);
-  }
-  const logoReserve=Math.round((opts.logoSz||140)*1.35)+80;
-  if(layout==='L')return Math.max(100,safe.right-namePos.x-pad);
-  if(layout==='R')return Math.max(100,namePos.x-safe.left-pad);
-  return Math.max(100,safe.right-safe.left-logoReserve);
-}
-function fitNameSizeToWidth(nameText,font,startSz,maxW,minSz){
-  const lines=String(nameText||'').split('\n');
-  const floor=Math.max(40,minSz||40);
-  let sz=Math.round(startSz);
-  let w=maxLineWidth(lines,sz,font);
-  if(w<=maxW||w<1)return sz;
-  sz=Math.max(floor,Math.floor(startSz*maxW/w));
-  if(maxLineWidth(lines,sz,font)>maxW&&sz>floor)sz=floor;
-  return sz;
-}
-function baseNameSz(nameText,opts){
-  const base=opts.nameSz??190;
-  if(!opts.nameLongOn)return base;
-  if(nameLongestLen(nameText)>=(opts.nameLongMinLen??10))return opts.nameSzLong??base;
-  return base;
-}
-function effectiveNameSz(nameText,opts){
-  const font=opts.font||S.font;
-  let sz=baseNameSz(nameText,opts);
-  if(opts.nameLongOn&&opts.nameAutoFit!==false){
-    sz=fitNameSizeToWidth(nameText,font,sz,nameMaxWidthPlate(opts),40);
-  }
-  return sz;
-}
-function syncNameLongUi(){
-  const on=!!S.nameLongOn;
-  const t=document.getElementById('togNameLong');
-  if(t)t.classList.toggle('on',on);
-  const rows=document.getElementById('nameLongRows');
-  if(rows)rows.style.display=on?'block':'none';
-  const af=document.getElementById('togNameAutoFit');
-  if(af)af.classList.toggle('on',S.nameAutoFit!==false);
-}
-function togNameLong(){
-  S.nameLongOn=!S.nameLongOn;
-  syncNameLongUi();
-  persistSession();
-  render();
-}
-function togNameAutoFit(){
-  S.nameAutoFit=!S.nameAutoFit;
-  syncNameLongUi();
-  persistSession();
-  render();
-}
 
 // ══════════════════════════════════════════
 // DEFAULT POSITIONS
 // ══════════════════════════════════════════
 function defPos(layout){
   const l2=Math.round(S.logo2Sz||90);
-  const lsz=Math.round(S.logoSz||140);
-  if(layout==='L') return{logo:{x:85,y:275,sz:lsz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
-  if(layout==='R') return{logo:{x:1915,y:275,sz:lsz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
-  // Split: Nummer links, Name rechts (getrennte Zonen)
-  if(layout==='S') return{logo:{x:1780,y:275,sz:lsz},logo2:{x:110,y:275,sz:l2},name:{x:1220,y:H/2},nr:{x:400,y:H/2}};
-  // Fullscreen: Nummer + Name zentriert übereinander
-  if(layout==='F') return{logo:{x:95,y:275,sz:Math.round(lsz*.75)},logo2:{x:1905,y:275,sz:l2},name:{x:W/2,y:H/2+75},nr:{x:W/2,y:H/2-55}};
-  return{logo:{x:85,y:275,sz:lsz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
-}
-function getActiveLayout(){
-  const el=document.getElementById('selLayout');
-  return(el&&el.value)||S.layout||'L';
-}
-function ensurePosForLayout(lay){
-  const layout=lay||getActiveLayout();
-  if(!S.pos||!Object.keys(S.pos).length)return;
-  const nx=S.pos.name?.x,nrx=S.pos.nr?.x;
-  if(layout==='F'&&(nx>1100||(nrx!=null&&nrx<800)))S.pos={};
-  else if(layout==='S'&&(nx!=null&&nx<1100&&(nrx==null||nrx>800)))S.pos={};
-}
-function onLayoutChange(){
-  S.layout=getVal('selLayout');
-  S.pos={};
-  persistSession();
-  render();
+  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
+  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
+  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355}};
+  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
 }
 function getPos(key){
-  const d=defPos(getActiveLayout());
+  const d=defPos(S.layout);
   let base=d[key];
-  if(key==='nr'&&S.badge&&S.badge!=='none'&&getActiveLayout()!=='F'){
-    base={...base,y:H/2};
-  }
+  // when a badge is active, the number anchor is its CENTER → use a vertically centred default
+  if(key==='nr'&&S.badge&&S.badge!=='none')base={...base,y:H/2};
   return S.pos[key]?{...base,...S.pos[key]}:base;
 }
-function resetPos(){
-  S.pos={};
-  persistSession();
-  render();
-}
+function resetPos(){S.pos={};persistSession();render()}
 
 // Spielerdaten ohne Kollision mit S.pos (Layout-Koordinaten)
 function playerOpts(p){
@@ -787,10 +657,7 @@ function playerOpts(p){
   };
 }
 function buildRenderOpts(){
-  const p=activeP();
-  const ro=readSizeOpts();
-  const nameText=getDisplayName(p);
-  return{...S,...ro,...playerOpts(p),nameText,effNameSz:effectiveNameSz(nameText,ro)};
+  return{...S,...readSizeOpts(),...playerOpts(activeP())};
 }
 function persistRoster(){
   try{
@@ -819,7 +686,6 @@ async function restoreSession(){
     const d=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
     if(!d||!d.snap)return;
     await applyDesignSnapshot(d.snap,{restoreImages:false});
-    markDesignSaved();
   }catch(e){}
 }
 
@@ -844,35 +710,15 @@ function switchMain(view){
 // TEXT ALIGN
 // ══════════════════════════════════════════
 // Textbreite (eine Zeile) für Ausrichtungs-Korrektur
-function getNrFont(){return S.nrFont||S.font;}
-function isCustomFontFamily(fontFamily){
-  return S.savedFonts.some(sf=>sf.fontFamily===fontFamily);
-}
-function canvasFont(fontPx,fontFamily){
-  const f=fontFamily||"'Bebas Neue'";
-  return isCustomFontFamily(f)?`${fontPx}px ${f}`:`${fontPx}px ${f},sans-serif`;
-}
-function ensureFontLoadedSync(fontPx,fontFamily){
-  if(!document.fonts)return;
-  try{document.fonts.load(canvasFont(fontPx,fontFamily));}catch(e){}
-}
 function measureTextWidth(text,fontPx,fontFamily){
-  ensureFontLoadedSync(fontPx,fontFamily);
   const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=canvasFont(fontPx,fontFamily);
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
   return ctx.measureText(text||' ').width;
 }
 function maxLineWidth(lines,fontPx,fontFamily){
-  ensureFontLoadedSync(fontPx,fontFamily);
   const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=canvasFont(fontPx,fontFamily);
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
   return Math.max(...lines.map(l=>ctx.measureText(l||' ').width),1);
-}
-function maxLineInkSpan(lines,fontPx,fontFamily){
-  return Math.max(...lines.map(l=>{
-    const ex=textExtent(fontPx,fontFamily,l);
-    return(ex.inkL>0&&ex.inkR>0)?ex.inkL+ex.inkR:ex.w;
-  }),1);
 }
 function anchorOffsetX(align,w){
   if(align==='center')return w/2;
@@ -883,39 +729,26 @@ function anchorOffsetX(align,w){
 function setAlign(a){
   if(a===S.textAlign)return;
   const old=S.textAlign;
-  const lay=getActiveLayout();
   const p=activeP();
-  const nameFont=S.font;
-  const nrFont=getNrFont();
+  const font=S.font;
   const nameText=getDisplayName(p);
   const nameLines=nameText.split('\n');
-  const nameRo={nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),nameLongOn:S.nameLongOn,nameLongMinLen:S.nameLongMinLen??10};
-  const nameSzEff=effectiveNameSz(nameText,nameRo);
-  const wName=S.textAlign==='center'?maxLineInkSpan(nameLines,nameSzEff,nameFont):maxLineWidth(nameLines,nameSzEff,nameFont);
+  const wName=maxLineWidth(nameLines,getInt('slName'),font);
   const badgeOn=S.badge&&S.badge!=='none';
   const nrStr=String(p.nr||'');
-  const nrSz=getInt('slNrSz');
-  function setAnchorX(key,w){
-    const def=defPos(lay)[key];
-    const merged={...def,...S.pos[key]};
-    if(lay==='F'&&a==='center'){
-      S.pos[key]={...merged,x:W/2};
-      return;
-    }
+  const wNr=badgeOn?0:measureTextWidth(nrStr,getInt('slNrSz'),font);
+  function shiftKey(key,w){
     if(!w)return;
-    const newX=merged.x-anchorOffsetX(old,w)+anchorOffsetX(a,w);
+    const base=getPos(key);
+    const merged={...base,...S.pos[key]};
+    const curX=merged.x;
+    const newX=curX-anchorOffsetX(old,w)+anchorOffsetX(a,w);
     S.pos[key]={...merged,x:newX};
   }
-  if(badgeOn){
-    const bb=badgeBoundsHalf(nrStr,nrSz,nrFont,S.badgeScale??72,S.badge);
-    setAnchorX('nr',bb.halfW*2);
-  }else{
-    setAnchorX('nr',measureTextWidth(nrStr,nrSz,nrFont));
-  }
-  setAnchorX('name',wName);
+  shiftKey('name',wName);
+  if(!badgeOn)shiftKey('nr',wNr);
   S.textAlign=a;
   ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===a));
-  persistSession();
   render();
 }
 function syncVAlignUi(){
@@ -925,7 +758,6 @@ function syncVAlignUi(){
 function setVAlign(v){
   S.textVAlign=v;
   syncVAlignUi();
-  persistSession();
   render();
 }
 
@@ -963,53 +795,27 @@ function hexToRgba(hex,a){
 // ══════════════════════════════════════════
 // FONT GRID + SAVED FONTS
 // ══════════════════════════════════════════
-function onNrFontChange(v){
-  S.nrFont=v||'';
-  persistFonts();
-  buildFontGrid('name');
-  buildFontGrid('nr');
-  render();
-}
-function buildFontGrid(target){
-  const id=target==='nr'?'fontGridNr':'fontGridName';
-  const g=document.getElementById(id);
-  if(!g)return;
-  g.innerHTML='';
-  const cur=target==='nr'?getNrFont():S.font;
+function buildFontGrid(){
+  const g=document.getElementById('fontGrid');g.innerHTML='';
   BUILTIN_FONTS.forEach(f=>{
-    const d=document.createElement('div');d.className='font-opt'+(cur===f.v?' on':'');
+    const d=document.createElement('div');d.className='font-opt'+(S.font===f.v?' on':'');
     d.innerHTML=`<div class="fp" style="font-family:${f.v}">${f.l.split(' ')[0].toUpperCase()}</div><div class="fn">${f.l}</div>`;
-    d.onclick=()=>{
-      if(target==='nr'){
-        S.nrFont=f.v;
-        document.getElementById('selNrFont').value=f.v;
-      }else{
-        S.font=f.v;
-        document.getElementById('selFont').value=f.v;
-      }
-      persistFonts();
-      buildFontGrid('name');
-      buildFontGrid('nr');
-      render();
-    };
+    d.onclick=()=>{S.font=f.v;document.getElementById('selFont').value=f.v;g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
     g.appendChild(d);
   });
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
 const ACTIVE_FONT_KEY='plateforge_active_font';
-const ACTIVE_NR_FONT_KEY='plateforge_active_nr_font';
 
-function persistCustomFonts(){persistFonts()}
-function persistFonts(){
+function persistCustomFonts(){
   try{
     const payload=S.savedFonts.map(({name,fontFamily,b64,mime,ffName})=>({name,fontFamily,b64,mime,ffName}));
     localStorage.setItem(CUSTOM_FONTS_KEY,JSON.stringify(payload));
     localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'");
-    localStorage.setItem(ACTIVE_NR_FONT_KEY,S.nrFont||'');
   }catch(e){showWarn('Fonts konnten nicht dauerhaft gespeichert werden (Speicher voll?).')}
 }
-function persistActiveFont(){persistFonts()}
+function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
 function readFileAsDataUrl(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -1038,15 +844,8 @@ async function restoreCustomFonts(){
     const sel=document.getElementById('selFont');
     if(sel)sel.value=BUILTIN_FONTS.some(b=>b.v===active)?active:'';
   }
-  const activeNr=localStorage.getItem(ACTIVE_NR_FONT_KEY);
-  if(activeNr&&(BUILTIN_FONTS.some(b=>b.v===activeNr)||S.savedFonts.some(sf=>sf.fontFamily===activeNr))){
-    S.nrFont=activeNr;
-  }else S.nrFont='';
-  const selNr=document.getElementById('selNrFont');
-  if(selNr)selNr.value=S.nrFont&&BUILTIN_FONTS.some(b=>b.v===S.nrFont)?S.nrFont:'';
   renderSavedFonts();
-  buildFontGrid('name');
-  buildFontGrid('nr');
+  buildFontGrid();
 }
 async function loadFont(inp){
   const file=inp.files[0];if(!file)return;
@@ -1061,16 +860,10 @@ async function loadFont(inp){
     document.fonts.add(f);
     const fontVal=`'${ffName}'`;
     S.savedFonts.push({name:fname,fontFamily:fontVal,ffName,b64,mime,url:dataUrl});
-    if(S.fontPickTarget==='nr'){
-      S.nrFont=fontVal;
-      document.getElementById('selNrFont').value=fontVal;
-    }else{
-      S.font=fontVal;
-      document.getElementById('selFont').value='';
-    }
+    S.font=fontVal;
+    document.getElementById('selFont').value='';
     persistCustomFonts();
-    buildFontGrid('name');
-    buildFontGrid('nr');
+    buildFontGrid();
     renderSavedFonts();
     render();
     showOk(`Font „${fname}" gespeichert.`);
@@ -1085,39 +878,21 @@ function renderSavedFonts(){
   document.getElementById('customFontInfo').style.display='block';
   document.getElementById('customFontBadge').textContent=`${S.savedFonts.length} eigene Font(s) geladen`;
   S.savedFonts.forEach((sf,i)=>{
-    const on=(S.font===sf.fontFamily&&S.fontPickTarget!=='nr')||(getNrFont()===sf.fontFamily&&S.fontPickTarget==='nr');
-    const d=document.createElement('div');d.className='saved-font-item'+(on?' on':'');
+    const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
     d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
       <button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`;
-    d.onclick=e=>{
-      if(e.target.classList.contains('saved-font-del'))return;
-      if(S.fontPickTarget==='nr'){
-        S.nrFont=sf.fontFamily;
-        document.getElementById('selNrFont').value='';
-      }else{
-        S.font=sf.fontFamily;
-        document.getElementById('selFont').value='';
-      }
-      document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));
-      d.classList.add('on');
-      persistFonts();
-      buildFontGrid('name');
-      buildFontGrid('nr');
-      render();
-    };
+    d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;S.font=sf.fontFamily;document.getElementById('selFont').value='';document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
     el.appendChild(d);
   });
 }
 
 function removeSavedFont(i,e){
   e.stopPropagation();
-  const ff=S.savedFonts[i].fontFamily;
-  if(S.font===ff)S.font="'Bebas Neue'";
-  if(S.nrFont===ff)S.nrFont='';
+  if(S.font===S.savedFonts[i].fontFamily)S.font="'Bebas Neue'";
   S.savedFonts.splice(i,1);
   persistCustomFonts();
   persistActiveFont();
-  renderSavedFonts();buildFontGrid('name');buildFontGrid('nr');render();
+  renderSavedFonts();buildFontGrid();render();
 }
 
 // ══════════════════════════════════════════
@@ -1146,82 +921,6 @@ function buildTplGrid(){
     const thumbOpts={...S,...s,tpl:s.tpl??0,c:s.c,last:'MÜLLER',first:'',nr:'17',playerPos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badgeScale:s.badgeScale??72};
     drawPlate(cv,200,50,thumbOpts,true);
   });
-}
-function getDefaultDesignFields(){
-  return{
-    tpl:0,
-    c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
-    font:"'Bebas Neue'",nrFont:'',layout:'L',textAlign:'left',textVAlign:'alphabetic',nameMode:'last',
-    logoSz:140,logo2Sz:90,nameSz:190,nameSzLong:150,nameLongOn:false,nameLongMinLen:10,nameAutoFit:true,nrSz:260,frameW:10,bgOp:.4,logoOp:1,
-    frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,
-    showGuides:true,showSafeMargin:true,shadowOn:true,glowOn:false,glowColor:'#00BFFF',
-    shBlur:10,shDist:4,glowSize:26,
-    badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,
-    userTplId:null,pos:{},club:'EHC BIEL-BIENNE',leagueTxt:'NATIONAL LEAGUE',
-    exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
-    sel:null,
-  };
-}
-let savedDesignHash=null;
-function snapHashForCompare(snap){
-  const s={...(snap||getDesignSnapshotBase())};
-  delete s.logoData;delete s.logo2Data;delete s.bgData;
-  delete s.logoIsSvg;delete s.logo2IsSvg;
-  return JSON.stringify(s);
-}
-function defaultDesignSnapHash(){
-  const d=getDefaultDesignFields();
-  const t=TMPL[0];
-  d.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
-  d.badgeColor=t.acc;
-  return snapHashForCompare(d);
-}
-function markDesignSaved(){
-  savedDesignHash=snapHashForCompare(getDesignSnapshotBase());
-}
-function designHasUnsavedWork(){
-  if(!savedDesignHash)return snapHashForCompare(getDesignSnapshotBase())!==defaultDesignSnapHash();
-  return snapHashForCompare(getDesignSnapshotBase())!==savedDesignHash;
-}
-function createNewDesign(){
-  if(designHasUnsavedWork()&&!confirm(
-    'Neues Design von Grund auf starten?\n\n'+
-    (savedDesignHash
-      ?'Änderungen seit dem letzten Speichern gehen verloren.'
-      :'Das aktuelle Layout geht verloren (noch nicht als Vorlage gespeichert).')+
-    '\nGespeicherte Vorlagen in der Liste bleiben unverändert.\n'+
-    'Das Kader bleibt erhalten.'
-  ))return;
-  const keepRoster=S.roster.slice();
-  const keepActive=S.active;
-  const keepFonts=S.savedFonts.slice();
-  clearLogoRasterCache(S.logo);
-  clearLogoRasterCache(S.logo2);
-  Object.assign(S,getDefaultDesignFields());
-  S.roster=keepRoster;
-  S.active=Math.min(keepActive,Math.max(0,keepRoster.length-1));
-  S.savedFonts=keepFonts;
-  S.logo=null;S.logoIsSvg=false;S.logo2=null;S.logo2IsSvg=false;S.bgImg=null;
-  ['logoPrev','logo2Prev','bgPrev'].forEach(id=>{
-    const p=document.getElementById(id);if(p){p.style.display='none';p.removeAttribute('src')}
-  });
-  document.getElementById('userTplName').value='';
-  document.getElementById('tplName').textContent='NEUES DESIGN';
-  buildTplGrid();
-  renderUserTplList();
-  applyStateToUI();
-  setBadge('none');
-  syncVAlignUi();
-  refreshSwatches();
-  document.querySelectorAll('.tpl-card').forEach(c=>{
-    const bi=c.dataset.builtin,ui=c.dataset.user;
-    c.classList.toggle('on',bi==='0'&&!ui);
-  });
-  pickP(S.active);
-  markDesignSaved();
-  persistSession();
-  render();
-  showOk('Neues Design gestartet – unter „Name“ speichern, um eine neue Vorlage anzulegen.');
 }
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
@@ -1280,23 +979,13 @@ function compressImageSource(src,maxSide,quality,keepAlpha){
     img.src=src;
   });
 }
-function snapshotMediaFlags(){
-  const lp=document.getElementById('logoPrev'),l2p=document.getElementById('logo2Prev'),bp=document.getElementById('bgPrev');
-  return{
-    hasLogo:!!(S.logo&&lp&&lp.style.display!=='none'),
-    hasLogo2:!!(S.logo2&&l2p&&l2p.style.display!=='none'),
-    hasBg:!!(S.bgImg&&bp&&bp.style.display!=='none'),
-  };
-}
 function getDesignSnapshotBase(){
   return{
-    tpl:S.tpl,c:{...S.c},font:S.font,nrFont:S.nrFont||'',layout:getActiveLayout(),
+    tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
-    logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),
-    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),nameAutoFit:S.nameAutoFit!==false,
-    nrSz:getInt('slNrSz'),
+    logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
     showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
@@ -1305,7 +994,6 @@ function getDesignSnapshotBase(){
     club:getVal('iClub'),leagueTxt:getVal('iLeague'),
     pos:JSON.parse(JSON.stringify(S.pos||{})),
     exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,pdfIncludeSingle:S.pdfIncludeSingle!==false,
-    ...snapshotMediaFlags(),
   };
 }
 async function buildDesignSnapshot(includeImages){
@@ -1337,17 +1025,12 @@ async function compressSnapForStorage(snap){
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
   document.getElementById('selFont').value=S.font;
-  const selNr=document.getElementById('selNrFont');
-  if(selNr)selNr.value=S.nrFont&&BUILTIN_FONTS.some(b=>b.v===S.nrFont)?S.nrFont:'';
   document.getElementById('selNameMode').value=S.nameMode||'last';
   document.getElementById('iClub').value=S.club||'';
   document.getElementById('iLeague').value=S.leagueTxt||'';
   document.getElementById('slLogo').value=S.logoSz;sv('slLogo','vlLogo');
   document.getElementById('slLogo2').value=S.logo2Sz??90;sv('slLogo2','vlLogo2');
   document.getElementById('slName').value=S.nameSz;sv('slName','vlName');
-  document.getElementById('slNameSzLong').value=S.nameSzLong??150;sv('slNameSzLong','vlNameSzLong');
-  document.getElementById('slNameLongLen').value=S.nameLongMinLen??10;sv('slNameLongLen','vlNameLongLen');
-  syncNameLongUi();
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
   document.getElementById('slBadgeFillOp').value=Math.round((S.badgeFillOp??1)*100);sv('slBadgeFillOp','vlBadgeFillOp','%');
@@ -1375,15 +1058,13 @@ function applyStateToUI(){
     if(el)el.classList.toggle('on',!!S[prop]);
   });
   refreshSwatches();
-  buildFontGrid('name');
-  buildFontGrid('nr');
+  buildFontGrid();
 }
 async function applyDesignSnapshot(snap,opts={}){
   const restoreImages=opts.restoreImages!==false;
   S.tpl=snap.tpl??0;
   S.c={...snap.c};
   S.font=snap.font||"'Bebas Neue'";
-  S.nrFont=snap.nrFont||'';
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
@@ -1393,10 +1074,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeBorderColor=snap.badgeBorderColor||'#FFFFFF';
   S.badgeScale=snap.badgeScale??72;
   S.nameMode=snap.nameMode||'last';
-  S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;
-  S.nameSzLong=snap.nameSzLong??150;S.nameLongOn=!!snap.nameLongOn;S.nameLongMinLen=snap.nameLongMinLen??10;
-  S.nameAutoFit=snap.nameAutoFit!==false;
-  S.nrSz=snap.nrSz??260;
+  S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
   S.logoBand=snap.logoBand!==false;
@@ -1407,7 +1085,6 @@ async function applyDesignSnapshot(snap,opts={}){
   S.shBlur=snap.shBlur??10;S.shDist=snap.shDist??4;S.glowSize=snap.glowSize??26;
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
-  ensurePosForLayout(S.layout);
   S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';
   S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;S.pdfIncludeSingle=snap.pdfIncludeSingle!==false;
   persistActiveFont();
@@ -1445,9 +1122,7 @@ async function saveUserTemplate(){
   const include=document.getElementById('userTplIncImg').checked;
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
-  if(existing&&existing.id===S.userTplId){
-    // gleiche Vorlage aktualisieren
-  }else if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
+  if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
   let snap=await buildDesignSnapshot(include);
   if(include)snap=await compressSnapForStorage(snap);
   const entry={id:existing?existing.id:'ut_'+Date.now(),name,updated:Date.now(),snap};
@@ -1471,8 +1146,6 @@ async function saveUserTemplate(){
 }
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
-  markDesignSaved();
-  document.getElementById('userTplName').value=name;
   document.getElementById('tplName').textContent=name.toUpperCase();
   buildTplGrid();renderUserTplList();persistSession();render();
 }
@@ -1481,8 +1154,6 @@ async function loadUserTemplate(id){
   if(!t)return;
   S.userTplId=id;
   await applyDesignSnapshot(t.snap);
-  markDesignSaved();
-  document.getElementById('userTplName').value=t.name;
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
 }
@@ -1654,15 +1325,7 @@ function updatePlayerNav(){
   if(!n){lbl.textContent='Kein Roster';return}
   const p=S.roster[S.active];
   const nm=(p.last||p.first||'SPIELER').replace(/\n/g,' ');
-  const nameText=getDisplayName(p);
-  const ro={nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),nameLongOn:S.nameLongOn,nameLongMinLen:S.nameLongMinLen??10,nameAutoFit:S.nameAutoFit!==false,layout:getActiveLayout(),font:S.font,textAlign:S.textAlign};
-  const eff=effectiveNameSz(nameText,ro);
-  const base=baseNameSz(nameText,ro);
-  let szHint='';
-  if(S.nameLongOn&&nameLongestLen(nameText)>=(S.nameLongMinLen??10)){
-    szHint=eff<base?` · Name ${eff}px (angepasst)`:eff>base?` · Name ${eff}px`:` · Name ${eff}px (lang)`;
-  }
-  lbl.textContent=`#${p.nr} ${nm} · ${S.active+1}/${n}${szHint}`;
+  lbl.textContent=`#${p.nr} ${nm} · ${S.active+1}/${n}`;
 }
 function navPlayer(delta){
   if(S.roster.length<2)return;
@@ -1956,11 +1619,9 @@ function activeP(){
 
 function readSizeOpts(){
   return{
-    logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),
-    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),nameAutoFit:S.nameAutoFit!==false,
-    nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
+    logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    font:S.font,nrFont:getNrFont(),layout:getActiveLayout(),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    font:S.font,layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nameMode:getVal('selNameMode'),
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub')||'EHC BIEL-BIENNE',
@@ -1970,8 +1631,6 @@ function readSizeOpts(){
 }
 
 function render(){
-  S.layout=getVal('selLayout');
-  ensurePosForLayout();
   const cv=document.getElementById('plateCanvas');
   const vp=document.getElementById('cvWrap').parentElement;
   const vpW=vp.clientWidth-40;
@@ -1982,16 +1641,7 @@ function render(){
   const opts=buildRenderOpts();
   drawPlate(cv,cv.width,cv.height,opts,false);
   buildGuideLines();
-  const placeHandles=()=>buildDragHandles(opts,cv);
-  placeHandles();
-  if(document.fonts&&document.fonts.ready){
-    document.fonts.ready.then(()=>{
-      ensureFontLoadedSync(S.nameSz||getInt('slName'),S.font);
-      ensureFontLoadedSync(S.nrSz||getInt('slNrSz'),getNrFont());
-      if(!dragState)placeHandles();
-    });
-  }
-  updateSelectionAlignGuides();
+  buildDragHandles(opts);
   if(!dragState)persistSession();
 }
 
@@ -2003,118 +1653,17 @@ function render(){
   then place the div overlay exactly over that text.
 */
 let dragState=null;
-const TYPO_ASC=0.72;
-const TYPO_DES=0.22;
 
-function textExtent(fontPx,fontFamily,text){
-  ensureFontLoadedSync(fontPx,fontFamily);
-  const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=canvasFont(fontPx,fontFamily);
-  const m=ctx.measureText(text||' ');
-  let asc=m.actualBoundingBoxAscent;
-  let des=m.actualBoundingBoxDescent;
-  if(!(asc>0))asc=fontPx*TYPO_ASC;
-  if(!(des>0))des=fontPx*TYPO_DES;
-  const inkL=m.actualBoundingBoxLeft||0;
-  const inkR=m.actualBoundingBoxRight||0;
-  return{w:m.width,asc,des,inkL,inkR};
-}
-function textInkBoundsFromAnchor(ax,ex,textAlign){
-  const L=ex.inkL>0?ex.inkL:ex.w/2;
-  const R=ex.inkR>0?ex.inkR:ex.w/2;
-  if(textAlign==='center')return{left:ax-L,right:ax+R};
-  if(textAlign==='right')return{left:ax-L-R,right:ax};
-  return{left:ax-L,right:ax+R};
-}
-function textDrawOffsetX(ex,textAlign){
-  if(textAlign==='center'&&ex.inkL>0&&ex.inkR>0)return(ex.inkR-ex.inkL)/2;
-  return 0;
-}
-function nameInkUnionBounds(anchorX,lines,fontPx,fontFamily,textAlign,vA){
-  const lineYs=nameLinePlateYs(anchorX.y,fontPx,lines,fontFamily,vA);
-  let left=Infinity,right=-Infinity,top=Infinity,bot=-Infinity;
-  lines.forEach((line,i)=>{
-    const ex=textExtent(fontPx,fontFamily,line);
-    const hb=textInkBoundsFromAnchor(anchorX.x,ex,textAlign);
-    left=Math.min(left,hb.left);
-    right=Math.max(right,hb.right);
-    top=Math.min(top,lineYs[i]-ex.asc);
-    bot=Math.max(bot,lineYs[i]+ex.des);
-  });
-  if(!lines.length){left=anchorX.x;right=anchorX.x+1;top=anchorX.y;bot=anchorX.y}
-  return{left,top,right,bottom:bot};
-}
-function nrTextExtent(nrSz,font,text){
-  const ex=textExtent(nrSz,font,text);
-  ex.des=Math.min(ex.des,nrSz*0.04,ex.asc*0.07);
-  return ex;
-}
-function canvasAlphaBounds(cv,left,top,right,bottom,minAlpha){
-  const alpha=minAlpha==null?48:minAlpha;
-  const sc=cv.width/W;
-  const x0=Math.max(0,Math.floor(left*sc));
-  const y0=Math.max(0,Math.floor(top*sc));
-  const x1=Math.min(cv.width,Math.ceil(right*sc));
-  const y1=Math.min(cv.height,Math.ceil(bottom*sc));
-  if(x1<=x0+1||y1<=y0+1)return null;
-  const rw=x1-x0,rh=y1-y0;
-  const data=cv.getContext('2d').getImageData(x0,y0,rw,rh).data;
-  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-  for(let y=0;y<rh;y++){
-    for(let x=0;x<rw;x++){
-      if(data[(y*rw+x)*4+3]>alpha){
-        if(x<minX)minX=x;
-        if(x>maxX)maxX=x;
-        if(y<minY)minY=y;
-        if(y>maxY)maxY=y;
-      }
-    }
-  }
-  if(maxX<minX)return null;
-  const pad=1;
+function measureText(text,fontPx,fontFamily,canvas_w,canvas_h){
+  const oc=document.createElement('canvas');oc.width=canvas_w;oc.height=canvas_h;
+  const ctx=oc.getContext('2d');
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  const m=ctx.measureText(text);
   return{
-    left:(x0+minX-pad)/sc,
-    top:(y0+minY-pad)/sc,
-    right:(x0+maxX+1+pad)/sc,
-    bottom:(y0+maxY+1+pad)/sc,
+    w:m.width,
+    ascent:m.actualBoundingBoxAscent||fontPx*.75,
+    descent:m.actualBoundingBoxDescent||fontPx*.25,
   };
-}
-function refineNrBoundsFromCanvas(cv,approx,platePos,textAlign){
-  if(!cv||!approx)return approx;
-  const pad=14;
-  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,220);
-  if(!scanned)return approx;
-  const w=scanned.right-scanned.left;
-  const h=scanned.bottom-scanned.top;
-  const cy=(scanned.top+scanned.bottom)/2;
-  if(textAlign==='center'){
-    return{left:platePos.x-w/2,right:platePos.x+w/2,top:cy-h/2,bottom:cy+h/2};
-  }
-  if(textAlign==='right'){
-    return{left:platePos.x-w,right:platePos.x,top:scanned.top,bottom:scanned.bottom};
-  }
-  return{left:platePos.x,right:platePos.x+w,top:scanned.top,bottom:scanned.bottom};
-}
-function refineNameBoundsFromCanvas(cv,approx,platePos,textAlign){
-  if(!cv||!approx)return approx;
-  const pad=18;
-  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,200);
-  if(!scanned)return approx;
-  const w=scanned.right-scanned.left;
-  const h=scanned.bottom-scanned.top;
-  const cy=(scanned.top+scanned.bottom)/2;
-  if(textAlign==='center'){
-    return{left:platePos.x-w/2,right:platePos.x+w/2,top:cy-h/2,bottom:cy+h/2};
-  }
-  if(textAlign==='right'){
-    return{left:platePos.x-w,right:platePos.x,top:cy-h/2,bottom:cy+h/2};
-  }
-  return{left:platePos.x,right:platePos.x+w,top:scanned.top,bottom:scanned.bottom};
-}
-function refineTextBoundsFromCanvas(cv,approx,key,platePos,textAlign){
-  if(!cv||!approx)return approx;
-  if(key==='nr')return refineNrBoundsFromCanvas(cv,approx,platePos,textAlign);
-  return refineNameBoundsFromCanvas(cv,approx,platePos,textAlign);
 }
 
 // pointer coords – works for mouse AND touch events
@@ -2128,6 +1677,15 @@ function badgeR(nrText,nrFontPx,fontFamily,scalePct){
   const scale=(scalePct==null?100:scalePct)/100;
   return nrFontPx*0.52*scale;
 }
+const TYPO_ASC=0.72;
+const TYPO_DES=0.22;
+function nameBlockMetrics(nameSzPlate,lineCount){
+  const gap=nameSzPlate*1.05;
+  const asc=nameSzPlate*TYPO_ASC;
+  const des=nameSzPlate*TYPO_DES;
+  const blockH=lineCount?(lineCount-1)*gap+asc+des:0;
+  return{gap,asc,des,blockH};
+}
 function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   const R=badgeR(nrText,nrSz,font,badgeScale);
   if(shape==='shield')return{R,halfW:R*1.34,halfH:R*1.55};
@@ -2136,49 +1694,41 @@ function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   return{R,halfW:R*1.2,halfH:R*1.2};
 }
 
-function textPlateBounds(key,platePos,opts){
-  const{nameSz,effNameSz,nrSz,font,nrFont,textAlign,textVAlign}=opts;
-  const nameFont=font;
-  const numberFont=nrFont||font;
-  const nameSzUse=effNameSz!=null?effNameSz:nameSz;
-  const vA=textVAlign||'alphabetic';
-  const p=activeP();
-  if(key==='name'){
-    const lines=(opts.nameText||getDisplayName(p)).split('\n');
-    return nameInkUnionBounds(platePos,lines,nameSzUse,nameFont,textAlign,vA);
-  }
-  if(key==='nr'){
-    const text=String(p.nr||'');
-    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
-    const ex=nrTextExtent(nrSz,numberFont,text);
-    let left=platePos.x;
-    if(textAlign==='center')left-=ex.w/2;
-    else if(textAlign==='right')left-=ex.w;
-    let bounds={left,top:baseline-ex.asc,right:left+ex.w,bottom:baseline+ex.des};
-    const cv=document.getElementById('plateCanvas');
-    if(cv&&cv.width)bounds=refineNrBoundsFromCanvas(cv,bounds,platePos,textAlign)||bounds;
-    return bounds;
-  }
-  return null;
-}
-
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,badge,badgeScale}=opts;
+  const{nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign,badge,badgeScale}=opts;
+  const vA=textVAlign||'alphabetic';
   const p=activeP();
+  const nameText=getDisplayName(p);
   const badgeOn=badge&&badge!=='none';
   if(key==='nr'&&badgeOn){
-    const bb=badgeBoundsHalf(p.nr,nrSz,opts.nrFont||opts.font,badgeScale??S.badgeScale??72,badge);
+    const bb=badgeBoundsHalf(p.nr,nrSz,font,badgeScale??S.badgeScale??72,badge);
     return{left:platePos.x-bb.halfW,top:platePos.y-bb.halfH,right:platePos.x+bb.halfW,bottom:platePos.y+bb.halfH};
   }
-  const tb=textPlateBounds(key,platePos,opts);
-  if(tb){
-    if(key==='name'){
-      const cv=document.getElementById('plateCanvas');
-      if(cv&&cv.width)return refineTextBoundsFromCanvas(cv,tb,key,platePos,opts.textAlign)||tb;
-    }
-    return tb;
+  if(key==='name'){
+    const lines=nameText.split('\n');
+    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+    const bm=nameBlockMetrics(nameSz,lines.length);
+    const oc=document.createElement('canvas').getContext('2d');
+    oc.font=`${nameSz}px ${font},sans-serif`;
+    let maxW=0;
+    lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
+    const top=lineYs[0]-bm.asc;
+    const bot=lineYs[lines.length-1]+bm.des;
+    let left=platePos.x;
+    if(textAlign==='center')left-=maxW/2;
+    else if(textAlign==='right')left-=maxW;
+    return{left,top,right:left+maxW,bottom:bot};
+  }
+  if(key==='nr'){
+    const text=String(p.nr||'');
+    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
+    const m=measureText(text,nrSz,font,W,H);
+    let left=platePos.x;
+    if(textAlign==='center')left-=m.w/2;
+    else if(textAlign==='right')left-=m.w;
+    return{left,top:baseline-m.ascent,right:left+m.w,bottom:baseline+m.descent};
   }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
@@ -2199,23 +1749,21 @@ function constrainToSafe(key,x,y,opts){
   return{x:nx,y:ny};
 }
 
-function buildDragHandles(opts,plateCv){
+function buildDragHandles(opts){
   const wrap=document.getElementById('cvWrap');
   wrap.querySelectorAll('.dh').forEach(e=>e.remove());
-  const cv=plateCv||document.getElementById('plateCanvas');
+  const cv=document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
-  const {effNameSz,nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign}=opts;
-  const nameSzUse=effNameSz!=null?effNameSz:nameSz;
-  const numberFont=nrFont||font;
+  const {nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign}=opts;
   const vA=textVAlign||'alphabetic';
   const p=activeP();
-  const nameText=opts.nameText||getDisplayName(p);
+  const nameText=getDisplayName(p);
   const badgeOn=S.badge&&S.badge!=='none';
 
   const items=[
     {key:'nr',  fontSize:nrSz,  isText:!badgeOn},
-    {key:'name',fontSize:nameSzUse,isText:true},
+    {key:'name',fontSize:nameSz,isText:true},
     {key:'logo',fontSize:logoSz,isText:false},
     {key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false},
   ];
@@ -2226,30 +1774,35 @@ function buildDragHandles(opts,plateCv){
 
     if(item.key==='nr'&&badgeOn){
       const bs=opts.badgeScale??S.badgeScale??72;
-      const bb=badgeBoundsHalf(p.nr,nrSz,numberFont,bs,S.badge);
+      const bb=badgeBoundsHalf(p.nr,nrSz,font,bs,S.badge);
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
-      const approx=textPlateBounds(item.key,platePos,opts);
-      const b=approx?refineTextBoundsFromCanvas(cv,approx,item.key,platePos,textAlign):null;
-      if(b){
-        px=b.left*sc;py=b.top*sc;
-        pw=Math.max((b.right-b.left)*sc,8);
-        ph=Math.max((b.bottom-b.top)*sc,8);
-      }else if(item.key==='name'){
-        const b=nameInkUnionBounds(platePos,nameText.split('\n'),nameSzUse,font,textAlign,vA);
-        px=b.left*sc;py=b.top*sc;
-        pw=Math.max((b.right-b.left)*sc,8);
-        ph=Math.max((b.bottom-b.top)*sc,8);
+      if(item.key==='name'){
+        const lines=nameText.split('\n');
+        const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+        const bm=nameBlockMetrics(nameSz,lines.length);
+        const oc=document.createElement('canvas').getContext('2d');
+        oc.font=`${nameSz}px ${font},sans-serif`;
+        let maxW=0;
+        lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
+        const top=lineYs[0]-bm.asc;
+        const bot=lineYs[lines.length-1]+bm.des;
+        pw=maxW*sc;ph=Math.max((bot-top)*sc,8);
+        const baseX=platePos.x*sc;
+        if(textAlign==='left')px=baseX;
+        else if(textAlign==='center')px=baseX-pw/2;
+        else px=baseX-pw;
+        py=top*sc;
       }else{
         const text=String(p.nr||'');
-        const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
-        const ex=nrTextExtent(item.fontSize,numberFont,text);
-        pw=ex.w*sc;ph=Math.max((ex.asc+ex.des)*sc,8);
+        const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
+        const m=measureText(text,item.fontSize,font,W,H);
+        pw=m.w*sc;ph=(m.ascent+m.descent)*sc;
         const baseX=platePos.x*sc,baseY=baseline*sc;
         if(textAlign==='left')px=baseX;
         else if(textAlign==='center')px=baseX-pw/2;
         else px=baseX-pw;
-        py=baseY-ex.asc*sc;
+        py=baseY-m.ascent*sc;
       }
     }else{
       const maxSide=item.fontSize;
@@ -2362,27 +1915,13 @@ function snapAxis(v,targets,tol){
   });
   return{best,on};
 }
-function boundsCenterFromAnchor(key,ax,ay,opts){
-  const b=getElementPlateBounds(key,{x:ax,y:ay},opts);
-  return{x:(b.left+b.right)/2,y:(b.top+b.bottom)/2};
-}
-function anchorFromBoundsCenter(key,cx,cy,opts){
-  const p=getPos(key);
-  const c=boundsCenterFromAnchor(key,p.x,p.y,opts);
-  return{x:p.x+(cx-c.x),y:p.y+(cy-c.y)};
-}
-function applySnap(x,y,key){
-  const vT=[W/2,W/3,2*W/3];
-  const hT=[H/2,H/3,2*H/3];
-  const textEl=key==='nr'||key==='name';
-  if(!textEl){
-    vT.push(W*.1,W*.9);
-    hT.push(H*.12,H*.88);
-  }
+function applySnap(x,y){
+  const vT=[W/2,W/3,2*W/3,W*.1,W*.9];
+  const hT=[H/2,H/3,2*H/3,H*.12,H*.88];
   if(S.showSafeMargin!==false){
     const s=getSafeRect();
     vT.push(s.left,s.right);
-    if(!textEl)hT.push(s.top,s.bottom);
+    hT.push(s.top,s.bottom);
   }
   let sx=snapAxis(x,vT,SNAP_TOL);
   if(!sx.on)sx=snapAxis(x,vT,SNAP_MINOR);
@@ -2390,35 +1929,13 @@ function applySnap(x,y,key){
   if(!sy.on)sy=snapAxis(y,hT,SNAP_MINOR);
   return{x:sx.best,y:sy.best,snV:sx.on,snH:sy.on};
 }
-function applySnapForElement(key,ax,ay,opts){
-  const c=boundsCenterFromAnchor(key,ax,ay,opts);
-  const sn=applySnap(c.x,c.y,key);
-  const a=anchorFromBoundsCenter(key,sn.x,sn.y,opts);
-  return{x:a.x,y:a.y,snV:sn.snV,snH:sn.snH,guideX:sn.x,guideY:sn.y};
-}
-function showSnap(snV,snH,guideX,guideY){
+function showSnap(snV,snH,snapX,snapY){
   const cv=document.getElementById('plateCanvas'),sc=cv.width/W;
   const v=document.getElementById('snapV'),h=document.getElementById('snapH');
-  v.style.left=Math.round((snV?guideX:W/2)*sc)+'px';v.style.opacity=snV?'.85':'0';
-  h.style.top=Math.round((snH?guideY:H/2)*sc)+'px';h.style.opacity=snH?'.85':'0';
+  v.style.left=Math.round((snV?snapX:W/2)*sc)+'px';v.style.opacity=snV?'.85':'0';
+  h.style.top=Math.round((snH?snapY:H/2)*sc)+'px';h.style.opacity=snH?'.85':'0';
 }
 function hideSnap(){document.getElementById('snapV').style.opacity='0';document.getElementById('snapH').style.opacity='0'}
-function updateSelectionAlignGuides(){
-  if(dragState||!S.sel||!(S.sel==='nr'||S.sel==='name'))return hideSnap();
-  const cv=document.getElementById('plateCanvas');
-  if(!cv||!cv.width)return hideSnap();
-  const sc=cv.width/W;
-  const opts=buildRenderOpts();
-  const p=getPos(S.sel);
-  const c=boundsCenterFromAnchor(S.sel,p.x,p.y,opts);
-  const tol=SNAP_TOL;
-  const onV=Math.abs(c.x-W/2)<tol,onH=Math.abs(c.y-H/2)<tol;
-  const v=document.getElementById('snapV'),h=document.getElementById('snapH');
-  v.style.left=Math.round(W/2*sc)+'px';
-  h.style.top=Math.round(H/2*sc)+'px';
-  v.style.opacity=onV?'.9':'.38';
-  h.style.opacity=onH?'.9':'.38';
-}
 
 // ── GLOBAL DRAG (mouse + touch) ───────────
 function moveDrag(e){
@@ -2429,25 +1946,23 @@ function moveDrag(e){
   const dx=(pt.x-mx)/sc,dy=(pt.y-my)/sc;
   const cur=getPos(key);
   let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
+  const sn=applySnap(nx,ny);
   const opts=buildRenderOpts();
-  const sn=applySnapForElement(key,nx,ny,opts);
   const c=constrainToSafe(key,sn.x,sn.y,opts);
   S.pos[key]={...cur,x:c.x,y:c.y};
-  showSnap(sn.snV,sn.snH,sn.guideX,sn.guideY);
+  showSnap(sn.snV,sn.snH,sn.x,sn.y);
   if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
     const cv=document.getElementById('plateCanvas');
     const opts=buildRenderOpts();
     drawPlate(cv,cv.width,cv.height,opts,false);
-    buildDragHandles(opts,cv);
+    buildDragHandles(opts);
     if(dragState)dragState.raf=null;
   });
 }
 function endDrag(){
   if(!dragState)return;
   document.querySelectorAll('.dh').forEach(e=>e.classList.remove('active'));
-  dragState=null;
-  if(S.sel)updateSelectionAlignGuides();
-  else hideSnap();
+  dragState=null;hideSnap();
   persistSession();
 }
 document.addEventListener('mousemove',moveDrag);
@@ -2479,20 +1994,17 @@ document.addEventListener('keydown',e=>{
 
 // Vertikale Text-Anker (Plate-Koordinaten, Schrift in px wie nameSz / nrSz)
 function nameLinePlateYs(yAnchor,nameSzPlate,nameLines,font,vAlign){
-  const gap=nameSzPlate*1.05;
-  if(!nameLines.length)return[];
-  const ex=nameLines.map(l=>textExtent(nameSzPlate,font,l));
-  const blockH=nameLines.length===1?ex[0].asc+ex[0].des:
-    (nameLines.length-1)*gap+ex[0].asc+ex[nameLines.length-1].des;
+  const {gap,asc,des,blockH}=nameBlockMetrics(nameSzPlate,nameLines.length);
   let yFirst=yAnchor;
-  if(vAlign==='middle')yFirst=yAnchor-blockH/2+ex[0].asc;
-  else if(vAlign==='bottom')yFirst=yAnchor-blockH+ex[0].asc;
+  if(vAlign==='middle')yFirst=yAnchor-blockH/2+asc;
+  else if(vAlign==='bottom')yFirst=yAnchor-blockH+asc;
   return nameLines.map((_,i)=>yFirst+i*gap);
 }
 function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
-  const ex=nrTextExtent(nrSzPlate,font,nrText);
-  if(vAlign==='middle')return yAnchor-(ex.asc-ex.des)/2;
-  if(vAlign==='bottom')return yAnchor-ex.des;
+  const asc=nrSzPlate*TYPO_ASC;
+  const des=nrSzPlate*TYPO_DES;
+  if(vAlign==='middle')return yAnchor-(asc-des)/2;
+  if(vAlign==='bottom')return yAnchor-des;
   return yAnchor;
 }
 
@@ -2502,11 +2014,9 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c,font,nrFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
+  const{tpl,c,font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,frameW,club,leagueTxt,textAlign,textVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
-  const nameFont=font;
-  const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
 
   ctx.clearRect(0,0,w,h);
@@ -2530,17 +2040,6 @@ function drawPlate(canvas,w,h,opts,thumb){
   ctx.fillStyle=bg;ctx.fillRect(ix,iy,iw,ih);
   drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
   if(bgImg){ctx.globalAlpha=bgOp;ctx.drawImage(bgImg,ix,iy,iw,ih);ctx.globalAlpha=1}
-
-  // Split: dezente Trennlinie zwischen Nr- und Namenszone
-  if(!thumb&&layout==='S'){
-    const splitX=Z(W*.46);
-    ctx.strokeStyle=c.acc+'66';
-    ctx.lineWidth=Z(4);
-    ctx.beginPath();
-    ctx.moveTo(splitX,iy+Z(12));
-    ctx.lineTo(splitX,iy+ih-Z(12));
-    ctx.stroke();
-  }
 
   // LOGO BAND (optional, nur L/R-Layout)
   if(!thumb&&logoBand&&(layout==='L'||layout==='R')){
@@ -2587,50 +2086,41 @@ function drawPlate(canvas,w,h,opts,thumb){
   const nrFontPx=Z(thumb?58:nrSz);
   const nrX=Z(nrPosData.x),nrY=Z(nrPosData.y);
   ctx.save();
-  ctx.font=canvasFont(nrFontPx,numberFont);
+  ctx.font=`${nrFontPx}px ${font},sans-serif`;
   if(thumb){
     ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
     ctx.shadowColor=tpl===6?c.nrc:'rgba(0,0,0,.55)';ctx.shadowBlur=Z(tpl===6?20:8);
     ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nrc;
     ctx.fillText(nrText,nrX,nrY);ctx.shadowColor='transparent';
   }else if(hasBadge){
-    const Rp=Z(badgeR(nr,nrSz,numberFont,opts.badgeScale??S.badgeScale??72));
+    const Rp=Z(badgeR(nr,nrSz,font,opts.badgeScale??S.badgeScale??72));
     drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.badgeFillOp??1,opts.badgeBorderColor||'#FFFFFF',opts.shadowOn);
     ctx.textAlign='center';ctx.textBaseline='middle';
     drawFxText(ctx,nrText,nrX,nrY,c.nrc,opts,Z);
   }else{
     ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
-    const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,numberFont,vA));
+    const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,font,vA));
     drawFxText(ctx,nrText,nrX,nrYb,c.nrc,opts,Z);
   }
   ctx.restore();
 
   // NAME – handle multi-line (both / newline modes)
-  const nameText=opts.nameText||getDisplayNameFromOpts({first,last},nameMode||'last');
-  const effNameSz=opts.effNameSz!=null?opts.effNameSz:effectiveNameSz(nameText,opts);
-  const nameFontPx=Z(thumb?44:effNameSz);
+  const nameText=getDisplayNameFromOpts({first,last},nameMode||'last');
+  const nameFontPx=Z(thumb?44:nameSz);
   const nameLines=nameText.split('\n');
   const nameX=Z(namePosData.x),nameY=Z(namePosData.y);
-  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,effNameSz,nameLines,nameFont,'alphabetic'):nameLinePlateYs(namePosData.y,effNameSz,nameLines,nameFont,vA);
+  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,nameSz,nameLines,font,'alphabetic'):nameLinePlateYs(namePosData.y,nameSz,nameLines,font,vA);
   ctx.save();
-  ctx.font=canvasFont(nameFontPx,nameFont);
+  ctx.font=`${nameFontPx}px ${font},sans-serif`;
   ctx.textBaseline='alphabetic';
   setTextAlign(ctx,textAlign);
   if(thumb){
     ctx.shadowColor=tpl===6?c.nc+'88':'rgba(0,0,0,.6)';ctx.shadowBlur=Z(tpl===6?18:10);
     ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(4);ctx.fillStyle=c.nc;
-    nameLines.forEach((line,li)=>{
-      const ex=textExtent(effNameSz,nameFont,line);
-      const dx=Z(textDrawOffsetX(ex,textAlign));
-      ctx.fillText(line,nameX-dx,Z(nameYsPlate[li]));
-    });
+    nameLines.forEach((line,li)=>ctx.fillText(line,nameX,Z(nameYsPlate[li])));
     ctx.shadowColor='transparent';
   }else{
-    nameLines.forEach((line,li)=>{
-      const ex=textExtent(effNameSz,nameFont,line);
-      const dx=Z(textDrawOffsetX(ex,textAlign));
-      drawFxText(ctx,line,nameX-dx,Z(nameYsPlate[li]),c.nc,opts,Z);
-    });
+    nameLines.forEach((line,li)=>drawFxText(ctx,line,nameX,Z(nameYsPlate[li]),c.nc,opts,Z));
   }
   ctx.restore();
 
@@ -2647,7 +2137,7 @@ function drawPlate(canvas,w,h,opts,thumb){
       setTextAlign(ctx,textAlign);
       ctx.textBaseline='alphabetic';
       const lastBase=nameYsPlate[nameYsPlate.length-1];
-      ctx.fillText(parts.join('  ·  '),nameX,Z(lastBase+effNameSz*TYPO_DES+6));
+      ctx.fillText(parts.join('  ·  '),nameX,Z(lastBase+nameSz*TYPO_DES+6));
       ctx.restore();
     }
   }
@@ -2775,12 +2265,7 @@ function adjBr(hex,a){let r=parseInt(hex.slice(1,3),16)+a,g=parseInt(hex.slice(3
 // ══════════════════════════════════════════
 // NOTE: drag positions are resolved via getPos() (global S.pos), so opts.pos
 // must keep the player's POSITION string – do not overwrite it with S.pos.
-function makeFullOpts(p){
-  const ro=readSizeOpts();
-  const mode=ro.nameMode||S.nameMode||'last';
-  const nameText=getDisplayNameFromOpts(p,mode);
-  return{...S,...ro,...playerOpts(p),nameText,effNameSz:effectiveNameSz(nameText,ro)};
-}
+function makeFullOpts(p){return{...S,...readSizeOpts(),...playerOpts(p)}}
 function safeName(s){return String(s||'').trim().replace(/[^\wÀ-ſ-]+/g,'_')||'X'}
 function exportFileName(p,prefix){return (prefix||'')+'nameplate_'+safeName(p.last||p.first)+'_'+safeName(p.nr);}
 
@@ -3069,7 +2554,7 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
-  buildTplGrid();buildFontGrid('name');buildFontGrid('nr');buildRoster();renderUserTplList();
+  buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
