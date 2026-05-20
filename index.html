@@ -204,9 +204,12 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         </label>
       </div>
       <label class="tog-row" style="margin-bottom:6px;cursor:pointer">
-        <span class="tog-lbl" style="font-size:.7rem">Logo &amp; Hintergrundbild mit speichern</span>
-        <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)">
+        <span class="tog-lbl" style="font-size:.7rem">Logo &amp; Hintergrund in Vorlage/JSON</span>
+        <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)" title="JPEG-komprimiert; für Browser-Speicher empfohlen">
       </label>
+      <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
+        Browser-Speicher ist begrenzt (~5 MB). JSON-Export hat kein Limit – ideal zum Teilen im Team.
+      </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
     </div>
     <div class="sb-sec">
@@ -769,12 +772,35 @@ function loadUserTemplates(){
   try{return JSON.parse(localStorage.getItem(USER_TPL_KEY)||'[]')}catch(e){return[]}
 }
 function persistUserTemplates(list){
-  try{localStorage.setItem(USER_TPL_KEY,JSON.stringify(list))}catch(e){
-    alert('Speichern fehlgeschlagen (Speicher voll?). Logo/Hintergrund weglassen oder ältere Vorlagen löschen.');
-  }
+  try{
+    const json=JSON.stringify(list);
+    if(json.length>4.8e6)throw new Error('QUOTA');
+    localStorage.setItem(USER_TPL_KEY,json);
+    return true;
+  }catch(e){return false}
 }
-function getDesignSnapshot(includeImages){
-  const snap={
+function stripSnapImages(snap){
+  const s={...snap};delete s.logoData;delete s.bgData;delete s.logoIsSvg;return s;
+}
+function compressImageSource(src,maxSide,quality){
+  return new Promise(resolve=>{
+    if(!src||typeof src!=='string'){resolve(null);return}
+    const img=new Image();
+    img.onload=()=>{
+      const m=Math.max(img.width,img.height,1);
+      const scale=m>maxSide?maxSide/m:1;
+      const w=Math.max(1,Math.round(img.width*scale));
+      const h=Math.max(1,Math.round(img.height*scale));
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      try{resolve(c.toDataURL('image/jpeg',quality))}catch(err){resolve(src.length<600000?src:null)}
+    };
+    img.onerror=()=>resolve(null);
+    img.src=src;
+  });
+}
+function getDesignSnapshotBase(){
+  return{
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeScale:S.badgeScale??72,
@@ -788,13 +814,26 @@ function getDesignSnapshot(includeImages){
     pos:JSON.parse(JSON.stringify(S.pos||{})),
     exportScale:S.exportScale,exportFormat:S.exportFormat,
   };
-  if(includeImages){
-    const lp=document.getElementById('logoPrev'),bp=document.getElementById('bgPrev');
-    if(S.logo&&lp&&lp.src&&lp.style.display!=='none')snap.logoData=lp.src;
-    if(S.bgImg&&bp&&bp.src&&bp.style.display!=='none')snap.bgData=bp.src;
-    snap.logoIsSvg=!!S.logoIsSvg;
+}
+async function buildDesignSnapshot(includeImages){
+  const snap=getDesignSnapshotBase();
+  if(!includeImages)return snap;
+  const lp=document.getElementById('logoPrev'),bp=document.getElementById('bgPrev');
+  if(S.logo&&lp&&lp.src&&lp.style.display!=='none'){
+    snap.logoData=await compressImageSource(lp.src,480,0.82);
+    snap.logoIsSvg=!!S.logoIsSvg&&/svg/i.test(lp.src);
+  }
+  if(S.bgImg&&bp&&bp.src&&bp.style.display!=='none'){
+    snap.bgData=await compressImageSource(bp.src,1400,0.78);
   }
   return snap;
+}
+async function compressSnapForStorage(snap){
+  const s={...snap};
+  if(s.logoData)s.logoData=await compressImageSource(s.logoData,400,0.8)||null;
+  if(s.bgData)s.bgData=await compressImageSource(s.bgData,1000,0.75)||null;
+  if(!s.logoData)delete s.logoIsSvg;
+  return s;
 }
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
@@ -859,23 +898,38 @@ function applyDesignSnapshot(snap){
   applyStateToUI();
   render();
 }
-function saveUserTemplate(){
+async function saveUserTemplate(){
   const name=(getVal('userTplName')||'').trim();
   if(!name){alert('Bitte einen Namen für die Vorlage eingeben.');return}
   const include=document.getElementById('userTplIncImg').checked;
-  const snap=getDesignSnapshot(include);
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
   if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
+  let snap=await buildDesignSnapshot(include);
+  if(include)snap=await compressSnapForStorage(snap);
   const entry={id:existing?existing.id:'ut_'+Date.now(),name,updated:Date.now(),snap};
-  if(existing){const i=list.indexOf(existing);list[i]=entry}else list.push(entry);
-  persistUserTemplates(list);
+  if(existing)list[list.indexOf(existing)]=entry;else list.push(entry);
+  let ok=persistUserTemplates(list);
+  if(!ok&&include){
+    entry.snap=stripSnapImages(snap);
+    if(existing)list[list.indexOf(existing)]=entry;else list[list.length-1]=entry;
+    ok=persistUserTemplates(list);
+    if(ok)showWarn(`„${name}" gespeichert (ohne Bilder – Browser-Speicher voll). Nutze 📤 JSON für Logo/Hintergrund.`);
+    else showErr('Speichern fehlgeschlagen. Ältere Vorlagen löschen oder JSON-Export nutzen.');
+    if(ok){finishSaveUserTemplate(entry,name)}
+    return;
+  }
+  if(!ok){
+    showErr('Speichern fehlgeschlagen. Vorlagen in der Liste löschen oder „Logo/Hintergrund“ deaktivieren.');
+    return;
+  }
+  finishSaveUserTemplate(entry,name);
+  showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder komprimiert)':''));
+}
+function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
   document.getElementById('tplName').textContent=name.toUpperCase();
-  buildTplGrid();
-  renderUserTplList();
-  render();
-  showOk(`Vorlage „${name}" gespeichert.`);
+  buildTplGrid();renderUserTplList();render();
 }
 function loadUserTemplate(id){
   const t=loadUserTemplates().find(x=>x.id===id);
@@ -923,31 +977,49 @@ function buildTemplatesExportPayload(onlyId){
   return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:list};
 }
 function downloadJsonFile(obj,filename){
-  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=filename;
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-}
-function exportTemplatesJson(onlyId){
-  const list=loadUserTemplates();
-  if(onlyId&&!list.find(t=>t.id===onlyId))return;
-  if(!onlyId&&!list.length){
-    const name=(getVal('userTplName')||'').trim()||'design';
-    const snap=getDesignSnapshot(document.getElementById('userTplIncImg').checked);
-    downloadJsonFile({plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[{id:'ut_export',name,updated:Date.now(),snap}]},
-      'plateforge_vorlage_'+safeName(name)+'.json');
-    showOk('Aktuelles Design als JSON exportiert.');
-    return;
+  try{
+    const json=JSON.stringify(obj,null,2);
+    const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),8000);
+    return true;
+  }catch(e){
+    showErr('Export fehlgeschlagen: '+(e.message||'Datei zu gross'));
+    return false;
   }
-  const payload=buildTemplatesExportPayload(onlyId);
-  const one=payload.templates[0];
-  const fname=onlyId&&one
-    ?'plateforge_'+safeName(one.name)+'.json'
-    :'plateforge_vorlagen_'+new Date().toISOString().slice(0,10)+'.json';
-  downloadJsonFile(payload,fname);
-  showOk(onlyId?`„${one.name}" exportiert.`:`${payload.templates.length} Vorlage(n) exportiert.`);
+}
+async function exportTemplatesJson(onlyId){
+  try{
+    const list=loadUserTemplates();
+    if(onlyId&&!list.find(t=>t.id===onlyId))return;
+    const includeImg=document.getElementById('userTplIncImg').checked;
+    if(!onlyId&&!list.length){
+      const name=(getVal('userTplName')||'').trim()||'design';
+      let snap=await buildDesignSnapshot(includeImg);
+      if(includeImg)snap=await compressSnapForStorage(snap);
+      if(!downloadJsonFile({plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[{id:'ut_export',name,updated:Date.now(),snap}]},
+        'plateforge_vorlage_'+safeName(name)+'.json'))return;
+      showOk('Aktuelles Design als JSON exportiert.');
+      return;
+    }
+    let templates=onlyId?list.filter(t=>t.id===onlyId):[...list];
+    templates=await Promise.all(templates.map(async t=>{
+      let snap=t.snap?{...t.snap}:getDesignSnapshotBase();
+      if(includeImg&&(snap.logoData||snap.bgData))snap=await compressSnapForStorage(snap);
+      else if(!includeImg)snap=stripSnapImages(snap);
+      return{...t,snap};
+    }));
+    const payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates};
+    const one=templates[0];
+    const fname=onlyId&&one?'plateforge_'+safeName(one.name)+'.json':'plateforge_vorlagen_'+new Date().toISOString().slice(0,10)+'.json';
+    if(!downloadJsonFile(payload,fname))return;
+    showOk(onlyId?`„${one.name}" exportiert.`:`${templates.length} Vorlage(n) exportiert.`);
+  }catch(e){showErr('JSON-Export: '+(e.message||e))}
 }
 function normalizeImportedTemplates(data){
   if(!data)return null;
@@ -960,7 +1032,7 @@ function normalizeImportedTemplates(data){
 function importTemplatesJson(inp){
   const file=inp.files[0];if(!file)return;
   const rd=new FileReader();
-  rd.onload=()=>{
+  rd.onload=async()=>{
     try{
       const raw=JSON.parse(rd.result);
       const incoming=normalizeImportedTemplates(raw);
@@ -980,9 +1052,16 @@ function importTemplatesJson(inp){
         const entry={id:existing?existing.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name,updated:Date.now(),snap};
         if(existing){list[list.indexOf(existing)]=entry;over++}else{list.push(entry);added++}
       });
-      persistUserTemplates(list);
+      const slim=await Promise.all(list.map(async t=>{
+        if(t.snap&&(t.snap.logoData||t.snap.bgData))return{...t,snap:await compressSnapForStorage(t.snap)};
+        return t;
+      }));
+      if(!persistUserTemplates(slim)){
+        const noImg=slim.map(t=>({...t,snap:stripSnapImages(t.snap)}));
+        if(!persistUserTemplates(noImg))showErr('Import ok, aber Browser-Speicher voll – nur JSON-Datei behalten.');
+        else showWarn(`Import: ${added} neu, ${over} aktualisiert (Bilder nur in JSON, nicht im Browser).`);
+      }else showOk(`Import: ${added} neu, ${over} aktualisiert.`);
       buildTplGrid();renderUserTplList();
-      showOk(`Import: ${added} neu, ${over} aktualisiert.`);
     }catch(e){showErr('JSON konnte nicht gelesen werden: '+e.message)}
     inp.value='';
   };
