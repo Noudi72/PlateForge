@@ -36,20 +36,15 @@ Nur sinnvoll, wenn ihr später einen Build habt (z. B. Vite). Für die aktuell
 
 ---
 
-### Speichern (Session vs. Vorlage)
+### Eigene Vorlagen
 
-| Was | Wo | Wann |
-|-----|-----|------|
-| **Session** (automatisch) | `localStorage` + **IndexedDB** für Bilder | Jede Änderung (debounced) — Layout, Farben, Positionen, aktive Vorlage |
-| **Eigene Vorlage** (💾 Speichern) | `localStorage` | Nur wenn du einen Namen vergibst und speicherst |
-| **Kader** | `plateforge_roster` | Spielerliste unabhängig vom Design |
-| **JSON** (📤/📥) | Datei | Team-Sharing ohne Browser-Limit |
+Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Daten liegen im **localStorage** des Browsers (pro Gerät/Domain). **Logo & Hintergrund in Vorlage/JSON** (Checkbox, standardmässig an): Bilder werden komprimiert mitgespeichert.
 
-- **Bilder nach Reload behalten** (Checkbox): Logos/Hintergrund in **IndexedDB** (`sess_*`), nicht im vollen JSON der Session — spart das ~5 MB-Limit von `localStorage`.
-- **Statuszeile** unter den Vorlagen-Buttons: zeigt geladene Vorlage und ob seit dem letzten **💾 Speichern** etwas geändert wurde.
-- **Logo & Hintergrund in Vorlage/JSON**: für benannte Vorlagen und Export; bei vollem Speicher Fallback ohne Bilder + Hinweis, JSON nutzen.
+**Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Team-Sharing:** **📤 JSON** exportiert alle Vorlagen (oder das aktuelle Design). **📥 Import** = hinzufügen / gleiche Namen überschreiben. **↓** = einzelne Vorlage exportieren.
+**Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Wenn das Speichern mit Bildern scheitert, erscheint ein Hinweis — dann **JSON-Export** nutzen oder ältere Vorlagen löschen.
+
+**Session:** Layout, Positionen und die zuletzt geladene **Vorlagen-ID** werden automatisch gesichert. Beim Reload wird die **gespeicherte Vorlage** (inkl. Bilder) wieder geladen, nicht nur eine leere Session-Kopie.
 
 ### Badge & Grössen (Design)
 
