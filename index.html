@@ -645,31 +645,28 @@ function defPos(layout){
   if(layout==='F') return{logo:{x:95,y:275,sz:Math.round(lsz*.75)},logo2:{x:1905,y:275,sz:l2},name:{x:W/2,y:H/2+75},nr:{x:W/2,y:H/2-55}};
   return{logo:{x:85,y:275,sz:lsz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
 }
-function syncLayoutTextDefaults(layout){
-  const lay=layout||S.layout||'L';
-  if(lay==='F'){S.textAlign='center';S.textVAlign='middle'}
-  else if(lay==='S'){S.textAlign='left';S.textVAlign='middle'}
-  else{S.textAlign=lay==='R'?'right':'left';S.textVAlign='alphabetic'}
-  ['left','center','right'].forEach(x=>{
-    const el=document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1));
-    if(el)el.classList.toggle('on',x===S.textAlign);
-  });
-  syncVAlignUi();
+function getActiveLayout(){
+  const el=document.getElementById('selLayout');
+  return(el&&el.value)||S.layout||'L';
+}
+function ensurePosForLayout(lay){
+  const layout=lay||getActiveLayout();
+  if(!S.pos||!Object.keys(S.pos).length)return;
+  const nx=S.pos.name?.x,nrx=S.pos.nr?.x;
+  if(layout==='F'&&(nx>1100||(nrx!=null&&nrx<800)))S.pos={};
+  else if(layout==='S'&&(nx!=null&&nx<1100&&(nrx==null||nrx>800)))S.pos={};
 }
 function onLayoutChange(){
   S.layout=getVal('selLayout');
   S.pos={};
-  syncLayoutTextDefaults(S.layout);
   persistSession();
   render();
 }
 function getPos(key){
-  const d=defPos(S.layout);
+  const d=defPos(getActiveLayout());
   let base=d[key];
-  // when a badge is active, the number anchor is its CENTER → use a vertically centred default
-  if(key==='nr'&&S.badge&&S.badge!=='none'){
-    const lay=S.layout||getVal('selLayout');
-    base={...base,y:lay==='F'?H/2-55:H/2};
+  if(key==='nr'&&S.badge&&S.badge!=='none'&&getActiveLayout()!=='F'){
+    base={...base,y:H/2};
   }
   return S.pos[key]?{...base,...S.pos[key]}:base;
 }
@@ -763,6 +760,7 @@ function anchorOffsetX(align,w){
 function setAlign(a){
   if(a===S.textAlign)return;
   const old=S.textAlign;
+  const lay=getActiveLayout();
   const p=activeP();
   const font=S.font;
   const nameText=getDisplayName(p);
@@ -770,19 +768,28 @@ function setAlign(a){
   const wName=maxLineWidth(nameLines,getInt('slName'),font);
   const badgeOn=S.badge&&S.badge!=='none';
   const nrStr=String(p.nr||'');
-  const wNr=badgeOn?0:measureTextWidth(nrStr,getInt('slNrSz'),font);
-  function shiftKey(key,w){
+  const nrSz=getInt('slNrSz');
+  function setAnchorX(key,w){
+    const def=defPos(lay)[key];
+    const merged={...def,...S.pos[key]};
+    if(lay==='F'&&a==='center'){
+      S.pos[key]={...merged,x:W/2};
+      return;
+    }
     if(!w)return;
-    const base=getPos(key);
-    const merged={...base,...S.pos[key]};
-    const curX=merged.x;
-    const newX=curX-anchorOffsetX(old,w)+anchorOffsetX(a,w);
+    const newX=merged.x-anchorOffsetX(old,w)+anchorOffsetX(a,w);
     S.pos[key]={...merged,x:newX};
   }
-  shiftKey('name',wName);
-  if(!badgeOn)shiftKey('nr',wNr);
+  if(badgeOn){
+    const bb=badgeBoundsHalf(nrStr,nrSz,font,S.badgeScale??72,S.badge);
+    setAnchorX('nr',bb.halfW*2);
+  }else{
+    setAnchorX('nr',measureTextWidth(nrStr,nrSz,font));
+  }
+  setAnchorX('name',wName);
   S.textAlign=a;
   ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===a));
+  persistSession();
   render();
 }
 function syncVAlignUi(){
@@ -792,6 +799,7 @@ function syncVAlignUi(){
 function setVAlign(v){
   S.textVAlign=v;
   syncVAlignUi();
+  persistSession();
   render();
 }
 
@@ -1099,7 +1107,7 @@ function snapshotMediaFlags(){
 }
 function getDesignSnapshotBase(){
   return{
-    tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
+    tpl:S.tpl,c:{...S.c},font:S.font,layout:getActiveLayout(),
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
@@ -1187,7 +1195,6 @@ async function applyDesignSnapshot(snap,opts={}){
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
-  if(!snap.textAlign&&!snap.textVAlign)syncLayoutTextDefaults(S.layout);
   S.badge=snap.badge||'none';
   S.badgeColor=snap.badgeColor||'#C8102E';
   S.badgeFillOp=snap.badgeFillOp??1;
@@ -1205,6 +1212,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.shBlur=snap.shBlur??10;S.shDist=snap.shDist??4;S.glowSize=snap.glowSize??26;
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
+  ensurePosForLayout(S.layout);
   S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';
   S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;S.pdfIncludeSingle=snap.pdfIncludeSingle!==false;
   persistActiveFont();
@@ -1747,7 +1755,7 @@ function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    font:S.font,layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    font:S.font,layout:getActiveLayout(),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nameMode:getVal('selNameMode'),
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub')||'EHC BIEL-BIENNE',
@@ -1757,6 +1765,8 @@ function readSizeOpts(){
 }
 
 function render(){
+  S.layout=getVal('selLayout');
+  ensurePosForLayout();
   const cv=document.getElementById('plateCanvas');
   const vp=document.getElementById('cvWrap').parentElement;
   const vpW=vp.clientWidth-40;
@@ -1767,7 +1777,11 @@ function render(){
   const opts=buildRenderOpts();
   drawPlate(cv,cv.width,cv.height,opts,false);
   buildGuideLines();
-  buildDragHandles(opts);
+  const placeHandles=()=>buildDragHandles(opts,cv);
+  placeHandles();
+  if(document.fonts&&document.fonts.ready){
+    document.fonts.ready.then(()=>{if(!dragState)placeHandles()});
+  }
   if(!dragState)persistSession();
 }
 
@@ -1779,17 +1793,52 @@ function render(){
   then place the div overlay exactly over that text.
 */
 let dragState=null;
+const TYPO_ASC=0.72;
+const TYPO_DES=0.22;
 
-function measureText(text,fontPx,fontFamily,canvas_w,canvas_h){
-  const oc=document.createElement('canvas');oc.width=canvas_w;oc.height=canvas_h;
-  const ctx=oc.getContext('2d');
+function textExtent(fontPx,fontFamily,text){
+  const ctx=document.createElement('canvas').getContext('2d');
   ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
-  const m=ctx.measureText(text);
+  const m=ctx.measureText(text||' ');
+  let asc=m.actualBoundingBoxAscent;
+  let des=m.actualBoundingBoxDescent;
+  if(!(asc>0))asc=fontPx*TYPO_ASC;
+  if(!(des>0))des=fontPx*TYPO_DES;
+  return{w:m.width,asc,des};
+}
+function canvasAlphaBounds(cv,left,top,right,bottom){
+  const sc=cv.width/W;
+  const x0=Math.max(0,Math.floor(left*sc));
+  const y0=Math.max(0,Math.floor(top*sc));
+  const x1=Math.min(cv.width,Math.ceil(right*sc));
+  const y1=Math.min(cv.height,Math.ceil(bottom*sc));
+  if(x1<=x0+1||y1<=y0+1)return null;
+  const rw=x1-x0,rh=y1-y0;
+  const data=cv.getContext('2d').getImageData(x0,y0,rw,rh).data;
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(let y=0;y<rh;y++){
+    for(let x=0;x<rw;x++){
+      if(data[(y*rw+x)*4+3]>48){
+        if(x<minX)minX=x;
+        if(x>maxX)maxX=x;
+        if(y<minY)minY=y;
+        if(y>maxY)maxY=y;
+      }
+    }
+  }
+  if(maxX<minX)return null;
+  const pad=1;
   return{
-    w:m.width,
-    ascent:m.actualBoundingBoxAscent||fontPx*.75,
-    descent:m.actualBoundingBoxDescent||fontPx*.25,
+    left:(x0+minX-pad)/sc,
+    top:(y0+minY-pad)/sc,
+    right:(x0+maxX+1+pad)/sc,
+    bottom:(y0+maxY+1+pad)/sc,
   };
+}
+function refineTextBoundsFromCanvas(cv,approx){
+  if(!cv||!approx)return approx;
+  const pad=22;
+  return canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad)||approx;
 }
 
 // pointer coords – works for mouse AND touch events
@@ -1803,15 +1852,6 @@ function badgeR(nrText,nrFontPx,fontFamily,scalePct){
   const scale=(scalePct==null?100:scalePct)/100;
   return nrFontPx*0.52*scale;
 }
-const TYPO_ASC=0.72;
-const TYPO_DES=0.22;
-function nameBlockMetrics(nameSzPlate,lineCount){
-  const gap=nameSzPlate*1.05;
-  const asc=nameSzPlate*TYPO_ASC;
-  const des=nameSzPlate*TYPO_DES;
-  const blockH=lineCount?(lineCount-1)*gap+asc+des:0;
-  return{gap,asc,des,blockH};
-}
 function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   const R=badgeR(nrText,nrSz,font,badgeScale);
   if(shape==='shield')return{R,halfW:R*1.34,halfH:R*1.55};
@@ -1820,42 +1860,50 @@ function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   return{R,halfW:R*1.2,halfH:R*1.2};
 }
 
+function textPlateBounds(key,platePos,opts){
+  const{nameSz,nrSz,font,textAlign,textVAlign}=opts;
+  const vA=textVAlign||'alphabetic';
+  const p=activeP();
+  if(key==='name'){
+    const lines=getDisplayName(p).split('\n');
+    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+    let top=Infinity,bot=-Infinity,maxW=0;
+    lines.forEach((line,i)=>{
+      const ex=textExtent(nameSz,font,line);
+      maxW=Math.max(maxW,ex.w);
+      top=Math.min(top,lineYs[i]-ex.asc);
+      bot=Math.max(bot,lineYs[i]+ex.des);
+    });
+    if(!lines.length){top=platePos.y;bot=platePos.y}
+    let left=platePos.x;
+    if(textAlign==='center')left-=maxW/2;
+    else if(textAlign==='right')left-=maxW;
+    return{left,top,right:left+Math.max(maxW,1),bottom:bot};
+  }
+  if(key==='nr'){
+    const text=String(p.nr||'');
+    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
+    const ex=textExtent(nrSz,font,text);
+    let left=platePos.x;
+    if(textAlign==='center')left-=ex.w/2;
+    else if(textAlign==='right')left-=ex.w;
+    return{left,top:baseline-ex.asc,right:left+ex.w,bottom:baseline+ex.des};
+  }
+  return null;
+}
+
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign,badge,badgeScale}=opts;
-  const vA=textVAlign||'alphabetic';
+  const{nameSz,nrSz,logoSz,logo2Sz,font,badge,badgeScale}=opts;
   const p=activeP();
-  const nameText=getDisplayName(p);
   const badgeOn=badge&&badge!=='none';
   if(key==='nr'&&badgeOn){
     const bb=badgeBoundsHalf(p.nr,nrSz,font,badgeScale??S.badgeScale??72,badge);
     return{left:platePos.x-bb.halfW,top:platePos.y-bb.halfH,right:platePos.x+bb.halfW,bottom:platePos.y+bb.halfH};
   }
-  if(key==='name'){
-    const lines=nameText.split('\n');
-    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
-    const bm=nameBlockMetrics(nameSz,lines.length);
-    const oc=document.createElement('canvas').getContext('2d');
-    oc.font=`${nameSz}px ${font},sans-serif`;
-    let maxW=0;
-    lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
-    const top=lineYs[0]-bm.asc;
-    const bot=lineYs[lines.length-1]+bm.des;
-    let left=platePos.x;
-    if(textAlign==='center')left-=maxW/2;
-    else if(textAlign==='right')left-=maxW;
-    return{left,top,right:left+maxW,bottom:bot};
-  }
-  if(key==='nr'){
-    const text=String(p.nr||'');
-    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-    const m=measureText(text,nrSz,font,W,H);
-    let left=platePos.x;
-    if(textAlign==='center')left-=m.w/2;
-    else if(textAlign==='right')left-=m.w;
-    return{left,top:baseline-m.ascent,right:left+m.w,bottom:baseline+m.descent};
-  }
+  const tb=textPlateBounds(key,platePos,opts);
+  if(tb)return tb;
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
   const nw=img&&(img.naturalWidth||img.width)||1;
@@ -1875,10 +1923,10 @@ function constrainToSafe(key,x,y,opts){
   return{x:nx,y:ny};
 }
 
-function buildDragHandles(opts){
+function buildDragHandles(opts,plateCv){
   const wrap=document.getElementById('cvWrap');
   wrap.querySelectorAll('.dh').forEach(e=>e.remove());
-  const cv=document.getElementById('plateCanvas');
+  const cv=plateCv||document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
   const {nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign}=opts;
@@ -1903,16 +1951,23 @@ function buildDragHandles(opts){
       const bb=badgeBoundsHalf(p.nr,nrSz,font,bs,S.badge);
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
-      if(item.key==='name'){
+      const approx=textPlateBounds(item.key,platePos,opts);
+      const b=approx?refineTextBoundsFromCanvas(cv,approx):null;
+      if(b){
+        px=b.left*sc;py=b.top*sc;
+        pw=Math.max((b.right-b.left)*sc,8);
+        ph=Math.max((b.bottom-b.top)*sc,8);
+      }else if(item.key==='name'){
         const lines=nameText.split('\n');
         const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
-        const bm=nameBlockMetrics(nameSz,lines.length);
-        const oc=document.createElement('canvas').getContext('2d');
-        oc.font=`${nameSz}px ${font},sans-serif`;
-        let maxW=0;
-        lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
-        const top=lineYs[0]-bm.asc;
-        const bot=lineYs[lines.length-1]+bm.des;
+        let top=Infinity,bot=-Infinity,maxW=0;
+        lines.forEach((line,i)=>{
+          const ex=textExtent(nameSz,font,line);
+          maxW=Math.max(maxW,ex.w);
+          top=Math.min(top,lineYs[i]-ex.asc);
+          bot=Math.max(bot,lineYs[i]+ex.des);
+        });
+        if(!lines.length){top=platePos.y;bot=platePos.y}
         pw=maxW*sc;ph=Math.max((bot-top)*sc,8);
         const baseX=platePos.x*sc;
         if(textAlign==='left')px=baseX;
@@ -1922,13 +1977,13 @@ function buildDragHandles(opts){
       }else{
         const text=String(p.nr||'');
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-        const m=measureText(text,item.fontSize,font,W,H);
-        pw=m.w*sc;ph=(m.ascent+m.descent)*sc;
+        const ex=textExtent(item.fontSize,font,text);
+        pw=ex.w*sc;ph=Math.max((ex.asc+ex.des)*sc,8);
         const baseX=platePos.x*sc,baseY=baseline*sc;
         if(textAlign==='left')px=baseX;
         else if(textAlign==='center')px=baseX-pw/2;
         else px=baseX-pw;
-        py=baseY-m.ascent*sc;
+        py=baseY-ex.asc*sc;
       }
     }else{
       const maxSide=item.fontSize;
@@ -2081,7 +2136,7 @@ function moveDrag(e){
     const cv=document.getElementById('plateCanvas');
     const opts=buildRenderOpts();
     drawPlate(cv,cv.width,cv.height,opts,false);
-    buildDragHandles(opts);
+    buildDragHandles(opts,cv);
     if(dragState)dragState.raf=null;
   });
 }
@@ -2120,17 +2175,20 @@ document.addEventListener('keydown',e=>{
 
 // Vertikale Text-Anker (Plate-Koordinaten, Schrift in px wie nameSz / nrSz)
 function nameLinePlateYs(yAnchor,nameSzPlate,nameLines,font,vAlign){
-  const {gap,asc,des,blockH}=nameBlockMetrics(nameSzPlate,nameLines.length);
+  const gap=nameSzPlate*1.05;
+  if(!nameLines.length)return[];
+  const ex=nameLines.map(l=>textExtent(nameSzPlate,font,l));
+  const blockH=nameLines.length===1?ex[0].asc+ex[0].des:
+    (nameLines.length-1)*gap+ex[0].asc+ex[nameLines.length-1].des;
   let yFirst=yAnchor;
-  if(vAlign==='middle')yFirst=yAnchor-blockH/2+asc;
-  else if(vAlign==='bottom')yFirst=yAnchor-blockH+asc;
+  if(vAlign==='middle')yFirst=yAnchor-blockH/2+ex[0].asc;
+  else if(vAlign==='bottom')yFirst=yAnchor-blockH+ex[0].asc;
   return nameLines.map((_,i)=>yFirst+i*gap);
 }
 function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
-  const asc=nrSzPlate*TYPO_ASC;
-  const des=nrSzPlate*TYPO_DES;
-  if(vAlign==='middle')return yAnchor-(asc-des)/2;
-  if(vAlign==='bottom')return yAnchor-des;
+  const ex=textExtent(nrSzPlate,font,nrText);
+  if(vAlign==='middle')return yAnchor-(ex.asc-ex.des)/2;
+  if(vAlign==='bottom')return yAnchor-ex.des;
   return yAnchor;
 }
 
