@@ -62,3 +62,10 @@ Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badg
 - **Nummer (Schrift)**: Grösse der Ziffer im Badge  
 - **Badge-Grösse**: Skalierung der Form (25–160 %, Standard 72 %)  
 - Nummern werden **ohne `#`** auf dem Schild angezeigt
+
+### PDF-Druck (200×55 mm)
+
+- **Optionen → Export → PDF (Druck)** oder **📄 PDF Druck (200×55 mm)**  
+- Eine PDF-Seite = exakt **200 × 55 mm** (druckfertig für Copyshop/Drucker)  
+- **📦 Alle PDF** / Batch: ein mehrseitiges PDF mit allen Spielern  
+- **Auflösung** 2× empfohlen für schärfere Rastergrafik im PDF (Seitengrösse bleibt 200×55 mm)

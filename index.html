@@ -179,8 +179,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     <button class="btn btn-g btn-sm" onclick="switchMain('editor')" id="tabEditor">🎨 Editor</button>
     <button class="btn btn-g btn-sm" onclick="switchMain('batch')" id="tabBatch">📋 Batch</button>
     <div class="vdiv"></div>
-    <button class="btn btn-g btn-sm" onclick="exportCurrent()">💾 PNG</button>
-    <button class="btn btn-y btn-sm" onclick="exportAll()">📦 Alle</button>
+    <button class="btn btn-g btn-sm" onclick="exportCurrent()" id="btnExportCurrent">💾 PNG</button>
+    <button class="btn btn-y btn-sm" onclick="exportAll()" id="btnExportAll">📦 Alle</button>
   </div>
 </div>
 
@@ -447,12 +447,14 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
             <option value="2">2× · 4000px</option>
           </select></div>
         <div class="fg"><label class="fl">Format</label>
-          <select class="fi" id="selExpFormat" onchange="S.exportFormat=this.value">
+          <select class="fi" id="selExpFormat" onchange="S.exportFormat=this.value;syncExportUi();persistSession()">
             <option value="png">PNG</option>
             <option value="jpg">JPG</option>
+            <option value="pdf">PDF (Druck)</option>
           </select></div>
       </div>
-      <div style="font-size:.65rem;color:var(--mut);margin-top:2px;line-height:1.5">
+      <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="exportPrintPdfCurrent()">📄 PDF Druck (200×55 mm)</button>
+      <div id="expFormatHint" style="font-size:.65rem;color:var(--mut);margin-top:6px;line-height:1.5">
         „📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.
       </div>
     </div>
@@ -501,7 +503,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="color:var(--mut);font-size:.8rem;margin-bottom:10px">Alle Schilder mit aktueller Vorlage</div>
       <div style="display:flex;gap:7px">
         <button class="btn btn-y btn-sm" onclick="renderBatch()">🔄 Rendern</button>
-        <button class="btn btn-r btn-sm" onclick="exportAll()">📦 Alle PNG</button>
+        <button class="btn btn-r btn-sm" onclick="exportAll()" id="btnBatchExportAll">📦 Alle exportieren</button>
       </div>
       <div class="batch-grid" id="batchGrid"></div>
     </div>
@@ -1010,6 +1012,7 @@ function applyStateToUI(){
   document.getElementById('slGlow').value=S.glowSize??26;sv('slGlow','vlGlow');
   document.getElementById('selExpScale').value=S.exportScale;
   document.getElementById('selExpFormat').value=S.exportFormat;
+  syncExportUi();
   ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===S.textAlign));
   syncVAlignUi();
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===S.badge));
@@ -2228,7 +2231,8 @@ function exportFileName(p,prefix){return (prefix||'')+'nameplate_'+safeName(p.la
 
 // renders one plate at the chosen export resolution / format
 function renderExportCanvas(p){
-  const sc=S.exportScale||1,ew=W*sc,eh=H*sc;
+  const sc=S.exportFormat==='pdf'?Math.max(1,S.exportScale||2):(S.exportScale||1);
+  const ew=W*sc,eh=H*sc;
   const cv=document.createElement('canvas');cv.width=ew;cv.height=eh;
   drawPlate(cv,ew,eh,makeFullOpts(p),false);
   // JPG has no alpha → paint a dark backdrop BEHIND the (rounded) plate
@@ -2240,15 +2244,100 @@ function renderExportCanvas(p){
   }
   return cv;
 }
-function exportCurrent(){
-  const p=activeP();
-  dlCv(renderExportCanvas(p),exportFileName(p)+'.'+S.exportFormat);
+function syncExportUi(){
+  const fmt=S.exportFormat||'png';
+  const b1=document.getElementById('btnExportCurrent');
+  const b2=document.getElementById('btnExportAll');
+  const bb=document.getElementById('btnBatchExportAll');
+  if(b1)b1.textContent=fmt==='pdf'?'📄 PDF':fmt==='jpg'?'💾 JPG':'💾 PNG';
+  if(b2)b2.textContent=fmt==='pdf'?'📄 Alle PDF':fmt==='jpg'?'📦 Alle JPG':'📦 Alle';
+  if(bb)bb.textContent=fmt==='pdf'?'📄 Alle PDF':fmt==='jpg'?'📦 Alle JPG':'📦 Alle PNG';
+  const hint=document.getElementById('expFormatHint');
+  if(hint){
+    hint.innerHTML=fmt==='pdf'
+      ?'PDF <strong>200×55 mm</strong> pro Seite – exakte Druckgrösse. „Alle“ = ein mehrseitiges PDF. Auflösung steuert die Bildschärfe im PDF.'
+      :'„📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.';
+  }
 }
-function exportAll(){
+let _jsPdfLoad=null;
+function loadJsPDF(){
+  if(_jsPdfLoad)return _jsPdfLoad;
+  const existing=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+  if(existing)return Promise.resolve(existing);
+  _jsPdfLoad=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+    s.onload=()=>{
+      const J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+      if(J)resolve(J);else reject(new Error('jsPDF nicht geladen'));
+    };
+    s.onerror=()=>reject(new Error('jsPDF konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+  return _jsPdfLoad;
+}
+function newPrintPdfDoc(){
+  return loadJsPDF().then(jsPDF=>new jsPDF({
+    unit:'mm',
+    format:[PLATE_PRINT_W_MM,PLATE_PRINT_H_MM],
+    orientation:'landscape',
+    compress:true,
+  }));
+}
+async function downloadPdfCanvas(cv,filename){
+  const doc=await newPrintPdfDoc();
+  const img=cv.toDataURL('image/png',1);
+  doc.addImage(img,'PNG',0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
+  doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
+}
+async function downloadExport(cv,filename){
+  if(S.exportFormat==='pdf'||/\.pdf$/i.test(filename)){
+    await downloadPdfCanvas(cv,filename);
+    return;
+  }
+  dlCv(cv,filename);
+}
+async function exportCurrent(){
+  const p=activeP();
+  const ext=S.exportFormat==='pdf'?'pdf':S.exportFormat;
+  try{
+    await downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+ext);
+    if(S.exportFormat==='pdf')showOk('PDF gespeichert (200×55 mm).');
+  }catch(e){showErr('Export fehlgeschlagen: '+(e.message||e))}
+}
+async function exportPrintPdfCurrent(){
+  const p=activeP();
+  try{
+    const prev=S.exportFormat;
+    S.exportFormat='pdf';
+    await downloadPdfCanvas(renderExportCanvas(p),exportFileName(p)+'.pdf');
+    S.exportFormat=prev;
+    syncExportUi();
+    document.getElementById('selExpFormat').value=S.exportFormat;
+    showOk('PDF gespeichert (200×55 mm).');
+  }catch(e){showErr('PDF-Export: '+(e.message||e))}
+}
+async function exportAllPdf(){
+  const doc=await newPrintPdfDoc();
+  for(let i=0;i<S.roster.length;i++){
+    if(i>0)doc.addPage([PLATE_PRINT_W_MM,PLATE_PRINT_H_MM],'landscape');
+    const cv=renderExportCanvas(S.roster[i]);
+    doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
+  }
+  doc.save(safeName(S.club||'team')+'_nameplates.pdf');
+}
+async function exportAll(){
   if(!S.roster.length){alert('Kein Roster!');return}
-  const fmt=S.exportFormat,mime=fmt==='jpg'?'image/jpeg':'image/png';
+  const fmt=S.exportFormat;
+  if(fmt==='pdf'){
+    try{
+      await exportAllPdf();
+      showOk(`${S.roster.length} Schild(er) als PDF (200×55 mm).`);
+    }catch(e){showErr('PDF-Export: '+(e.message||e))}
+    return;
+  }
+  const mime=fmt==='jpg'?'image/jpeg':'image/png';
   if(typeof JSZip!=='undefined'){
-    // bundle every plate into a single ZIP archive
     const zip=new JSZip();
     S.roster.forEach((p,i)=>{
       const data=renderExportCanvas(p).toDataURL(mime,.95).split(',')[1];
@@ -2261,7 +2350,6 @@ function exportAll(){
       a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
     }).catch(()=>alert('ZIP-Export fehlgeschlagen.'));
   }else{
-    // fallback: individual downloads
     S.roster.forEach((p,i)=>setTimeout(()=>{
       dlCv(renderExportCanvas(p),exportFileName(p,String(i+1).padStart(2,'0')+'_')+'.'+fmt);
     },i*250));
@@ -2284,7 +2372,7 @@ function renderBatch(){
     drawPlate(cv,bw,bh,makeFullOpts(p),false);
     const lbl=document.createElement('div');lbl.className='batch-lbl';lbl.textContent=`#${p.nr} ${(p.last||p.first)}`;
     const dlb=document.createElement('button');dlb.className='batch-dl';dlb.textContent='💾';
-    dlb.onclick=()=>dlCv(renderExportCanvas(p),exportFileName(p)+'.'+S.exportFormat);
+    dlb.onclick=()=>downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+(S.exportFormat==='pdf'?'pdf':S.exportFormat));
     wrap.appendChild(cv);wrap.appendChild(lbl);wrap.appendChild(dlb);g.appendChild(wrap);
   });
 }
@@ -2312,6 +2400,7 @@ window.addEventListener('load',async()=>{
   // sync export controls with state
   document.getElementById('selExpScale').value=S.exportScale;
   document.getElementById('selExpFormat').value=S.exportFormat;
+  syncExportUi();
   // click empty canvas area → deselect the active drag element
   document.getElementById('plateCanvas').addEventListener('pointerdown',()=>{
     if(S.sel){S.sel=null;render()}
