@@ -1556,7 +1556,7 @@ function loadLogo2(inp){
   });
   inp.value='';
 }
-function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;document.getElementById('logo2Prev').style.display='none';persistSession();render()}
+function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';persistSession();render()}
 function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';persistSession();render()}
 
 function useEHCLogo(){
@@ -1765,8 +1765,8 @@ function buildDragHandles(opts){
     {key:'nr',  fontSize:nrSz,  isText:!badgeOn},
     {key:'name',fontSize:nameSz,isText:true},
     {key:'logo',fontSize:logoSz,isText:false},
-    {key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false},
   ];
+  if(S.logo2)items.push({key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false});
 
   items.forEach(item=>{
     const platePos=getPos(item.key);
