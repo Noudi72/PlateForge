@@ -42,6 +42,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
+**Hinweis Speicher:** Logo/Hintergrund als volle PNG-Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Die App komprimiert Bilder automatisch (JPEG); wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.
+
 ### Nummern-Badge
 
 - **Nummer (Schrift)**: Grösse der Ziffer im Badge  
