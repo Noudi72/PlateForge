@@ -36,15 +36,20 @@ Nur sinnvoll, wenn ihr später einen Build habt (z. B. Vite). Für die aktuell
 
 ---
 
-### Eigene Vorlagen
+### Speichern (Session vs. Vorlage)
 
-Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Daten liegen im **localStorage** des Browsers (pro Gerät/Domain). Optional Logo und Hintergrundbild mit speichern.
+| Was | Wo | Wann |
+|-----|-----|------|
+| **Session** (automatisch) | `localStorage` + **IndexedDB** für Bilder | Jede Änderung (debounced) — Layout, Farben, Positionen, aktive Vorlage |
+| **Eigene Vorlage** (💾 Speichern) | `localStorage` | Nur wenn du einen Namen vergibst und speicherst |
+| **Kader** | `plateforge_roster` | Spielerliste unabhängig vom Design |
+| **JSON** (📤/📥) | Datei | Team-Sharing ohne Browser-Limit |
 
-**Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
+- **Bilder nach Reload behalten** (Checkbox): Logos/Hintergrund in **IndexedDB** (`sess_*`), nicht im vollen JSON der Session — spart das ~5 MB-Limit von `localStorage`.
+- **Statuszeile** unter den Vorlagen-Buttons: zeigt geladene Vorlage und ob seit dem letzten **💾 Speichern** etwas geändert wurde.
+- **Logo & Hintergrund in Vorlage/JSON**: für benannte Vorlagen und Export; bei vollem Speicher Fallback ohne Bilder + Hinweis, JSON nutzen.
 
-**Hinweis Speicher:** Logo/Hintergrund als volle Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Logos werden als **PNG** (Transparenz) komprimiert, Hintergrundbilder als JPEG; wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.
-
-**Session:** Layout, Grössen und Positionen werden automatisch in `plateforge_session` gesichert (ohne Bilder). Das **Kader** bleibt in `plateforge_roster` erhalten – kein erneutes CSV-Import nötig nach Reload.
+**Team-Sharing:** **📤 JSON** exportiert alle Vorlagen (oder das aktuelle Design). **📥 Import** = hinzufügen / gleiche Namen überschreiben. **↓** = einzelne Vorlage exportieren.
 
 ### Badge & Grössen (Design)
 

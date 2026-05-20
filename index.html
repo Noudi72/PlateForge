@@ -65,6 +65,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 /* STATUS */
 .csv-status{font-size:.7rem;border-radius:4px;padding:5px 7px;margin-top:4px;display:none;line-height:1.4}
 .csv-ok{background:rgba(0,200,100,.1);border:1px solid rgba(0,200,100,.25);color:#0dc87a}
+.storage-hint{font-size:.64rem;color:var(--mut);line-height:1.45;margin-bottom:6px;padding:6px 8px;border-radius:4px;background:var(--p2);border:1px solid var(--bdr)}
+.storage-hint.dirty{border-color:rgba(240,165,0,.4);color:var(--gold)}
 .csv-err{background:rgba(230,57,80,.1);border:1px solid rgba(230,57,80,.25);color:#e63950}
 .csv-warn{background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);color:var(--gold)}
 
@@ -214,12 +216,18 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
           <input type="file" accept=".json,application/json" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
         </label>
       </div>
+      <div id="storageStatus" class="storage-hint">Session wird vorbereitet…</div>
+      <label class="tog-row" style="margin-bottom:4px;cursor:pointer">
+        <span class="tog-lbl" style="font-size:.7rem">Bilder nach Reload behalten</span>
+        <input type="checkbox" id="sessKeepAssets" style="accent-color:var(--gold)" checked onchange="S.sessKeepAssets=this.checked;schedulePersistSession()">
+      </label>
       <label class="tog-row" style="margin-bottom:6px;cursor:pointer">
         <span class="tog-lbl" style="font-size:.7rem">Logo &amp; Hintergrund in Vorlage/JSON</span>
-        <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)" title="JPEG-komprimiert; für Browser-Speicher empfohlen">
+        <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)" title="JPEG/PNG-komprimiert; für Browser-Speicher empfohlen">
       </label>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        Browser-Speicher ist begrenzt (~5 MB). JSON-Export hat kein Limit – ideal zum Teilen im Team.
+        <strong>Session</strong> (automatisch): Layout, Farben, Positionen, Kader — Bilder optional in IndexedDB.<br>
+        <strong>Vorlage</strong> (💾 Speichern): benanntes Team-Design im Browser. JSON-Export ohne Grössenlimit.
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -589,7 +597,9 @@ const S={
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
   badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,
-  userTplId:null, // id der geladenen eigenen Vorlage
+  userTplId:null,
+  _savedSnapHash:null,
+  sessKeepAssets:true,
   // export
   exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
   // currently selected drag element (for keyboard nudging)
@@ -661,15 +671,7 @@ function buildRenderOpts(){
 }
 function persistRoster(){
   try{
-    localStorage.setItem(ROSTER_KEY,JSON.stringify({roster:S.roster,active:S.active,ts:Date.now()}));
-  }catch(e){}
-}
-function persistSession(){
-  try{
-    const snap=getDesignSnapshotBase();
-    snap.nameMode=S.nameMode||getVal('selNameMode');
-    snap.logoBand=S.logoBand;
-    localStorage.setItem(SESSION_KEY,JSON.stringify({snap,ts:Date.now()}));
+    localStorage.setItem(ROSTER_KEY,JSON.stringify({v:1,roster:S.roster,active:S.active,ts:Date.now()}));
   }catch(e){}
 }
 function restoreRoster(){
@@ -681,13 +683,12 @@ function restoreRoster(){
     return true;
   }catch(e){return false}
 }
-async function restoreSession(){
-  try{
-    const d=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
-    if(!d||!d.snap)return;
-    await applyDesignSnapshot(d.snap,{restoreImages:false});
-  }catch(e){}
+let _persistSessionTimer=null;
+function schedulePersistSession(){
+  clearTimeout(_persistSessionTimer);
+  _persistSessionTimer=setTimeout(()=>persistSessionNow(),450);
 }
+function persistSession(){schedulePersistSession()}
 
 // ══════════════════════════════════════════
 // SIDE TABS / MAIN TABS
@@ -923,7 +924,7 @@ function buildTplGrid(){
   });
 }
 function selectTpl(i){
-  S.tpl=i;S.userTplId=null;const t=TMPL[i];
+  S.tpl=i;S.userTplId=null;S._savedSnapHash=null;const t=TMPL[i];
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
   S.badgeColor=t.acc;
   document.getElementById('tplName').textContent=t.name.toUpperCase();
@@ -932,6 +933,7 @@ function selectTpl(i){
     c.classList.toggle('on',bi!==undefined&&+bi===i&&!ui);
   });
   refreshSwatches();
+  updateStorageStatus();
   persistSession();render();
 }
 
@@ -980,11 +982,15 @@ function compressImageSource(src,maxSide,quality,keepAlpha){
   });
 }
 function getDesignSnapshotBase(){
+  const tplEl=document.getElementById('tplName');
   return{
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
+    userTplId:S.userTplId||null,
+    designLabel:tplEl?(tplEl.textContent||'').trim():'',
+    sessKeepAssets:S.sessKeepAssets!==false,
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
@@ -1022,6 +1028,198 @@ async function compressSnapForStorage(snap){
   if(!s.logo2Data)delete s.logo2IsSvg;
   return s;
 }
+
+// ══════════════════════════════════════════
+// SPEICHER – Session, IndexedDB-Bilder, Dirty-State
+// ══════════════════════════════════════════
+const STORAGE_SCHEMA=2;
+const IDB_NAME='plateforge_db';
+const IDB_STORE='assets';
+const IDB_KEYS={logo:'sess_logo',logo2:'sess_logo2',bg:'sess_bg'};
+let _idbDbPromise=null;
+
+function idbAvailable(){return typeof indexedDB!=='undefined'}
+function openAssetDb(){
+  if(!idbAvailable())return Promise.resolve(null);
+  if(_idbDbPromise)return _idbDbPromise;
+  _idbDbPromise=new Promise((resolve,reject)=>{
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE,{keyPath:'key'});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>{ _idbDbPromise=null; reject(req.error); };
+  });
+  return _idbDbPromise;
+}
+function idbTx(store,mode){
+  return openAssetDb().then(db=>{
+    if(!db)return null;
+    return db.transaction(IDB_STORE,mode).objectStore(IDB_STORE);
+  });
+}
+async function idbPutAsset(key,dataUrl){
+  if(!dataUrl||!idbAvailable())return false;
+  try{
+    const st=await idbTx(IDB_STORE,'readwrite');
+    if(!st)return false;
+    return new Promise((res,rej)=>{
+      const r=st.put({key,dataUrl,ts:Date.now()});
+      r.onsuccess=()=>res(true);
+      r.onerror=()=>rej(r.error);
+    });
+  }catch(e){return false}
+}
+async function idbGetAsset(key){
+  if(!idbAvailable())return null;
+  try{
+    const st=await idbTx(IDB_STORE,'readonly');
+    if(!st)return null;
+    return new Promise((res,rej)=>{
+      const r=st.get(key);
+      r.onsuccess=()=>res(r.result?r.result.dataUrl:null);
+      r.onerror=()=>rej(r.error);
+    });
+  }catch(e){return null}
+}
+async function idbDeleteAsset(key){
+  if(!idbAvailable())return;
+  try{
+    const st=await idbTx(IDB_STORE,'readwrite');
+    if(!st)return;
+    await new Promise((res,rej)=>{
+      const r=st.delete(key);
+      r.onsuccess=()=>res();
+      r.onerror=()=>rej(r.error);
+    });
+  }catch(e){}
+}
+function snapHash(snap){
+  const s=stripSnapImages({...snap});
+  delete s.designLabel;
+  return JSON.stringify(s);
+}
+function designIsDirty(){
+  if(!S._savedSnapHash)return false;
+  const cur=snapHash(getDesignSnapshotBase());
+  return cur!==S._savedSnapHash;
+}
+function markDesignSaved(){
+  S._savedSnapHash=snapHash(getDesignSnapshotBase());
+  updateStorageStatus();
+}
+function updateStorageStatus(){
+  const el=document.getElementById('storageStatus');
+  if(!el)return;
+  const dirty=designIsDirty();
+  let label='Aktuelles Design';
+  if(S.userTplId){
+    const t=loadUserTemplates().find(x=>x.id===S.userTplId);
+    if(t)label='Vorlage: '+t.name;
+  }
+  const sess=document.getElementById('sessKeepAssets');
+  const keep=sess?sess.checked:S.sessKeepAssets!==false;
+  const parts=[label];
+  if(S.userTplId)parts.push(dirty?'● Änderungen nicht in Vorlage gespeichert':'✓ Mit Vorlage synchron');
+  else parts.push('✓ Session automatisch gesichert');
+  if(keep&&idbAvailable())parts.push('Bilder: IndexedDB');
+  else if(keep)parts.push('Bilder: nur bis Reload (kein IndexedDB)');
+  el.textContent=parts.join(' · ');
+  el.classList.toggle('dirty',dirty);
+}
+async function applyAssetDataUrl(kind,dataUrl,isSvg){
+  if(!dataUrl)return;
+  await new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(kind==='logo'){clearLogoRasterCache(S.logo);S.logo=img;S.logoIsSvg=!!isSvg;
+        const p=document.getElementById('logoPrev');p.src=dataUrl;p.style.display='block'}
+      else if(kind==='logo2'){clearLogoRasterCache(S.logo2);S.logo2=img;S.logo2IsSvg=!!isSvg;
+        const p=document.getElementById('logo2Prev');p.src=dataUrl;p.style.display='block'}
+      else{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=dataUrl;p.style.display='block'}
+      res();
+    };
+    img.onerror=res;
+    img.src=dataUrl;
+  });
+}
+async function persistSessionAssetsToIdb(){
+  const flags={logo:false,logo2:false,bg:false};
+  if(S.sessKeepAssets===false){
+    await Promise.all(Object.values(IDB_KEYS).map(idbDeleteAsset));
+    return flags;
+  }
+  const lp=document.getElementById('logoPrev'),l2p=document.getElementById('logo2Prev'),bp=document.getElementById('bgPrev');
+  if(S.logo&&lp&&lp.src&&lp.style.display!=='none'){
+    const d=await compressImageSource(lp.src,420,0.88,true);
+    if(d&&await idbPutAsset(IDB_KEYS.logo,d))flags.logo=true;
+    else await idbDeleteAsset(IDB_KEYS.logo);
+  }else await idbDeleteAsset(IDB_KEYS.logo);
+  if(S.logo2&&l2p&&l2p.src&&l2p.style.display!=='none'){
+    const d=await compressImageSource(l2p.src,420,0.88,true);
+    if(d&&await idbPutAsset(IDB_KEYS.logo2,d))flags.logo2=true;
+    else await idbDeleteAsset(IDB_KEYS.logo2);
+  }else await idbDeleteAsset(IDB_KEYS.logo2);
+  if(S.bgImg&&bp&&bp.src&&bp.style.display!=='none'){
+    const d=await compressImageSource(bp.src,1100,0.72);
+    if(d&&await idbPutAsset(IDB_KEYS.bg,d))flags.bg=true;
+    else await idbDeleteAsset(IDB_KEYS.bg);
+  }else await idbDeleteAsset(IDB_KEYS.bg);
+  return flags;
+}
+async function restoreSessionAssetsFromIdb(assetFlags){
+  if(S.sessKeepAssets===false)return;
+  const flags=assetFlags||{};
+  if(flags.logo){
+    const d=await idbGetAsset(IDB_KEYS.logo);
+    if(d)await applyAssetDataUrl('logo',d,false);
+  }
+  if(flags.logo2){
+    const d=await idbGetAsset(IDB_KEYS.logo2);
+    if(d)await applyAssetDataUrl('logo2',d,false);
+  }
+  if(flags.bg){
+    const d=await idbGetAsset(IDB_KEYS.bg);
+    if(d)await applyAssetDataUrl('bg',d,false);
+  }
+}
+async function persistSessionNow(){
+  try{
+    const snap=getDesignSnapshotBase();
+    snap.nameMode=S.nameMode||getVal('selNameMode');
+    snap.logoBand=S.logoBand;
+    const assets=await persistSessionAssetsToIdb();
+    snap.assets=assets;
+    const payload={
+      v:STORAGE_SCHEMA,
+      snap,
+      savedSnapHash:S._savedSnapHash||null,
+      ts:Date.now(),
+    };
+    localStorage.setItem(SESSION_KEY,JSON.stringify(payload));
+    updateStorageStatus();
+  }catch(e){
+    if(e&&e.name==='QuotaExceededError')showWarn('Browser-Speicher voll – Vorlagen ohne Bilder speichern oder alte löschen.');
+  }
+}
+async function restoreSession(){
+  try{
+    const d=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if(!d||!d.snap)return;
+    const ck=document.getElementById('sessKeepAssets');
+    if(ck)S.sessKeepAssets=ck.checked;
+    else S.sessKeepAssets=d.snap.sessKeepAssets!==false;
+    await applyDesignSnapshot(d.snap,{restoreImages:false});
+    if(d.snap.userTplId)S.userTplId=d.snap.userTplId;
+    if(d.savedSnapHash)S._savedSnapHash=d.savedSnapHash;
+    const lbl=d.snap.designLabel||d.designLabel;
+    if(lbl)document.getElementById('tplName').textContent=lbl;
+    await restoreSessionAssetsFromIdb(d.snap.assets);
+    updateStorageStatus();
+  }catch(e){}
+}
+
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
   document.getElementById('selFont').value=S.font;
@@ -1074,6 +1272,8 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeBorderColor=snap.badgeBorderColor||'#FFFFFF';
   S.badgeScale=snap.badgeScale??72;
   S.nameMode=snap.nameMode||'last';
+  S.userTplId=snap.userTplId||null;
+  if(snap.sessKeepAssets!==undefined)S.sessKeepAssets=snap.sessKeepAssets!==false;
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
@@ -1113,7 +1313,9 @@ async function applyDesignSnapshot(snap,opts={}){
       img.onerror=res;img.src=snap.bgData;
     });
   }
-  persistSession();
+  if(restoreImages&&(snap.logoData||snap.logo2Data||snap.bgData))await persistSessionAssetsToIdb();
+  updateStorageStatus();
+  schedulePersistSession();
   render();
 }
 async function saveUserTemplate(){
@@ -1147,7 +1349,8 @@ async function saveUserTemplate(){
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
   document.getElementById('tplName').textContent=name.toUpperCase();
-  buildTplGrid();renderUserTplList();persistSession();render();
+  markDesignSaved();
+  buildTplGrid();renderUserTplList();persistSessionNow();render();
 }
 async function loadUserTemplate(id){
   const t=loadUserTemplates().find(x=>x.id===id);
@@ -1156,14 +1359,15 @@ async function loadUserTemplate(id){
   await applyDesignSnapshot(t.snap);
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
+  markDesignSaved();
 }
 function deleteUserTemplate(id,e){
   e.stopPropagation();
   if(!confirm('Vorlage löschen?'))return;
   const list=loadUserTemplates().filter(t=>t.id!==id);
   persistUserTemplates(list);
-  if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase()}
-  buildTplGrid();renderUserTplList();render();
+  if(S.userTplId===id){S.userTplId=null;S._savedSnapHash=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase()}
+  buildTplGrid();renderUserTplList();updateStorageStatus();render();
 }
 function renderUserTplList(){
   const el=document.getElementById('userTplList');
@@ -1544,7 +1748,7 @@ function loadLogo(inp){
   inp.value='';
 }
 function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';persistSession();render()});inp.value=''}
-function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';persistSession();render()}
+function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';idbDeleteAsset(IDB_KEYS.logo);persistSession();render()}
 function loadLogo2(inp){
   const file=inp.files[0];if(!file)return;
   loadImgFile(file,(img,src)=>{
@@ -1556,8 +1760,8 @@ function loadLogo2(inp){
   });
   inp.value='';
 }
-function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';persistSession();render()}
-function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';persistSession();render()}
+function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';idbDeleteAsset(IDB_KEYS.logo2);persistSession();render()}
+function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';idbDeleteAsset(IDB_KEYS.bg);persistSession();render()}
 
 function useEHCLogo(){
   const oc=document.createElement('canvas');oc.width=400;oc.height=400;
@@ -1642,7 +1846,7 @@ function render(){
   drawPlate(cv,cv.width,cv.height,opts,false);
   buildGuideLines();
   buildDragHandles(opts);
-  if(!dragState)persistSession();
+  if(!dragState)schedulePersistSession();
 }
 
 // ══════════════════════════════════════════
@@ -2554,7 +2758,13 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
+  const sessCk=document.getElementById('sessKeepAssets');
+  if(sessCk)sessCk.checked=S.sessKeepAssets!==false;
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
+  updateStorageStatus();
+  window.addEventListener('beforeunload',e=>{
+    if(designIsDirty()){e.preventDefault();e.returnValue='';}
+  });
   syncVAlignUi();
   setBadge(S.badge);
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
