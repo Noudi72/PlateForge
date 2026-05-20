@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <style>
 :root{--bg:#0d0f14;--panel:#161922;--p2:#1e2230;--bdr:rgba(255,255,255,.08);--acc:#e63950;--gold:#f0a500;--txt:#e8eaf0;--mut:#7a8099}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -2259,21 +2260,45 @@ function syncExportUi(){
       :'„📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.';
   }
 }
+const JSPDF_CDNS=[
+  'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js',
+];
 let _jsPdfLoad=null;
-function loadJsPDF(){
-  if(_jsPdfLoad)return _jsPdfLoad;
-  const existing=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
-  if(existing)return Promise.resolve(existing);
-  _jsPdfLoad=new Promise((resolve,reject)=>{
+function getJsPDFCtor(){
+  return(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF||null;
+}
+function loadJsPDFFromCdn(index){
+  if(index>=JSPDF_CDNS.length)return Promise.reject(new Error('jsPDF konnte nicht geladen werden (CDN blockiert?)'));
+  const J=getJsPDFCtor();
+  if(J)return Promise.resolve(J);
+  return new Promise((resolve,reject)=>{
+    const url=JSPDF_CDNS[index];
+    if(document.querySelector(`script[src="${url}"]`)){
+      const wait=setInterval(()=>{
+        const ctor=getJsPDFCtor();
+        if(ctor){clearInterval(wait);resolve(ctor)}
+      },40);
+      setTimeout(()=>{clearInterval(wait);loadJsPDFFromCdn(index+1).then(resolve).catch(reject)},8000);
+      return;
+    }
     const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+    s.src=url;
     s.onload=()=>{
-      const J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
-      if(J)resolve(J);else reject(new Error('jsPDF nicht geladen'));
+      const ctor=getJsPDFCtor();
+      if(ctor)resolve(ctor);
+      else loadJsPDFFromCdn(index+1).then(resolve).catch(reject);
     };
-    s.onerror=()=>reject(new Error('jsPDF konnte nicht geladen werden'));
+    s.onerror=()=>loadJsPDFFromCdn(index+1).then(resolve).catch(reject);
     document.head.appendChild(s);
   });
+}
+function loadJsPDF(){
+  const existing=getJsPDFCtor();
+  if(existing)return Promise.resolve(existing);
+  if(_jsPdfLoad)return _jsPdfLoad;
+  _jsPdfLoad=loadJsPDFFromCdn(0).catch(err=>{_jsPdfLoad=null;throw err});
   return _jsPdfLoad;
 }
 function newPrintPdfDoc(){
