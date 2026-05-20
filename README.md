@@ -60,7 +60,9 @@ Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badg
 
 ### Lange Namen (z. B. GROSSNIKLAUS)
 
-Unter **Design → Badge & Grössen**: Toggle **Lange Namen separat**, dann **Ab Zeichen** (Standard 10) und **Schriftgrösse (lang)**. Kurze Namen (SERI, MATHEY) behalten **Name (kurz)**; ab der eingestellten Zeichenlänge gilt die kleinere Schrift. In der Spieler-Navigation steht dann z. B. `· Name 150px`.
+Unter **Design → Badge & Grössen**: Toggle **Lange Namen separat**, dann **Ab Zeichen** (Standard 10) und **Schriftgrösse (lang)**. Kurze Namen (SERI, MATHEY) behalten **Name (kurz)**; ab der eingestellten Zeichenlänge gilt die kleinere Schrift.
+
+**An Breite anpassen** (empfohlen): Namen, die selbst mit der „langen“ Grösse noch zu breit sind (z. B. GROSSNIKLAUS), werden automatisch weiter verkleinert, bis sie in die Namenszone passen. In der Navigation: `· Name 142px (angepasst)`.
 
 ### Zwei Logos & Hilfslinien
 

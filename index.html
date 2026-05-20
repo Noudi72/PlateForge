@@ -329,6 +329,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
           <div class="sl-row"><input type="range" min="6" max="18" value="10" id="slNameLongLen" oninput="S.nameLongMinLen=+this.value;render();sv('slNameLongLen','vlNameLongLen')"><span class="sl-v" id="vlNameLongLen">10</span></div>
           <label class="fl">Schriftgrösse (lang)</label>
           <div class="sl-row"><input type="range" min="40" max="340" value="150" id="slNameSzLong" oninput="render();sv('slNameSzLong','vlNameSzLong')"><span class="sl-v" id="vlNameSzLong">150</span></div>
+          <div class="tog-row" style="margin-top:6px"><span class="tog-lbl">An Breite anpassen</span><div class="tog on" id="togNameAutoFit" onclick="togNameAutoFit()"></div></div>
+          <div style="font-size:.62rem;color:var(--mut);line-height:1.45;margin-top:4px">Zu breite Namen werden automatisch verkleinert, bis sie in die Zone passen.</div>
         </div>
       </div>
       <div class="fg"><label class="fl">Logo 1 (längste Seite)</label>
@@ -615,7 +617,7 @@ const S={
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
-  nameSzLong:150,nameLongOn:false,nameLongMinLen:10,
+  nameSzLong:150,nameLongOn:false,nameLongMinLen:10,nameAutoFit:true,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
@@ -661,12 +663,51 @@ function nameLongestLen(nameText){
   const lines=String(nameText||'').split('\n');
   return Math.max(0,...lines.map(l=>l.trim().length));
 }
-function effectiveNameSz(nameText,opts){
+function nameMaxWidthPlate(opts){
+  const safe=getSafeRect();
+  const pad=32;
+  const layout=opts.layout||getActiveLayout();
+  const namePos=getPos('name');
+  const ta=opts.textAlign||'left';
+  if(layout==='S'){
+    const zoneLeft=W*0.46+pad;
+    const zoneRight=safe.right-pad;
+    if(ta==='center')return Math.max(100,zoneRight-zoneLeft);
+    if(ta==='right')return Math.max(100,namePos.x-zoneLeft);
+    return Math.max(100,zoneRight-namePos.x);
+  }
+  if(layout==='F'){
+    const half=Math.min(namePos.x-safe.left,safe.right-namePos.x)-pad;
+    return Math.max(100,Math.max(0,half)*2);
+  }
+  const logoReserve=Math.round((opts.logoSz||140)*1.35)+80;
+  if(layout==='L')return Math.max(100,safe.right-namePos.x-pad);
+  if(layout==='R')return Math.max(100,namePos.x-safe.left-pad);
+  return Math.max(100,safe.right-safe.left-logoReserve);
+}
+function fitNameSizeToWidth(nameText,font,startSz,maxW,minSz){
+  const lines=String(nameText||'').split('\n');
+  const floor=Math.max(40,minSz||40);
+  let sz=Math.round(startSz);
+  let w=maxLineWidth(lines,sz,font);
+  if(w<=maxW||w<1)return sz;
+  sz=Math.max(floor,Math.floor(startSz*maxW/w));
+  if(maxLineWidth(lines,sz,font)>maxW&&sz>floor)sz=floor;
+  return sz;
+}
+function baseNameSz(nameText,opts){
   const base=opts.nameSz??190;
   if(!opts.nameLongOn)return base;
-  const minLen=opts.nameLongMinLen??10;
-  if(nameLongestLen(nameText)>=minLen)return opts.nameSzLong??base;
+  if(nameLongestLen(nameText)>=(opts.nameLongMinLen??10))return opts.nameSzLong??base;
   return base;
+}
+function effectiveNameSz(nameText,opts){
+  const font=opts.font||S.font;
+  let sz=baseNameSz(nameText,opts);
+  if(opts.nameLongOn&&opts.nameAutoFit!==false){
+    sz=fitNameSizeToWidth(nameText,font,sz,nameMaxWidthPlate(opts),40);
+  }
+  return sz;
 }
 function syncNameLongUi(){
   const on=!!S.nameLongOn;
@@ -674,9 +715,17 @@ function syncNameLongUi(){
   if(t)t.classList.toggle('on',on);
   const rows=document.getElementById('nameLongRows');
   if(rows)rows.style.display=on?'block':'none';
+  const af=document.getElementById('togNameAutoFit');
+  if(af)af.classList.toggle('on',S.nameAutoFit!==false);
 }
 function togNameLong(){
   S.nameLongOn=!S.nameLongOn;
+  syncNameLongUi();
+  persistSession();
+  render();
+}
+function togNameAutoFit(){
+  S.nameAutoFit=!S.nameAutoFit;
   syncNameLongUi();
   persistSession();
   render();
@@ -1096,7 +1145,7 @@ function getDefaultDesignFields(){
     tpl:0,
     c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
     font:"'Bebas Neue'",nrFont:'',layout:'L',textAlign:'left',textVAlign:'alphabetic',nameMode:'last',
-    logoSz:140,logo2Sz:90,nameSz:190,nameSzLong:150,nameLongOn:false,nameLongMinLen:10,nrSz:260,frameW:10,bgOp:.4,logoOp:1,
+    logoSz:140,logo2Sz:90,nameSz:190,nameSzLong:150,nameLongOn:false,nameLongMinLen:10,nameAutoFit:true,nrSz:260,frameW:10,bgOp:.4,logoOp:1,
     frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,
     showGuides:true,showSafeMargin:true,shadowOn:true,glowOn:false,glowColor:'#00BFFF',
     shBlur:10,shDist:4,glowSize:26,
@@ -1239,7 +1288,7 @@ function getDesignSnapshotBase(){
     badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),
-    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),
+    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),nameAutoFit:S.nameAutoFit!==false,
     nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
@@ -1339,6 +1388,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;
   S.nameSzLong=snap.nameSzLong??150;S.nameLongOn=!!snap.nameLongOn;S.nameLongMinLen=snap.nameLongMinLen??10;
+  S.nameAutoFit=snap.nameAutoFit!==false;
   S.nrSz=snap.nrSz??260;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
@@ -1598,9 +1648,13 @@ function updatePlayerNav(){
   const p=S.roster[S.active];
   const nm=(p.last||p.first||'SPIELER').replace(/\n/g,' ');
   const nameText=getDisplayName(p);
-  const ro={nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),nameLongOn:S.nameLongOn,nameLongMinLen:S.nameLongMinLen??10};
+  const ro={nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),nameLongOn:S.nameLongOn,nameLongMinLen:S.nameLongMinLen??10,nameAutoFit:S.nameAutoFit!==false,layout:getActiveLayout(),font:S.font,textAlign:S.textAlign};
   const eff=effectiveNameSz(nameText,ro);
-  const szHint=S.nameLongOn&&nameLongestLen(nameText)>=(S.nameLongMinLen??10)?` · Name ${eff}px`:'';
+  const base=baseNameSz(nameText,ro);
+  let szHint='';
+  if(S.nameLongOn&&nameLongestLen(nameText)>=(S.nameLongMinLen??10)){
+    szHint=eff<base?` · Name ${eff}px (angepasst)`:eff>base?` · Name ${eff}px`:` · Name ${eff}px (lang)`;
+  }
   lbl.textContent=`#${p.nr} ${nm} · ${S.active+1}/${n}${szHint}`;
 }
 function navPlayer(delta){
@@ -1896,7 +1950,7 @@ function activeP(){
 function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),
-    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),
+    nameLongOn:!!S.nameLongOn,nameLongMinLen:getInt('slNameLongLen'),nameAutoFit:S.nameAutoFit!==false,
     nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     font:S.font,nrFont:getNrFont(),layout:getActiveLayout(),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
