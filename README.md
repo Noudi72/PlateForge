@@ -42,12 +42,19 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Hinweis Speicher:** Logo/Hintergrund als volle PNG-Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Die App komprimiert Bilder automatisch (JPEG); wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.
+**Hinweis Speicher:** Logo/Hintergrund als volle Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Logos werden als **PNG** (Transparenz) komprimiert, Hintergrundbilder als JPEG; wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.
+
+**Session:** Layout, Grössen und Positionen werden automatisch in `plateforge_session` gesichert (ohne Bilder). Das **Kader** bleibt in `plateforge_roster` erhalten – kein erneutes CSV-Import nötig nach Reload.
+
+### Badge & Grössen (Design)
+
+Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft.
 
 ### Zwei Logos & Hilfslinien
 
-- **Club-Logo 1 / 2** – separates Upload, Grösse unter Optionen → Grössen, Drag & Ecke zum Skalieren
-- **Hilfslinien** – Mitte, Drittel, Rand (Optionen → Sichtbarkeit); beim Ziehen rasten Elemente ein
+- **Club-Logo 1 / 2** – separates Upload, Grösse unter Design → Badge & Grössen, Drag & Ecke zum Skalieren  
+- **Hilfslinien** – Mitte, Drittel, Rand (Optionen → Sichtbarkeit); beim Ziehen rasten Elemente ein  
+- **Logo-Bereich (Seitenstreifen)** – dunkler Streifen links/rechts; unter Optionen abschaltbar, falls Logos „auf Schwarz“ wirken
 
 ### Nummern-Badge
 

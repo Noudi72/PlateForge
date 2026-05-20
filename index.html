@@ -223,7 +223,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="sb-ttl">Layout</div>
       <div class="fg">
         <label class="fl">Ausrichtung</label>
-        <select class="fi" id="selLayout" onchange="resetPos();render()">
+        <select class="fi" id="selLayout" onchange="resetPos()">
           <option value="L">Logo Links</option>
           <option value="R">Logo Rechts</option>
           <option value="S">Split (Nr | Name)</option>
@@ -271,9 +271,9 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="fg"><label class="fl">Nummer</label><div class="sw-row" id="swNrc"></div></div>
     </div>
     <div class="sb-sec">
-      <div class="sb-ttl">Nummern-Badge</div>
+      <div class="sb-ttl">Badge &amp; Grössen</div>
       <div class="fg">
-        <label class="fl">Form</label>
+        <label class="fl">Badge-Form</label>
         <div class="badge-btns" id="badgeBtns">
           <button class="align-btn on" data-b="none"    onclick="setBadge('none')"><span class="badge-ico">⃠</span>Kein</button>
           <button class="align-btn"    data-b="circle"  onclick="setBadge('circle')"><span class="badge-ico">●</span>Kreis</button>
@@ -289,6 +289,24 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </div>
       <div class="fg"><label class="fl">Nummer (Schrift)</label>
         <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div>
+      </div>
+      <div class="fg"><label class="fl">Name</label>
+        <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
+      </div>
+      <div class="fg"><label class="fl">Logo 1</label>
+        <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
+      </div>
+      <div class="fg"><label class="fl">Logo 2</label>
+        <div class="sl-row"><input type="range" min="20" max="900" value="90" id="slLogo2" oninput="render();sv('slLogo2','vlLogo2')"><span class="sl-v" id="vlLogo2">90</span></div>
+      </div>
+      <div class="fg"><label class="fl">Rahmen</label>
+        <div class="sl-row"><input type="range" min="0" max="32" value="10" id="slFrame" oninput="render();sv('slFrame','vlFrame')"><span class="sl-v" id="vlFrame">10</span></div>
+      </div>
+      <div class="fg"><label class="fl">Logo-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="10" max="100" value="100" id="slLogoOp" oninput="render();sv('slLogoOp','vlLogoOp','%')"><span class="sl-v" id="vlLogoOp">100%</span></div>
+      </div>
+      <div class="fg"><label class="fl">Hintergrund-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="0" max="100" value="40" id="slBgOp" oninput="render();sv('slBgOp','vlBgOp','%')"><span class="sl-v" id="vlBgOp">40%</span></div>
       </div>
     </div>
     <div class="sb-sec">
@@ -373,7 +391,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     <div class="sb-sec">
       <div class="sb-ttl">Namensformat</div>
       <div class="fg"><label class="fl">Anzeige</label>
-        <select class="fi" id="selNameMode" onchange="render()">
+        <select class="fi" id="selNameMode" onchange="S.nameMode=this.value;render();persistSession()">
           <option value="last">Nur Nachname</option>
           <option value="first">Nur Vorname</option>
           <option value="both">Vor- und Nachname</option>
@@ -402,6 +420,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="tog-row"><span class="tog-lbl">Nationalität</span><div class="tog" id="togNat" onclick="togOpt('nat')"></div></div>
       <div class="tog-row"><span class="tog-lbl">Liga</span><div class="tog on" id="togLeague" onclick="togOpt('league')"></div></div>
       <div class="tog-row"><span class="tog-lbl">Hilfslinien</span><div class="tog on" id="togGuides" onclick="togOpt('guides')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Logo-Bereich (Seitenstreifen)</span><div class="tog on" id="togLogoBand" onclick="togOpt('logoBand')"></div></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Texteffekte</div>
@@ -432,21 +451,6 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="font-size:.65rem;color:var(--mut);margin-top:2px;line-height:1.5">
         „📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.
       </div>
-    </div>
-    <div class="sb-sec">
-      <div class="sb-ttl">Grössen</div>
-      <div class="fg"><label class="fl">Logo 1</label>
-        <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div></div>
-      <div class="fg"><label class="fl">Logo 2</label>
-        <div class="sl-row"><input type="range" min="20" max="900" value="90" id="slLogo2" oninput="render();sv('slLogo2','vlLogo2')"><span class="sl-v" id="vlLogo2">90</span></div></div>
-      <div class="fg"><label class="fl">Name</label>
-        <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div></div>
-      <div class="fg"><label class="fl">Rahmen</label>
-        <div class="sl-row"><input type="range" min="0" max="32" value="10" id="slFrame" oninput="render();sv('slFrame','vlFrame')"><span class="sl-v" id="vlFrame">10</span></div></div>
-      <div class="fg"><label class="fl">Hintergrund-Deckkraft</label>
-        <div class="sl-row"><input type="range" min="0" max="100" value="40" id="slBgOp" oninput="render();sv('slBgOp','vlBgOp','%')"><span class="sl-v" id="vlBgOp">40%</span></div></div>
-      <div class="fg"><label class="fl">Logo-Deckkraft</label>
-        <div class="sl-row"><input type="range" min="10" max="100" value="100" id="slLogoOp" oninput="render();sv('slLogoOp','vlLogoOp','%')"><span class="sl-v" id="vlLogoOp">100%</span></div></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Positionen</div>
@@ -537,7 +541,7 @@ const S={
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
   nameMode:'last', // last | first | both | firstlast | initial
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
-  frame:true,screws:true,bar:true,showPos:true,showNat:false,showLeague:true,showGuides:true,
+  frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
@@ -598,7 +602,50 @@ function getPos(key){
   if(key==='nr'&&S.badge&&S.badge!=='none')base={...base,y:H/2};
   return S.pos[key]?{...base,...S.pos[key]}:base;
 }
-function resetPos(){S.pos={};render()}
+function resetPos(){S.pos={};persistSession();render()}
+
+// Spielerdaten ohne Kollision mit S.pos (Layout-Koordinaten)
+function playerOpts(p){
+  return{
+    first:(p.first||'').trim(),
+    last:(p.last||'').trim(),
+    nr:String(p.nr||'').trim(),
+    playerPos:(p.playerPos!=null?p.playerPos:p.pos)||'',
+    nat:(p.nat||'').trim(),
+  };
+}
+function buildRenderOpts(){
+  return{...S,...readSizeOpts(),...playerOpts(activeP())};
+}
+function persistRoster(){
+  try{
+    localStorage.setItem(ROSTER_KEY,JSON.stringify({roster:S.roster,active:S.active,ts:Date.now()}));
+  }catch(e){}
+}
+function persistSession(){
+  try{
+    const snap=getDesignSnapshotBase();
+    snap.nameMode=S.nameMode||getVal('selNameMode');
+    snap.logoBand=S.logoBand;
+    localStorage.setItem(SESSION_KEY,JSON.stringify({snap,ts:Date.now()}));
+  }catch(e){}
+}
+function restoreRoster(){
+  try{
+    const d=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null');
+    if(!d||!Array.isArray(d.roster)||!d.roster.length)return false;
+    S.roster=d.roster.map(p=>({...p,playerPos:p.playerPos!=null?p.playerPos:(p.pos||'')}));
+    S.active=Math.min(d.active||0,Math.max(0,S.roster.length-1));
+    return true;
+  }catch(e){return false}
+}
+async function restoreSession(){
+  try{
+    const d=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if(!d||!d.snap)return;
+    await applyDesignSnapshot(d.snap,{restoreImages:false});
+  }catch(e){}
+}
 
 // ══════════════════════════════════════════
 // SIDE TABS / MAIN TABS
@@ -811,7 +858,7 @@ function buildTplGrid(){
     const cv=document.createElement('canvas');cv.width=200;cv.height=50;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const thumbOpts={...S,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},last:'MÜLLER',first:'',nr:'17',pos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badge:'none'};
+    const thumbOpts={...S,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},last:'MÜLLER',first:'',nr:'17',playerPos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badge:'none'};
     drawPlate(cv,200,50,thumbOpts,true);
   });
   loadUserTemplates().forEach(ut=>{
@@ -822,7 +869,7 @@ function buildTplGrid(){
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     const s=ut.snap;
-    const thumbOpts={...S,...s,tpl:s.tpl??0,c:s.c,last:'MÜLLER',first:'',nr:'17',pos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badgeScale:s.badgeScale??72};
+    const thumbOpts={...S,...s,tpl:s.tpl??0,c:s.c,last:'MÜLLER',first:'',nr:'17',playerPos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badgeScale:s.badgeScale??72};
     drawPlate(cv,200,50,thumbOpts,true);
   });
 }
@@ -836,7 +883,7 @@ function selectTpl(i){
     c.classList.toggle('on',bi!==undefined&&+bi===i&&!ui);
   });
   refreshSwatches();
-  render();
+  persistSession();render();
 }
 
 // ══════════════════════════════════════════
@@ -858,7 +905,10 @@ function persistUserTemplates(list){
 function stripSnapImages(snap){
   const s={...snap};delete s.logoData;delete s.logo2Data;delete s.bgData;delete s.logoIsSvg;delete s.logo2IsSvg;return s;
 }
-function compressImageSource(src,maxSide,quality){
+function imageLikelyHasAlpha(src){
+  return/png|svg/i.test(String(src||''));
+}
+function compressImageSource(src,maxSide,quality,keepAlpha){
   return new Promise(resolve=>{
     if(!src||typeof src!=='string'){resolve(null);return}
     const img=new Image();
@@ -868,8 +918,13 @@ function compressImageSource(src,maxSide,quality){
       const w=Math.max(1,Math.round(img.width*scale));
       const h=Math.max(1,Math.round(img.height*scale));
       const c=document.createElement('canvas');c.width=w;c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      try{resolve(c.toDataURL('image/jpeg',quality))}catch(err){resolve(src.length<600000?src:null)}
+      const cx=c.getContext('2d');
+      if(keepAlpha||imageLikelyHasAlpha(src))cx.clearRect(0,0,w,h);
+      cx.drawImage(img,0,0,w,h);
+      try{
+        if(keepAlpha||imageLikelyHasAlpha(src))resolve(c.toDataURL('image/png'));
+        else resolve(c.toDataURL('image/jpeg',quality));
+      }catch(err){resolve(src.length<600000?src:null)}
     };
     img.onerror=()=>resolve(null);
     img.src=src;
@@ -880,10 +935,11 @@ function getDesignSnapshotBase(){
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeScale:S.badgeScale??72,
-    nameMode:getVal('selNameMode'),
+    nameMode:S.nameMode||getVal('selNameMode'),
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    frame:S.frame,screws:S.screws,bar:S.bar,showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
+    frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,
+    showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
     shadowOn:S.shadowOn,glowOn:S.glowOn,glowColor:S.glowColor,
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub'),leagueTxt:getVal('iLeague'),
@@ -896,11 +952,11 @@ async function buildDesignSnapshot(includeImages){
   if(!includeImages)return snap;
   const lp=document.getElementById('logoPrev'),l2p=document.getElementById('logo2Prev'),bp=document.getElementById('bgPrev');
   if(S.logo&&lp&&lp.src&&lp.style.display!=='none'){
-    snap.logoData=await compressImageSource(lp.src,480,0.82);
+    snap.logoData=await compressImageSource(lp.src,480,0.92,true);
     snap.logoIsSvg=!!S.logoIsSvg&&/svg/i.test(lp.src);
   }
   if(S.logo2&&l2p&&l2p.src&&l2p.style.display!=='none'){
-    snap.logo2Data=await compressImageSource(l2p.src,480,0.82);
+    snap.logo2Data=await compressImageSource(l2p.src,480,0.92,true);
     snap.logo2IsSvg=!!S.logo2IsSvg&&/svg/i.test(l2p.src);
   }
   if(S.bgImg&&bp&&bp.src&&bp.style.display!=='none'){
@@ -910,8 +966,8 @@ async function buildDesignSnapshot(includeImages){
 }
 async function compressSnapForStorage(snap){
   const s={...snap};
-  if(s.logoData)s.logoData=await compressImageSource(s.logoData,400,0.8)||null;
-  if(s.logo2Data)s.logo2Data=await compressImageSource(s.logo2Data,400,0.8)||null;
+  if(s.logoData)s.logoData=await compressImageSource(s.logoData,400,0.92,true)||null;
+  if(s.logo2Data)s.logo2Data=await compressImageSource(s.logo2Data,400,0.92,true)||null;
   if(s.bgData)s.bgData=await compressImageSource(s.bgData,1000,0.75)||null;
   if(!s.logoData)delete s.logoIsSvg;
   if(!s.logo2Data)delete s.logo2IsSvg;
@@ -941,17 +997,18 @@ function applyStateToUI(){
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===S.badge));
   document.getElementById('badgeScaleRow').style.display=(S.badge&&S.badge!=='none')?'block':'none';
   Object.entries(TOG_MAP).forEach(([k,prop])=>{
-    const el=document.getElementById('tog'+k.charAt(0).toUpperCase()+k.slice(1));
+    const id='tog'+(k==='logoBand'?'LogoBand':k.charAt(0).toUpperCase()+k.slice(1));
+    const el=document.getElementById(id);
     if(el)el.classList.toggle('on',!!S[prop]);
   });
   refreshSwatches();
   buildFontGrid();
 }
-function applyDesignSnapshot(snap){
+async function applyDesignSnapshot(snap,opts={}){
+  const restoreImages=opts.restoreImages!==false;
   S.tpl=snap.tpl??0;
   S.c={...snap.c};
   S.font=snap.font||"'Bebas Neue'";
-  persistActiveFont();
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
@@ -961,31 +1018,42 @@ function applyDesignSnapshot(snap){
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
-  S.frame=!!snap.frame;S.screws=!!snap.screws;S.bar=!!snap.bar;
+  S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
+  S.logoBand=snap.logoBand!==false;
   S.showPos=snap.showPos!==false;S.showNat=!!snap.showNat;S.showLeague=snap.showLeague!==false;
+  S.showGuides=snap.showGuides!==false;
   S.shadowOn=snap.shadowOn!==false;S.glowOn=!!snap.glowOn;S.glowColor=snap.glowColor||'#00BFFF';
   S.shBlur=snap.shBlur??10;S.shDist=snap.shDist??4;S.glowSize=snap.glowSize??26;
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
   S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';
-  if(snap.logoData){
-    const img=new Image();
-    img.onload=()=>{clearLogoRasterCache(S.logo);S.logo=img;S.logoIsSvg=!!snap.logoIsSvg;
-      const p=document.getElementById('logoPrev');p.src=snap.logoData;p.style.display='block';render()};
-    img.src=snap.logoData;
-  }
-  if(snap.logo2Data){
-    const img2=new Image();
-    img2.onload=()=>{clearLogoRasterCache(S.logo2);S.logo2=img2;S.logo2IsSvg=!!snap.logo2IsSvg;
-      const p2=document.getElementById('logo2Prev');p2.src=snap.logo2Data;p2.style.display='block';render()};
-    img2.src=snap.logo2Data;
-  }
-  if(snap.bgData){
-    const img=new Image();
-    img.onload=()=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=snap.bgData;p.style.display='block';render()};
-    img.src=snap.bgData;
-  }
+  persistActiveFont();
   applyStateToUI();
+  setBadge(S.badge);
+  if(restoreImages&&snap.logoData){
+    await new Promise(res=>{
+      const img=new Image();
+      img.onload=()=>{clearLogoRasterCache(S.logo);S.logo=img;S.logoIsSvg=!!snap.logoIsSvg;
+        const p=document.getElementById('logoPrev');p.src=snap.logoData;p.style.display='block';res()};
+      img.onerror=res;img.src=snap.logoData;
+    });
+  }
+  if(restoreImages&&snap.logo2Data){
+    await new Promise(res=>{
+      const img2=new Image();
+      img2.onload=()=>{clearLogoRasterCache(S.logo2);S.logo2=img2;S.logo2IsSvg=!!snap.logo2IsSvg;
+        const p2=document.getElementById('logo2Prev');p2.src=snap.logo2Data;p2.style.display='block';res()};
+      img2.onerror=res;img2.src=snap.logo2Data;
+    });
+  }
+  if(restoreImages&&snap.bgData){
+    await new Promise(res=>{
+      const img=new Image();
+      img.onload=()=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=snap.bgData;p.style.display='block';res()};
+      img.onerror=res;img.src=snap.bgData;
+    });
+  }
+  persistSession();
   render();
 }
 async function saveUserTemplate(){
@@ -1019,16 +1087,15 @@ async function saveUserTemplate(){
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
   document.getElementById('tplName').textContent=name.toUpperCase();
-  buildTplGrid();renderUserTplList();render();
+  buildTplGrid();renderUserTplList();persistSession();render();
 }
-function loadUserTemplate(id){
+async function loadUserTemplate(id){
   const t=loadUserTemplates().find(x=>x.id===id);
   if(!t)return;
   S.userTplId=id;
-  applyDesignSnapshot(t.snap);
+  await applyDesignSnapshot(t.snap);
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
-  render();
 }
 function deleteUserTemplate(id,e){
   e.stopPropagation();
@@ -1166,7 +1233,7 @@ function setBadge(shape){
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===shape));
   const row=document.getElementById('badgeScaleRow');
   if(row)row.style.display=shape!=='none'?'block':'none';
-  render();
+  persistSession();render();
 }
 
 // ══════════════════════════════════════════
@@ -1209,7 +1276,7 @@ function pickP(i){
   document.getElementById('iNr').value=p.nr;
   document.getElementById('iPos').value=p.pos||'';
   document.getElementById('iNat').value=p.nat||'';
-  buildRoster();updatePlayerNav();render();
+  buildRoster();updatePlayerNav();persistRoster();render();
   refreshBatchIfVisible();
 }
 function syncPlayer(){
@@ -1220,7 +1287,7 @@ function syncPlayer(){
   p.nr=getVal('iNr').trim();
   p.pos=getVal('iPos').trim().toUpperCase();
   p.nat=getVal('iNat').trim().toUpperCase();
-  buildRoster();render();
+  buildRoster();persistRoster();render();
   refreshBatchIfVisible();
 }
 function addPlayer(){
@@ -1229,10 +1296,10 @@ function addPlayer(){
   const nr=getVal('iNr').trim();
   if(!last&&!first||!nr)return;
   S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase()});
-  S.active=S.roster.length-1;buildRoster();render();refreshBatchIfVisible();
+  S.active=S.roster.length-1;buildRoster();persistRoster();render();refreshBatchIfVisible();
 }
-function delP(i,e){e.stopPropagation();S.roster.splice(i,1);if(S.active>=S.roster.length)S.active=Math.max(0,S.roster.length-1);buildRoster();render();refreshBatchIfVisible()}
-function clearRoster(){if(confirm('Roster leeren?')){S.roster=[];S.active=0;buildRoster();render();refreshBatchIfVisible()}}
+function delP(i,e){e.stopPropagation();S.roster.splice(i,1);if(S.active>=S.roster.length)S.active=Math.max(0,S.roster.length-1);buildRoster();persistRoster();render();refreshBatchIfVisible()}
+function clearRoster(){if(confirm('Roster leeren?')){S.roster=[];S.active=0;buildRoster();persistRoster();render();refreshBatchIfVisible()}}
 
 // ══════════════════════════════════════════
 // CSV / EXCEL
@@ -1317,7 +1384,7 @@ function processRows(data,fname){
     showErr(`Keine gültigen Einträge in „${fname}". Erwartete Spalten: Vorname, Name, Nr (optional Pos, Nat).`);
     return;
   }
-  S.roster.push(...added);S.active=S.roster.length-1;buildRoster();render();refreshBatchIfVisible();
+  S.roster.push(...added);S.active=S.roster.length-1;buildRoster();persistRoster();render();refreshBatchIfVisible();
   // duplicate jersey-number check across the whole roster
   const cnt={};
   S.roster.forEach(p=>{const n=String(p.nr).trim();if(n)cnt[n]=(cnt[n]||0)+1});
@@ -1369,6 +1436,7 @@ function drawSvgLogoSharp(ctx,logo,cx,cy,lsz){
     clearLogoRasterCache(logo);
     const oc=document.createElement('canvas');oc.width=side;oc.height=side;
     const ox=oc.getContext('2d');
+    ox.clearRect(0,0,side,side);
     ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';
     try{ox.drawImage(logo,0,0,side,side)}catch(e){}
     logo._pfLogoCache={canvas:oc,key};
@@ -1389,12 +1457,12 @@ function loadLogo(inp){
     S.logo=img;
     S.logoIsSvg=detectSvgLogo(file,src);
     const p=document.getElementById('logoPrev');p.src=src;p.style.display='block';
-    render();
+    persistSession();render();
   });
   inp.value='';
 }
-function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';render()});inp.value=''}
-function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';render()}
+function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';persistSession();render()});inp.value=''}
+function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';persistSession();render()}
 function loadLogo2(inp){
   const file=inp.files[0];if(!file)return;
   loadImgFile(file,(img,src)=>{
@@ -1402,12 +1470,12 @@ function loadLogo2(inp){
     S.logo2=img;
     S.logo2IsSvg=detectSvgLogo(file,src);
     const p=document.getElementById('logo2Prev');p.src=src;p.style.display='block';
-    render();
+    persistSession();render();
   });
   inp.value='';
 }
-function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;document.getElementById('logo2Prev').style.display='none';render()}
-function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';render()}
+function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;document.getElementById('logo2Prev').style.display='none';persistSession();render()}
+function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';persistSession();render()}
 
 function useEHCLogo(){
   const oc=document.createElement('canvas');oc.width=400;oc.height=400;
@@ -1443,17 +1511,28 @@ function ehcLogo(ctx,cx,cy,r){
 // ══════════════════════════════════════════
 // TOGGLES
 // ══════════════════════════════════════════
-const TOG_MAP={frame:'frame',screws:'screws',bar:'bar',pos:'showPos',nat:'showNat',league:'showLeague',shadow:'shadowOn',glow:'glowOn',guides:'showGuides'};
+const TOG_MAP={frame:'frame',screws:'screws',bar:'bar',logoBand:'logoBand',pos:'showPos',nat:'showNat',league:'showLeague',shadow:'shadowOn',glow:'glowOn',guides:'showGuides'};
+const ROSTER_KEY='plateforge_roster';
+const SESSION_KEY='plateforge_session';
+function togElId(k){
+  if(k==='logoBand')return'togLogoBand';
+  return'tog'+k.charAt(0).toUpperCase()+k.slice(1);
+}
 function togOpt(k){
   const key=TOG_MAP[k];S[key]=!S[key];
-  document.getElementById('tog'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('on',S[key]);
-  render();
+  const el=document.getElementById(togElId(k));
+  if(el)el.classList.toggle('on',S[key]);
+  persistSession();render();
 }
 
 // ══════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════
-function activeP(){return S.roster.length?S.roster[Math.min(S.active,S.roster.length-1)]:{first:'',last:'SPIELER',nr:'##',pos:'',nat:''}}
+function activeP(){
+  if(!S.roster.length)return{first:'',last:'SPIELER',nr:'##',playerPos:'',nat:''};
+  const p=S.roster[Math.min(S.active,S.roster.length-1)];
+  return{first:p.first||'',last:p.last||'',nr:p.nr,playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),nat:p.nat||''};
+}
 
 function readSizeOpts(){
   return{
@@ -1476,10 +1555,11 @@ function render(){
   cv.width=Math.round(W*PREV_SCALE);
   cv.height=Math.round(H*PREV_SCALE);
   cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
-  const opts={...S,...readSizeOpts(),...activeP()};
+  const opts=buildRenderOpts();
   drawPlate(cv,cv.width,cv.height,opts,false);
   buildGuideLines();
   buildDragHandles(opts);
+  if(!dragState)persistSession();
 }
 
 // ══════════════════════════════════════════
@@ -1705,7 +1785,7 @@ function moveDrag(e){
   showSnap(sn.snV,sn.snH,sn.x,sn.y);
   if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
     const cv=document.getElementById('plateCanvas');
-    const opts={...S,...readSizeOpts(),...activeP()};
+    const opts=buildRenderOpts();
     drawPlate(cv,cv.width,cv.height,opts,false);
     buildDragHandles(opts);
     if(dragState)dragState.raf=null;
@@ -1715,6 +1795,7 @@ function endDrag(){
   if(!dragState)return;
   document.querySelectorAll('.dh').forEach(e=>e.classList.remove('active'));
   dragState=null;hideSnap();
+  persistSession();
 }
 document.addEventListener('mousemove',moveDrag);
 document.addEventListener('mouseup',endDrag);
@@ -1737,7 +1818,7 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();
   const cur=getPos(S.sel);
   S.pos[S.sel]={...cur,x:Math.max(0,Math.min(W,cur.x+d[0])),y:Math.max(0,Math.min(H,cur.y+d[1]))};
-  render();
+  persistSession();render();
 });
 
 // Vertikale Text-Anker (Plate-Koordinaten, Schrift in px wie nameSz / nrSz)
@@ -1762,9 +1843,9 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c,font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,showPos,showNat,showLeague,
+  const{tpl,c,font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,frameW,club,leagueTxt,textAlign,textVAlign,nameMode,logoIsSvg,logo2IsSvg,
-    first='',last='SPIELER',nr='##',pos='',nat=''}=opts;
+    first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
   const vA=textVAlign||'alphabetic';
 
   ctx.clearRect(0,0,w,h);
@@ -1789,9 +1870,9 @@ function drawPlate(canvas,w,h,opts,thumb){
   drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
   if(bgImg){ctx.globalAlpha=bgOp;ctx.drawImage(bgImg,ix,iy,iw,ih);ctx.globalAlpha=1}
 
-  // LOGO BAND (visual only for L/R)
-  if(!thumb&&(layout==='L'||layout==='R')){
-    const lp=opts.pos?.logo||getPos('logo');
+  // LOGO BAND (optional, nur L/R-Layout)
+  if(!thumb&&logoBand&&(layout==='L'||layout==='R')){
+    const lp=getPos('logo');
     const bw=Z((lp.sz||logoSz)+55);
     const bx=layout==='L'?ix:ix+iw-bw;
     const g2=ctx.createLinearGradient(bx,0,bx+bw,0);
@@ -1806,10 +1887,10 @@ function drawPlate(canvas,w,h,opts,thumb){
   }
 
   // GET POSITIONS
-  const logoPosData=opts.pos?.logo||getPos('logo');
-  const logo2PosData=opts.pos?.logo2||getPos('logo2');
-  const namePosData=opts.pos?.name||getPos('name');
-  const nrPosData=opts.pos?.nr||getPos('nr');
+  const logoPosData=getPos('logo');
+  const logo2PosData=getPos('logo2');
+  const namePosData=getPos('name');
+  const nrPosData=getPos('nr');
   const effLogoSz=logoPosData.sz||logoSz;
   const effLogo2Sz=logo2PosData.sz||logo2Sz||90;
 
@@ -1876,7 +1957,7 @@ function drawPlate(canvas,w,h,opts,thumb){
   if(!thumb){
     const parts=[];
     if(showLeague)parts.push(leagueTxt);
-    if(showPos&&pos)parts.push(pos);
+    if(showPos&&playerPos)parts.push(playerPos);
     if(showNat&&nat)parts.push(nat);
     if(parts.length){
       ctx.save();
@@ -2014,7 +2095,7 @@ function adjBr(hex,a){let r=parseInt(hex.slice(1,3),16)+a,g=parseInt(hex.slice(3
 // ══════════════════════════════════════════
 // NOTE: drag positions are resolved via getPos() (global S.pos), so opts.pos
 // must keep the player's POSITION string – do not overwrite it with S.pos.
-function makeFullOpts(p){return{...S,...readSizeOpts(),...p}}
+function makeFullOpts(p){return{...S,...readSizeOpts(),...playerOpts(p)}}
 function safeName(s){return String(s||'').trim().replace(/[^\wÀ-ſ-]+/g,'_')||'X'}
 function exportFileName(p,prefix){return (prefix||'')+'nameplate_'+safeName(p.last||p.first)+'_'+safeName(p.nr);}
 
@@ -2073,7 +2154,7 @@ function renderBatch(){
     const bw=560,bh=Math.round(H*(bw/W));
     const wrap=document.createElement('div');wrap.className='batch-item';
     const cv=document.createElement('canvas');cv.width=bw;cv.height=bh;
-    drawPlate(cv,bw,bh,{...S,...opts,...p},false);
+    drawPlate(cv,bw,bh,makeFullOpts(p),false);
     const lbl=document.createElement('div');lbl.className='batch-lbl';lbl.textContent=`#${p.nr} ${(p.last||p.first)}`;
     const dlb=document.createElement('button');dlb.className='batch-dl';dlb.textContent='💾';
     dlb.onclick=()=>dlCv(renderExportCanvas(p),exportFileName(p)+'.'+S.exportFormat);
@@ -2091,11 +2172,14 @@ function refreshBatchIfVisible(){
 window.addEventListener('load',async()=>{
   refreshSwatches();
   await restoreCustomFonts();
+  restoreRoster();
+  await restoreSession();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
-  useEHCLogo();pickP(0);
+  if(!S.logo)useEHCLogo();
+  pickP(S.active);
   updatePlayerNav();
   switchMain('editor');
   // sync export controls with state
