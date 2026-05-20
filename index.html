@@ -690,6 +690,7 @@ async function restoreSession(){
     const d=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
     if(!d||!d.snap)return;
     await applyDesignSnapshot(d.snap,{restoreImages:false});
+    markDesignSaved();
   }catch(e){}
 }
 
@@ -941,18 +942,34 @@ function getDefaultDesignFields(){
     sel:null,
   };
 }
+let savedDesignHash=null;
+function snapHashForCompare(snap){
+  const s={...(snap||getDesignSnapshotBase())};
+  delete s.logoData;delete s.logo2Data;delete s.bgData;
+  delete s.logoIsSvg;delete s.logo2IsSvg;
+  return JSON.stringify(s);
+}
+function defaultDesignSnapHash(){
+  const d=getDefaultDesignFields();
+  const t=TMPL[0];
+  d.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
+  d.badgeColor=t.acc;
+  return snapHashForCompare(d);
+}
+function markDesignSaved(){
+  savedDesignHash=snapHashForCompare(getDesignSnapshotBase());
+}
 function designHasUnsavedWork(){
-  return!!(
-    S.userTplId||Object.keys(S.pos||{}).length||
-    S.logo2||S.bgImg||
-    (S.logo&&!S.logoIsSvg) // custom upload vs default EHC
-  );
+  if(!savedDesignHash)return snapHashForCompare(getDesignSnapshotBase())!==defaultDesignSnapHash();
+  return snapHashForCompare(getDesignSnapshotBase())!==savedDesignHash;
 }
 function createNewDesign(){
   if(designHasUnsavedWork()&&!confirm(
     'Neues Design von Grund auf starten?\n\n'+
-    'Das aktuelle Layout geht verloren (nicht gespeichert).\n'+
-    'Gespeicherte Vorlagen in der Liste bleiben unverändert.\n'+
+    (savedDesignHash
+      ?'Änderungen seit dem letzten Speichern gehen verloren.'
+      :'Das aktuelle Layout geht verloren (noch nicht als Vorlage gespeichert).')+
+    '\nGespeicherte Vorlagen in der Liste bleiben unverändert.\n'+
     'Das Kader bleibt erhalten.'
   ))return;
   const keepRoster=S.roster.slice();
@@ -981,6 +998,7 @@ function createNewDesign(){
     c.classList.toggle('on',bi==='0'&&!ui);
   });
   pickP(S.active);
+  markDesignSaved();
   persistSession();
   render();
   showOk('Neues Design gestartet – unter „Name“ speichern, um eine neue Vorlage anzulegen.');
@@ -1042,6 +1060,14 @@ function compressImageSource(src,maxSide,quality,keepAlpha){
     img.src=src;
   });
 }
+function snapshotMediaFlags(){
+  const lp=document.getElementById('logoPrev'),l2p=document.getElementById('logo2Prev'),bp=document.getElementById('bgPrev');
+  return{
+    hasLogo:!!(S.logo&&lp&&lp.style.display!=='none'),
+    hasLogo2:!!(S.logo2&&l2p&&l2p.style.display!=='none'),
+    hasBg:!!(S.bgImg&&bp&&bp.style.display!=='none'),
+  };
+}
 function getDesignSnapshotBase(){
   return{
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
@@ -1057,6 +1083,7 @@ function getDesignSnapshotBase(){
     club:getVal('iClub'),leagueTxt:getVal('iLeague'),
     pos:JSON.parse(JSON.stringify(S.pos||{})),
     exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,pdfIncludeSingle:S.pdfIncludeSingle!==false,
+    ...snapshotMediaFlags(),
   };
 }
 async function buildDesignSnapshot(includeImages){
@@ -1211,6 +1238,8 @@ async function saveUserTemplate(){
 }
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
+  markDesignSaved();
+  document.getElementById('userTplName').value=name;
   document.getElementById('tplName').textContent=name.toUpperCase();
   buildTplGrid();renderUserTplList();persistSession();render();
 }
@@ -1219,6 +1248,8 @@ async function loadUserTemplate(id){
   if(!t)return;
   S.userTplId=id;
   await applyDesignSnapshot(t.snap);
+  markDesignSaved();
+  document.getElementById('userTplName').value=t.name;
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
 }
