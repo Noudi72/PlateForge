@@ -231,7 +231,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="sb-ttl">Layout</div>
       <div class="fg">
         <label class="fl">Ausrichtung</label>
-        <select class="fi" id="selLayout" onchange="resetPos()">
+        <select class="fi" id="selLayout" onchange="onLayoutChange()">
           <option value="L">Logo Links</option>
           <option value="R">Logo Rechts</option>
           <option value="S">Split (Nr | Name)</option>
@@ -636,19 +636,48 @@ function getDisplayName(p){
 // ══════════════════════════════════════════
 function defPos(layout){
   const l2=Math.round(S.logo2Sz||90);
-  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
-  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
-  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355}};
-  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
+  const lsz=Math.round(S.logoSz||140);
+  if(layout==='L') return{logo:{x:85,y:275,sz:lsz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
+  if(layout==='R') return{logo:{x:1915,y:275,sz:lsz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
+  // Split: Nummer links, Name rechts (getrennte Zonen)
+  if(layout==='S') return{logo:{x:1780,y:275,sz:lsz},logo2:{x:110,y:275,sz:l2},name:{x:1220,y:H/2},nr:{x:400,y:H/2}};
+  // Fullscreen: Nummer + Name zentriert übereinander
+  if(layout==='F') return{logo:{x:95,y:275,sz:Math.round(lsz*.75)},logo2:{x:1905,y:275,sz:l2},name:{x:W/2,y:H/2+75},nr:{x:W/2,y:H/2-55}};
+  return{logo:{x:85,y:275,sz:lsz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
+}
+function syncLayoutTextDefaults(layout){
+  const lay=layout||S.layout||'L';
+  if(lay==='F'){S.textAlign='center';S.textVAlign='middle'}
+  else if(lay==='S'){S.textAlign='left';S.textVAlign='middle'}
+  else{S.textAlign=lay==='R'?'right':'left';S.textVAlign='alphabetic'}
+  ['left','center','right'].forEach(x=>{
+    const el=document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1));
+    if(el)el.classList.toggle('on',x===S.textAlign);
+  });
+  syncVAlignUi();
+}
+function onLayoutChange(){
+  S.layout=getVal('selLayout');
+  S.pos={};
+  syncLayoutTextDefaults(S.layout);
+  persistSession();
+  render();
 }
 function getPos(key){
   const d=defPos(S.layout);
   let base=d[key];
   // when a badge is active, the number anchor is its CENTER → use a vertically centred default
-  if(key==='nr'&&S.badge&&S.badge!=='none')base={...base,y:H/2};
+  if(key==='nr'&&S.badge&&S.badge!=='none'){
+    const lay=S.layout||getVal('selLayout');
+    base={...base,y:lay==='F'?H/2-55:H/2};
+  }
   return S.pos[key]?{...base,...S.pos[key]}:base;
 }
-function resetPos(){S.pos={};persistSession();render()}
+function resetPos(){
+  S.pos={};
+  persistSession();
+  render();
+}
 
 // Spielerdaten ohne Kollision mit S.pos (Layout-Koordinaten)
 function playerOpts(p){
@@ -1158,6 +1187,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
+  if(!snap.textAlign&&!snap.textVAlign)syncLayoutTextDefaults(S.layout);
   S.badge=snap.badge||'none';
   S.badgeColor=snap.badgeColor||'#C8102E';
   S.badgeFillOp=snap.badgeFillOp??1;
@@ -2136,6 +2166,17 @@ function drawPlate(canvas,w,h,opts,thumb){
   ctx.fillStyle=bg;ctx.fillRect(ix,iy,iw,ih);
   drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
   if(bgImg){ctx.globalAlpha=bgOp;ctx.drawImage(bgImg,ix,iy,iw,ih);ctx.globalAlpha=1}
+
+  // Split: dezente Trennlinie zwischen Nr- und Namenszone
+  if(!thumb&&layout==='S'){
+    const splitX=Z(W*.46);
+    ctx.strokeStyle=c.acc+'66';
+    ctx.lineWidth=Z(4);
+    ctx.beginPath();
+    ctx.moveTo(splitX,iy+Z(12));
+    ctx.lineTo(splitX,iy+ih-Z(12));
+    ctx.stroke();
+  }
 
   // LOGO BAND (optional, nur L/R-Layout)
   if(!thumb&&logoBand&&(layout==='L'||layout==='R')){
