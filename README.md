@@ -52,6 +52,12 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft.
 
+### Schriftarten
+
+- **Name** und **Nummer** können getrennt gewählt werden (Dropdown + Kacheln unter **Design → Schriftarten**).
+- Nummer: **— wie Name —** oder eigene Schrift (z. B. Bebas für den Namen, Teko für die Ziffer).
+- Eigene Fonts: zuerst **Name**- oder **Nummer**-Dropdown fokussieren, dann Font hochladen oder in der Liste wählen.
+
 ### Zwei Logos & Hilfslinien
 
 - **Club-Logo 1 / 2** – separates Upload, Grösse unter Design → Badge & Grössen, Drag & Ecke zum Skalieren  

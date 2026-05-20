@@ -256,8 +256,9 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </div>
     </div>
     <div class="sb-sec">
-      <div class="sb-ttl">Schriftart</div>
-      <select class="fi" id="selFont" style="margin-bottom:7px" onchange="S.font=this.value;persistActiveFont();render()">
+      <div class="sb-ttl">Schriftarten</div>
+      <label class="fl">Name</label>
+      <select class="fi" id="selFont" style="margin-bottom:5px" onfocus="S.fontPickTarget='name'" onchange="S.font=this.value;persistFonts();buildFontGrid('name');buildFontGrid('nr');render()">
         <option value="'Bebas Neue'">Bebas Neue</option>
         <option value="'Oswald'">Oswald</option>
         <option value="'Anton'">Anton</option>
@@ -268,7 +269,21 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <option value="'Saira Condensed'">Saira Condensed</option>
         <option value="'Rajdhani'">Rajdhani</option>
       </select>
-      <div class="font-grid" id="fontGrid"></div>
+      <div class="font-grid" id="fontGridName"></div>
+      <label class="fl" style="margin-top:8px">Nummer</label>
+      <select class="fi" id="selNrFont" style="margin-bottom:5px" onfocus="S.fontPickTarget='nr'" onchange="onNrFontChange(this.value)">
+        <option value="">— wie Name —</option>
+        <option value="'Bebas Neue'">Bebas Neue</option>
+        <option value="'Oswald'">Oswald</option>
+        <option value="'Anton'">Anton</option>
+        <option value="'Russo One'">Russo One</option>
+        <option value="'Black Ops One'">Black Ops One</option>
+        <option value="'Teko'">Teko</option>
+        <option value="'Barlow Condensed'">Barlow Condensed</option>
+        <option value="'Saira Condensed'">Saira Condensed</option>
+        <option value="'Rajdhani'">Rajdhani</option>
+      </select>
+      <div class="font-grid" id="fontGridNr"></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Farben</div>
@@ -582,6 +597,8 @@ const S={
   tpl:0,
   c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
   font:"'Bebas Neue'",
+  nrFont:'', // leer = gleiche Schrift wie Name
+  fontPickTarget:'name',
   layout:'L',
   textAlign:'left',
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
@@ -741,14 +758,28 @@ function switchMain(view){
 // TEXT ALIGN
 // ══════════════════════════════════════════
 // Textbreite (eine Zeile) für Ausrichtungs-Korrektur
+function getNrFont(){return S.nrFont||S.font;}
+function isCustomFontFamily(fontFamily){
+  return S.savedFonts.some(sf=>sf.fontFamily===fontFamily);
+}
+function canvasFont(fontPx,fontFamily){
+  const f=fontFamily||"'Bebas Neue'";
+  return isCustomFontFamily(f)?`${fontPx}px ${f}`:`${fontPx}px ${f},sans-serif`;
+}
+function ensureFontLoadedSync(fontPx,fontFamily){
+  if(!document.fonts)return;
+  try{document.fonts.load(canvasFont(fontPx,fontFamily));}catch(e){}
+}
 function measureTextWidth(text,fontPx,fontFamily){
+  ensureFontLoadedSync(fontPx,fontFamily);
   const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  ctx.font=canvasFont(fontPx,fontFamily);
   return ctx.measureText(text||' ').width;
 }
 function maxLineWidth(lines,fontPx,fontFamily){
+  ensureFontLoadedSync(fontPx,fontFamily);
   const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  ctx.font=canvasFont(fontPx,fontFamily);
   return Math.max(...lines.map(l=>ctx.measureText(l||' ').width),1);
 }
 function anchorOffsetX(align,w){
@@ -762,10 +793,11 @@ function setAlign(a){
   const old=S.textAlign;
   const lay=getActiveLayout();
   const p=activeP();
-  const font=S.font;
+  const nameFont=S.font;
+  const nrFont=getNrFont();
   const nameText=getDisplayName(p);
   const nameLines=nameText.split('\n');
-  const wName=maxLineWidth(nameLines,getInt('slName'),font);
+  const wName=maxLineWidth(nameLines,getInt('slName'),nameFont);
   const badgeOn=S.badge&&S.badge!=='none';
   const nrStr=String(p.nr||'');
   const nrSz=getInt('slNrSz');
@@ -781,10 +813,10 @@ function setAlign(a){
     S.pos[key]={...merged,x:newX};
   }
   if(badgeOn){
-    const bb=badgeBoundsHalf(nrStr,nrSz,font,S.badgeScale??72,S.badge);
+    const bb=badgeBoundsHalf(nrStr,nrSz,nrFont,S.badgeScale??72,S.badge);
     setAnchorX('nr',bb.halfW*2);
   }else{
-    setAnchorX('nr',measureTextWidth(nrStr,nrSz,font));
+    setAnchorX('nr',measureTextWidth(nrStr,nrSz,nrFont));
   }
   setAnchorX('name',wName);
   S.textAlign=a;
@@ -837,27 +869,53 @@ function hexToRgba(hex,a){
 // ══════════════════════════════════════════
 // FONT GRID + SAVED FONTS
 // ══════════════════════════════════════════
-function buildFontGrid(){
-  const g=document.getElementById('fontGrid');g.innerHTML='';
+function onNrFontChange(v){
+  S.nrFont=v||'';
+  persistFonts();
+  buildFontGrid('name');
+  buildFontGrid('nr');
+  render();
+}
+function buildFontGrid(target){
+  const id=target==='nr'?'fontGridNr':'fontGridName';
+  const g=document.getElementById(id);
+  if(!g)return;
+  g.innerHTML='';
+  const cur=target==='nr'?getNrFont():S.font;
   BUILTIN_FONTS.forEach(f=>{
-    const d=document.createElement('div');d.className='font-opt'+(S.font===f.v?' on':'');
+    const d=document.createElement('div');d.className='font-opt'+(cur===f.v?' on':'');
     d.innerHTML=`<div class="fp" style="font-family:${f.v}">${f.l.split(' ')[0].toUpperCase()}</div><div class="fn">${f.l}</div>`;
-    d.onclick=()=>{S.font=f.v;document.getElementById('selFont').value=f.v;g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    d.onclick=()=>{
+      if(target==='nr'){
+        S.nrFont=f.v;
+        document.getElementById('selNrFont').value=f.v;
+      }else{
+        S.font=f.v;
+        document.getElementById('selFont').value=f.v;
+      }
+      persistFonts();
+      buildFontGrid('name');
+      buildFontGrid('nr');
+      render();
+    };
     g.appendChild(d);
   });
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
 const ACTIVE_FONT_KEY='plateforge_active_font';
+const ACTIVE_NR_FONT_KEY='plateforge_active_nr_font';
 
-function persistCustomFonts(){
+function persistCustomFonts(){persistFonts()}
+function persistFonts(){
   try{
     const payload=S.savedFonts.map(({name,fontFamily,b64,mime,ffName})=>({name,fontFamily,b64,mime,ffName}));
     localStorage.setItem(CUSTOM_FONTS_KEY,JSON.stringify(payload));
     localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'");
+    localStorage.setItem(ACTIVE_NR_FONT_KEY,S.nrFont||'');
   }catch(e){showWarn('Fonts konnten nicht dauerhaft gespeichert werden (Speicher voll?).')}
 }
-function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
+function persistActiveFont(){persistFonts()}
 function readFileAsDataUrl(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -886,8 +944,15 @@ async function restoreCustomFonts(){
     const sel=document.getElementById('selFont');
     if(sel)sel.value=BUILTIN_FONTS.some(b=>b.v===active)?active:'';
   }
+  const activeNr=localStorage.getItem(ACTIVE_NR_FONT_KEY);
+  if(activeNr&&(BUILTIN_FONTS.some(b=>b.v===activeNr)||S.savedFonts.some(sf=>sf.fontFamily===activeNr))){
+    S.nrFont=activeNr;
+  }else S.nrFont='';
+  const selNr=document.getElementById('selNrFont');
+  if(selNr)selNr.value=S.nrFont&&BUILTIN_FONTS.some(b=>b.v===S.nrFont)?S.nrFont:'';
   renderSavedFonts();
-  buildFontGrid();
+  buildFontGrid('name');
+  buildFontGrid('nr');
 }
 async function loadFont(inp){
   const file=inp.files[0];if(!file)return;
@@ -902,10 +967,16 @@ async function loadFont(inp){
     document.fonts.add(f);
     const fontVal=`'${ffName}'`;
     S.savedFonts.push({name:fname,fontFamily:fontVal,ffName,b64,mime,url:dataUrl});
-    S.font=fontVal;
-    document.getElementById('selFont').value='';
+    if(S.fontPickTarget==='nr'){
+      S.nrFont=fontVal;
+      document.getElementById('selNrFont').value=fontVal;
+    }else{
+      S.font=fontVal;
+      document.getElementById('selFont').value='';
+    }
     persistCustomFonts();
-    buildFontGrid();
+    buildFontGrid('name');
+    buildFontGrid('nr');
     renderSavedFonts();
     render();
     showOk(`Font „${fname}" gespeichert.`);
@@ -920,21 +991,39 @@ function renderSavedFonts(){
   document.getElementById('customFontInfo').style.display='block';
   document.getElementById('customFontBadge').textContent=`${S.savedFonts.length} eigene Font(s) geladen`;
   S.savedFonts.forEach((sf,i)=>{
-    const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
+    const on=(S.font===sf.fontFamily&&S.fontPickTarget!=='nr')||(getNrFont()===sf.fontFamily&&S.fontPickTarget==='nr');
+    const d=document.createElement('div');d.className='saved-font-item'+(on?' on':'');
     d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
       <button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`;
-    d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;S.font=sf.fontFamily;document.getElementById('selFont').value='';document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    d.onclick=e=>{
+      if(e.target.classList.contains('saved-font-del'))return;
+      if(S.fontPickTarget==='nr'){
+        S.nrFont=sf.fontFamily;
+        document.getElementById('selNrFont').value='';
+      }else{
+        S.font=sf.fontFamily;
+        document.getElementById('selFont').value='';
+      }
+      document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));
+      d.classList.add('on');
+      persistFonts();
+      buildFontGrid('name');
+      buildFontGrid('nr');
+      render();
+    };
     el.appendChild(d);
   });
 }
 
 function removeSavedFont(i,e){
   e.stopPropagation();
-  if(S.font===S.savedFonts[i].fontFamily)S.font="'Bebas Neue'";
+  const ff=S.savedFonts[i].fontFamily;
+  if(S.font===ff)S.font="'Bebas Neue'";
+  if(S.nrFont===ff)S.nrFont='';
   S.savedFonts.splice(i,1);
   persistCustomFonts();
   persistActiveFont();
-  renderSavedFonts();buildFontGrid();render();
+  renderSavedFonts();buildFontGrid('name');buildFontGrid('nr');render();
 }
 
 // ══════════════════════════════════════════
@@ -968,7 +1057,7 @@ function getDefaultDesignFields(){
   return{
     tpl:0,
     c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
-    font:"'Bebas Neue'",layout:'L',textAlign:'left',textVAlign:'alphabetic',nameMode:'last',
+    font:"'Bebas Neue'",nrFont:'',layout:'L',textAlign:'left',textVAlign:'alphabetic',nameMode:'last',
     logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,bgOp:.4,logoOp:1,
     frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,
     showGuides:true,showSafeMargin:true,shadowOn:true,glowOn:false,glowColor:'#00BFFF',
@@ -1107,7 +1196,7 @@ function snapshotMediaFlags(){
 }
 function getDesignSnapshotBase(){
   return{
-    tpl:S.tpl,c:{...S.c},font:S.font,layout:getActiveLayout(),
+    tpl:S.tpl,c:{...S.c},font:S.font,nrFont:S.nrFont||'',layout:getActiveLayout(),
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
     nameMode:S.nameMode||getVal('selNameMode'),
@@ -1152,6 +1241,8 @@ async function compressSnapForStorage(snap){
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
   document.getElementById('selFont').value=S.font;
+  const selNr=document.getElementById('selNrFont');
+  if(selNr)selNr.value=S.nrFont&&BUILTIN_FONTS.some(b=>b.v===S.nrFont)?S.nrFont:'';
   document.getElementById('selNameMode').value=S.nameMode||'last';
   document.getElementById('iClub').value=S.club||'';
   document.getElementById('iLeague').value=S.leagueTxt||'';
@@ -1185,13 +1276,15 @@ function applyStateToUI(){
     if(el)el.classList.toggle('on',!!S[prop]);
   });
   refreshSwatches();
-  buildFontGrid();
+  buildFontGrid('name');
+  buildFontGrid('nr');
 }
 async function applyDesignSnapshot(snap,opts={}){
   const restoreImages=opts.restoreImages!==false;
   S.tpl=snap.tpl??0;
   S.c={...snap.c};
   S.font=snap.font||"'Bebas Neue'";
+  S.nrFont=snap.nrFont||'';
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
@@ -1755,7 +1848,7 @@ function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    font:S.font,layout:getActiveLayout(),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    font:S.font,nrFont:getNrFont(),layout:getActiveLayout(),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nameMode:getVal('selNameMode'),
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub')||'EHC BIEL-BIENNE',
@@ -1780,7 +1873,11 @@ function render(){
   const placeHandles=()=>buildDragHandles(opts,cv);
   placeHandles();
   if(document.fonts&&document.fonts.ready){
-    document.fonts.ready.then(()=>{if(!dragState)placeHandles()});
+    document.fonts.ready.then(()=>{
+      ensureFontLoadedSync(S.nameSz||getInt('slName'),S.font);
+      ensureFontLoadedSync(S.nrSz||getInt('slNrSz'),getNrFont());
+      if(!dragState)placeHandles();
+    });
   }
   updateSelectionAlignGuides();
   if(!dragState)persistSession();
@@ -1798,8 +1895,9 @@ const TYPO_ASC=0.72;
 const TYPO_DES=0.22;
 
 function textExtent(fontPx,fontFamily,text){
+  ensureFontLoadedSync(fontPx,fontFamily);
   const ctx=document.createElement('canvas').getContext('2d');
-  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  ctx.font=canvasFont(fontPx,fontFamily);
   const m=ctx.measureText(text||' ');
   let asc=m.actualBoundingBoxAscent;
   let des=m.actualBoundingBoxDescent;
@@ -1809,7 +1907,7 @@ function textExtent(fontPx,fontFamily,text){
 }
 function nrTextExtent(nrSz,font,text){
   const ex=textExtent(nrSz,font,text);
-  ex.des=Math.min(ex.des,nrSz*0.05,ex.asc*0.08);
+  ex.des=Math.min(ex.des,nrSz*0.04,ex.asc*0.07);
   return ex;
 }
 function canvasAlphaBounds(cv,left,top,right,bottom,minAlpha){
@@ -1844,15 +1942,10 @@ function canvasAlphaBounds(cv,left,top,right,bottom,minAlpha){
 }
 function refineNrBoundsFromCanvas(cv,approx){
   if(!cv||!approx)return approx;
-  const pad=10;
-  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,210);
+  const pad=14;
+  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,215);
   if(!scanned)return approx;
-  return{
-    left:Math.max(scanned.left,approx.left-2),
-    top:Math.max(scanned.top,approx.top-2),
-    right:Math.min(scanned.right,approx.right+2),
-    bottom:Math.min(scanned.bottom,approx.bottom+1),
-  };
+  return scanned;
 }
 function refineTextBoundsFromCanvas(cv,approx,key){
   if(!cv||!approx)return approx;
@@ -1883,15 +1976,17 @@ function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
 }
 
 function textPlateBounds(key,platePos,opts){
-  const{nameSz,nrSz,font,textAlign,textVAlign}=opts;
+  const{nameSz,nrSz,font,nrFont,textAlign,textVAlign}=opts;
+  const nameFont=font;
+  const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
   const p=activeP();
   if(key==='name'){
     const lines=getDisplayName(p).split('\n');
-    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,nameFont,vA);
     let top=Infinity,bot=-Infinity,maxW=0;
     lines.forEach((line,i)=>{
-      const ex=textExtent(nameSz,font,line);
+      const ex=textExtent(nameSz,nameFont,line);
       maxW=Math.max(maxW,ex.w);
       top=Math.min(top,lineYs[i]-ex.asc);
       bot=Math.max(bot,lineYs[i]+ex.des);
@@ -1904,12 +1999,15 @@ function textPlateBounds(key,platePos,opts){
   }
   if(key==='nr'){
     const text=String(p.nr||'');
-    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-    const ex=nrTextExtent(nrSz,font,text);
+    const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
+    const ex=nrTextExtent(nrSz,numberFont,text);
     let left=platePos.x;
     if(textAlign==='center')left-=ex.w/2;
     else if(textAlign==='right')left-=ex.w;
-    return{left,top:baseline-ex.asc,right:left+ex.w,bottom:baseline+ex.des};
+    let bounds={left,top:baseline-ex.asc,right:left+ex.w,bottom:baseline+ex.des};
+    const cv=document.getElementById('plateCanvas');
+    if(cv&&cv.width)bounds=refineNrBoundsFromCanvas(cv,bounds)||bounds;
+    return bounds;
   }
   return null;
 }
@@ -1921,15 +2019,14 @@ function getElementPlateBounds(key,anchor,opts){
   const p=activeP();
   const badgeOn=badge&&badge!=='none';
   if(key==='nr'&&badgeOn){
-    const bb=badgeBoundsHalf(p.nr,nrSz,font,badgeScale??S.badgeScale??72,badge);
+    const bb=badgeBoundsHalf(p.nr,nrSz,opts.nrFont||opts.font,badgeScale??S.badgeScale??72,badge);
     return{left:platePos.x-bb.halfW,top:platePos.y-bb.halfH,right:platePos.x+bb.halfW,bottom:platePos.y+bb.halfH};
   }
   const tb=textPlateBounds(key,platePos,opts);
   if(tb){
-    const cv=document.getElementById('plateCanvas');
-    if(cv&&cv.width){
-      if(key==='nr')return refineNrBoundsFromCanvas(cv,tb)||tb;
-      if(key==='name')return refineTextBoundsFromCanvas(cv,tb,key)||tb;
+    if(key==='name'){
+      const cv=document.getElementById('plateCanvas');
+      if(cv&&cv.width)return refineTextBoundsFromCanvas(cv,tb,key)||tb;
     }
     return tb;
   }
@@ -1958,7 +2055,8 @@ function buildDragHandles(opts,plateCv){
   const cv=plateCv||document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
-  const {nameSz,nrSz,logoSz,logo2Sz,font,textAlign,textVAlign}=opts;
+  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign}=opts;
+  const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
   const p=activeP();
   const nameText=getDisplayName(p);
@@ -1977,7 +2075,7 @@ function buildDragHandles(opts,plateCv){
 
     if(item.key==='nr'&&badgeOn){
       const bs=opts.badgeScale??S.badgeScale??72;
-      const bb=badgeBoundsHalf(p.nr,nrSz,font,bs,S.badge);
+      const bb=badgeBoundsHalf(p.nr,nrSz,numberFont,bs,S.badge);
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
       const approx=textPlateBounds(item.key,platePos,opts);
@@ -2005,8 +2103,8 @@ function buildDragHandles(opts,plateCv){
         py=top*sc;
       }else{
         const text=String(p.nr||'');
-        const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-        const ex=nrTextExtent(item.fontSize,font,text);
+        const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
+        const ex=nrTextExtent(item.fontSize,numberFont,text);
         pw=ex.w*sc;ph=Math.max((ex.asc+ex.des)*sc,8);
         const baseX=platePos.x*sc,baseY=baseline*sc;
         if(textAlign==='left')px=baseX;
@@ -2265,9 +2363,11 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c,font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
+  const{tpl,c,font,nrFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,frameW,club,leagueTxt,textAlign,textVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
+  const nameFont=font;
+  const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
 
   ctx.clearRect(0,0,w,h);
@@ -2348,20 +2448,20 @@ function drawPlate(canvas,w,h,opts,thumb){
   const nrFontPx=Z(thumb?58:nrSz);
   const nrX=Z(nrPosData.x),nrY=Z(nrPosData.y);
   ctx.save();
-  ctx.font=`${nrFontPx}px ${font},sans-serif`;
+  ctx.font=canvasFont(nrFontPx,numberFont);
   if(thumb){
     ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
     ctx.shadowColor=tpl===6?c.nrc:'rgba(0,0,0,.55)';ctx.shadowBlur=Z(tpl===6?20:8);
     ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nrc;
     ctx.fillText(nrText,nrX,nrY);ctx.shadowColor='transparent';
   }else if(hasBadge){
-    const Rp=Z(badgeR(nr,nrSz,font,opts.badgeScale??S.badgeScale??72));
+    const Rp=Z(badgeR(nr,nrSz,numberFont,opts.badgeScale??S.badgeScale??72));
     drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.badgeFillOp??1,opts.badgeBorderColor||'#FFFFFF',opts.shadowOn);
     ctx.textAlign='center';ctx.textBaseline='middle';
     drawFxText(ctx,nrText,nrX,nrY,c.nrc,opts,Z);
   }else{
     ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
-    const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,font,vA));
+    const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,numberFont,vA));
     drawFxText(ctx,nrText,nrX,nrYb,c.nrc,opts,Z);
   }
   ctx.restore();
@@ -2371,9 +2471,9 @@ function drawPlate(canvas,w,h,opts,thumb){
   const nameFontPx=Z(thumb?44:nameSz);
   const nameLines=nameText.split('\n');
   const nameX=Z(namePosData.x),nameY=Z(namePosData.y);
-  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,nameSz,nameLines,font,'alphabetic'):nameLinePlateYs(namePosData.y,nameSz,nameLines,font,vA);
+  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,nameSz,nameLines,nameFont,'alphabetic'):nameLinePlateYs(namePosData.y,nameSz,nameLines,nameFont,vA);
   ctx.save();
-  ctx.font=`${nameFontPx}px ${font},sans-serif`;
+  ctx.font=canvasFont(nameFontPx,nameFont);
   ctx.textBaseline='alphabetic';
   setTextAlign(ctx,textAlign);
   if(thumb){
@@ -2816,7 +2916,7 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
-  buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
+  buildTplGrid();buildFontGrid('name');buildFontGrid('nr');buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
