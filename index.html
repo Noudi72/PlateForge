@@ -296,10 +296,10 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="fg"><label class="fl">Name</label>
         <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
       </div>
-      <div class="fg"><label class="fl">Logo 1</label>
+      <div class="fg"><label class="fl">Logo 1 (längste Seite)</label>
         <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
       </div>
-      <div class="fg"><label class="fl">Logo 2</label>
+      <div class="fg"><label class="fl">Logo 2 (längste Seite)</label>
         <div class="sl-row"><input type="range" min="20" max="900" value="90" id="slLogo2" oninput="render();sv('slLogo2','vlLogo2')"><span class="sl-v" id="vlLogo2">90</span></div>
       </div>
       <div class="fg"><label class="fl">Rahmen</label>
@@ -1441,32 +1441,51 @@ function detectSvgLogo(file,src){
   if(file&&(file.type==='image/svg+xml'||/\.svg$/i.test(file.name||'')))return true;
   return/^data:image\/svg\+xml/i.test(String(src||''));
 }
-// SVG auf hoher interner Auflösung rasterisieren, dann auf Zielgrösse skalieren (scharfe Kanten)
-function drawSvgLogoSharp(ctx,logo,cx,cy,lsz){
-  if(lsz<2)return;
+// lsz = längste Seite; Seitenverhältnis bleibt erhalten (contain)
+function logoFitRect(cx,cy,maxSide,nw,nh){
+  const w0=Math.max(1,nw||1),h0=Math.max(1,nh||1);
+  const s=maxSide/Math.max(w0,h0);
+  const w=w0*s,h=h0*s;
+  return{x:cx-w/2,y:cy-h/2,w,h};
+}
+function logoImageForKey(key,opts){
+  return key==='logo'?(opts&&opts.logo!=null?opts.logo:S.logo):(opts&&opts.logo2!=null?opts.logo2:S.logo2);
+}
+// SVG auf hoher interner Auflösung rasterisieren, dann proportional zeichnen (scharfe Kanten)
+function drawSvgLogoSharp(ctx,logo,cx,cy,maxSide){
+  if(maxSide<2)return;
+  const nw=logo.naturalWidth||logo.width||1;
+  const nh=logo.naturalHeight||logo.height||1;
+  const fit=logoFitRect(cx,cy,maxSide,nw,nh);
   const dpr=typeof devicePixelRatio==='number'&&devicePixelRatio>=1?devicePixelRatio:1;
-  const boost=lsz>500?2.2:lsz>220?2.6:3;
-  let side=Math.ceil(lsz*dpr*boost);
-  side=Math.max(side,Math.ceil(lsz*2));
+  const boost=Math.max(fit.w,fit.h)>500?2.2:Math.max(fit.w,fit.h)>220?2.6:3;
+  let rasterMax=Math.ceil(Math.max(fit.w,fit.h)*dpr*boost);
+  rasterMax=Math.max(rasterMax,Math.ceil(Math.max(fit.w,fit.h)*2));
   const cap=2400;
-  side=Math.min(cap,Math.max(Math.ceil(lsz),side));
-  const key=`${side}|${logo.src||''}|${logo.naturalWidth}`;
+  rasterMax=Math.min(cap,Math.max(Math.ceil(Math.max(fit.w,fit.h)),rasterMax));
+  const scale=rasterMax/Math.max(nw,nh);
+  const rw=Math.max(1,Math.ceil(nw*scale));
+  const rh=Math.max(1,Math.ceil(nh*scale));
+  const key=`${rw}x${rh}|${logo.src||''}`;
   if(!logo._pfLogoCache||logo._pfLogoCache.key!==key){
     clearLogoRasterCache(logo);
-    const oc=document.createElement('canvas');oc.width=side;oc.height=side;
+    const oc=document.createElement('canvas');oc.width=rw;oc.height=rh;
     const ox=oc.getContext('2d');
-    ox.clearRect(0,0,side,side);
+    ox.clearRect(0,0,rw,rh);
     ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';
-    try{ox.drawImage(logo,0,0,side,side)}catch(e){}
+    try{ox.drawImage(logo,0,0,rw,rh)}catch(e){}
     logo._pfLogoCache={canvas:oc,key};
   }
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.drawImage(logo._pfLogoCache.canvas,cx-lsz/2,cy-lsz/2,lsz,lsz);
+  ctx.drawImage(logo._pfLogoCache.canvas,fit.x,fit.y,fit.w,fit.h);
 }
 function drawLogoOnPlate(ctx,logo,lx,ly,lsz,isSvg,thumb){
   if(!logo)return;
+  const nw=logo.naturalWidth||logo.width||1;
+  const nh=logo.naturalHeight||logo.height||1;
+  const fit=logoFitRect(lx,ly,lsz,nw,nh);
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  if(thumb||!isSvg){ctx.drawImage(logo,lx-lsz/2,ly-lsz/2,lsz,lsz);return}
+  if(thumb||!isSvg){ctx.drawImage(logo,fit.x,fit.y,fit.w,fit.h);return}
   drawSvgLogoSharp(ctx,logo,lx,ly,lsz);
 }
 function loadLogo(inp){
@@ -1668,7 +1687,11 @@ function getElementPlateBounds(key,anchor,opts){
     return{left,top:baseline-m.ascent,right:left+m.w,bottom:baseline+m.descent};
   }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
-  return{left:platePos.x-lsz/2,top:platePos.y-lsz/2,right:platePos.x+lsz/2,bottom:platePos.y+lsz/2};
+  const img=logoImageForKey(key,opts);
+  const nw=img&&(img.naturalWidth||img.width)||1;
+  const nh=img&&(img.naturalHeight||img.height)||1;
+  const fit=logoFitRect(platePos.x,platePos.y,lsz,nw,nh);
+  return{left:fit.x,top:fit.y,right:fit.x+fit.w,bottom:fit.y+fit.h};
 }
 function constrainToSafe(key,x,y,opts){
   if(S.showSafeMargin===false)return{x,y};
@@ -1738,8 +1761,12 @@ function buildDragHandles(opts){
         py=baseY-m.ascent*sc;
       }
     }else{
-      const lsz=item.fontSize*sc;
-      px=platePos.x*sc-lsz/2;py=platePos.y*sc-lsz/2;pw=lsz;ph=lsz;
+      const maxSide=item.fontSize;
+      const img=item.key==='logo'?S.logo:S.logo2;
+      const nw=img&&(img.naturalWidth||img.width)||1;
+      const nh=img&&(img.naturalHeight||img.height)||1;
+      const fit=logoFitRect(platePos.x,platePos.y,maxSide,nw,nh);
+      px=fit.x*sc;py=fit.y*sc;pw=fit.w*sc;ph=fit.h*sc;
     }
 
     const el=document.createElement('div');
