@@ -519,6 +519,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 const W=2000,H=550;
 // Physische Schildgrösse für mm→px (2000×550 px = 200×55 mm); Druckrand = 3 mm je Seite
 const PLATE_PRINT_W_MM=200,PLATE_PRINT_H_MM=55,SAFE_MARGIN_MM=3;
+// PDF-Bogen: mehrere Schilder pro A4 (spart Papier beim Druck)
+const SHEET_W_MM=210,SHEET_H_MM=297,SHEET_MARGIN_MM=5,PLATE_GAP_MM=2;
 let PREV_SCALE=0.45; // recalculated on render
 
 function safeMarginPx(){
@@ -2256,7 +2258,7 @@ function syncExportUi(){
   const hint=document.getElementById('expFormatHint');
   if(hint){
     hint.innerHTML=fmt==='pdf'
-      ?'PDF <strong>200×55 mm</strong> pro Seite – exakte Druckgrösse. „Alle“ = ein mehrseitiges PDF. Auflösung steuert die Bildschärfe im PDF.'
+      ?'PDF auf <strong>A4</strong>: mehrere Schilder (je 200×55&nbsp;mm) pro Seite – typisch <strong>5 pro Blatt</strong>. „Alle“ = ein PDF. Auflösung = Bildschärfe.'
       :'„📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.';
   }
 }
@@ -2304,15 +2306,48 @@ function loadJsPDF(){
 function newPrintPdfDoc(){
   return loadJsPDF().then(jsPDF=>new jsPDF({
     unit:'mm',
-    format:[PLATE_PRINT_W_MM,PLATE_PRINT_H_MM],
-    orientation:'landscape',
+    format:'a4',
+    orientation:'portrait',
     compress:true,
   }));
 }
+function sheetLayout(){
+  const pw=PLATE_PRINT_W_MM,ph=PLATE_PRINT_H_MM,g=PLATE_GAP_MM,m=SHEET_MARGIN_MM;
+  const cols=Math.max(1,Math.floor((SHEET_W_MM-2*m+g)/(pw+g)));
+  const rows=Math.max(1,Math.floor((SHEET_H_MM-2*m+g)/(ph+g)));
+  const gridW=cols*pw+(cols-1)*g,gridH=rows*ph+(rows-1)*g;
+  return{
+    cols,rows,perPage:cols*rows,
+    originX:m+(SHEET_W_MM-2*m-gridW)/2,
+    originY:m+(SHEET_H_MM-2*m-gridH)/2,
+  };
+}
+function plateSlotXY(slot,layout){
+  const col=slot%layout.cols,row=Math.floor(slot/layout.cols);
+  return{
+    x:layout.originX+col*(PLATE_PRINT_W_MM+PLATE_GAP_MM),
+    y:layout.originY+row*(PLATE_PRINT_H_MM+PLATE_GAP_MM),
+  };
+}
+function addPlateToPdfPage(doc,cv,slot,layout){
+  const{x,y}=plateSlotXY(slot,layout);
+  doc.addImage(cv.toDataURL('image/png',1),'PNG',x,y,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
+}
+async function buildPdfFromPlayers(players,filename){
+  const doc=await newPrintPdfDoc();
+  const layout=sheetLayout();
+  players.forEach((p,i)=>{
+    const slot=i%layout.perPage;
+    if(i>0&&slot===0)doc.addPage('a4','p');
+    addPlateToPdfPage(doc,renderExportCanvas(p),slot,layout);
+  });
+  doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
+  return layout;
+}
 async function downloadPdfCanvas(cv,filename){
   const doc=await newPrintPdfDoc();
-  const img=cv.toDataURL('image/png',1);
-  doc.addImage(img,'PNG',0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
+  const layout=sheetLayout();
+  addPlateToPdfPage(doc,cv,0,layout);
   doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
 }
 async function downloadExport(cv,filename){
@@ -2327,7 +2362,10 @@ async function exportCurrent(){
   const ext=S.exportFormat==='pdf'?'pdf':S.exportFormat;
   try{
     await downloadExport(renderExportCanvas(p),exportFileName(p)+'.'+ext);
-    if(S.exportFormat==='pdf')showOk('PDF gespeichert (200×55 mm).');
+    if(S.exportFormat==='pdf'){
+      const layout=sheetLayout();
+      showOk(`PDF A4 – 1 Schild (${layout.perPage} pro Seite möglich).`);
+    }
   }catch(e){showErr('Export fehlgeschlagen: '+(e.message||e))}
 }
 async function exportPrintPdfCurrent(){
@@ -2335,30 +2373,24 @@ async function exportPrintPdfCurrent(){
   try{
     const prev=S.exportFormat;
     S.exportFormat='pdf';
-    await downloadPdfCanvas(renderExportCanvas(p),exportFileName(p)+'.pdf');
+    await buildPdfFromPlayers([p],exportFileName(p)+'.pdf');
     S.exportFormat=prev;
     syncExportUi();
     document.getElementById('selExpFormat').value=S.exportFormat;
-    showOk('PDF gespeichert (200×55 mm).');
+    showOk('PDF A4 gespeichert.');
   }catch(e){showErr('PDF-Export: '+(e.message||e))}
 }
 async function exportAllPdf(){
-  const doc=await newPrintPdfDoc();
-  for(let i=0;i<S.roster.length;i++){
-    if(i>0)doc.addPage([PLATE_PRINT_W_MM,PLATE_PRINT_H_MM],'landscape');
-    const cv=renderExportCanvas(S.roster[i]);
-    doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,PLATE_PRINT_W_MM,PLATE_PRINT_H_MM,undefined,'FAST');
-  }
-  doc.save(safeName(S.club||'team')+'_nameplates.pdf');
+  const layout=await buildPdfFromPlayers(S.roster,safeName(S.club||'team')+'_nameplates.pdf');
+  const pages=Math.ceil(S.roster.length/layout.perPage);
+  showOk(`${S.roster.length} Schilder auf ${pages} A4-Seite(n) (${layout.perPage}/Seite).`);
 }
 async function exportAll(){
   if(!S.roster.length){alert('Kein Roster!');return}
   const fmt=S.exportFormat;
   if(fmt==='pdf'){
-    try{
-      await exportAllPdf();
-      showOk(`${S.roster.length} Schild(er) als PDF (200×55 mm).`);
-    }catch(e){showErr('PDF-Export: '+(e.message||e))}
+    try{await exportAllPdf()}
+    catch(e){showErr('PDF-Export: '+(e.message||e))}
     return;
   }
   const mime=fmt==='jpg'?'image/jpeg':'image/png';
