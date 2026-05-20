@@ -44,6 +44,11 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Hinweis Speicher:** Logo/Hintergrund als volle PNG-Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Die App komprimiert Bilder automatisch (JPEG); wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.
 
+### Zwei Logos & Hilfslinien
+
+- **Club-Logo 1 / 2** – separates Upload, Grösse unter Optionen → Grössen, Drag & Ecke zum Skalieren
+- **Hilfslinien** – Mitte, Drittel, Rand (Optionen → Sichtbarkeit); beim Ziehen rasten Elemente ein
+
 ### Nummern-Badge
 
 - **Nummer (Schrift)**: Grösse der Ziffer im Badge  
