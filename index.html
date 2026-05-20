@@ -1806,6 +1806,11 @@ function textExtent(fontPx,fontFamily,text){
   if(!(des>0))des=fontPx*TYPO_DES;
   return{w:m.width,asc,des};
 }
+function nrTextExtent(nrSz,font,text){
+  const ex=textExtent(nrSz,font,text);
+  ex.des=Math.min(ex.des,nrSz*0.12);
+  return ex;
+}
 function canvasAlphaBounds(cv,left,top,right,bottom){
   const sc=cv.width/W;
   const x0=Math.max(0,Math.floor(left*sc));
@@ -1835,10 +1840,15 @@ function canvasAlphaBounds(cv,left,top,right,bottom){
     bottom:(y0+maxY+1+pad)/sc,
   };
 }
-function refineTextBoundsFromCanvas(cv,approx){
+function refineTextBoundsFromCanvas(cv,approx,key){
   if(!cv||!approx)return approx;
+  // Nummer: Schatten/Glow würden die Canvas-Box nach unten aufblasen → nur Metriken
+  if(key==='nr')return approx;
   const pad=22;
-  return canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad)||approx;
+  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad);
+  if(!scanned)return approx;
+  // Unten nicht weiter als geschätzte Glyphenhöhe (Schatten abgeschnitten)
+  return{...scanned,bottom:Math.min(scanned.bottom,approx.bottom+4)};
 }
 
 // pointer coords – works for mouse AND touch events
@@ -1883,7 +1893,7 @@ function textPlateBounds(key,platePos,opts){
   if(key==='nr'){
     const text=String(p.nr||'');
     const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-    const ex=textExtent(nrSz,font,text);
+    const ex=nrTextExtent(nrSz,font,text);
     let left=platePos.x;
     if(textAlign==='center')left-=ex.w/2;
     else if(textAlign==='right')left-=ex.w;
@@ -1952,7 +1962,7 @@ function buildDragHandles(opts,plateCv){
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
       const approx=textPlateBounds(item.key,platePos,opts);
-      const b=approx?refineTextBoundsFromCanvas(cv,approx):null;
+      const b=approx?refineTextBoundsFromCanvas(cv,approx,item.key):null;
       if(b){
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
@@ -1977,7 +1987,7 @@ function buildDragHandles(opts,plateCv){
       }else{
         const text=String(p.nr||'');
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
-        const ex=textExtent(item.fontSize,font,text);
+        const ex=nrTextExtent(item.fontSize,font,text);
         pw=ex.w*sc;ph=Math.max((ex.asc+ex.des)*sc,8);
         const baseX=platePos.x*sc,baseY=baseline*sc;
         if(textAlign==='left')px=baseX;
@@ -2186,7 +2196,7 @@ function nameLinePlateYs(yAnchor,nameSzPlate,nameLines,font,vAlign){
   return nameLines.map((_,i)=>yFirst+i*gap);
 }
 function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
-  const ex=textExtent(nrSzPlate,font,nrText);
+  const ex=nrTextExtent(nrSzPlate,font,nrText);
   if(vAlign==='middle')return yAnchor-(ex.asc-ex.des)/2;
   if(vAlign==='bottom')return yAnchor-ex.des;
   return yAnchor;
