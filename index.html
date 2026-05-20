@@ -868,6 +868,12 @@ function maxLineWidth(lines,fontPx,fontFamily){
   ctx.font=canvasFont(fontPx,fontFamily);
   return Math.max(...lines.map(l=>ctx.measureText(l||' ').width),1);
 }
+function maxLineInkSpan(lines,fontPx,fontFamily){
+  return Math.max(...lines.map(l=>{
+    const ex=textExtent(fontPx,fontFamily,l);
+    return(ex.inkL>0&&ex.inkR>0)?ex.inkL+ex.inkR:ex.w;
+  }),1);
+}
 function anchorOffsetX(align,w){
   if(align==='center')return w/2;
   if(align==='right')return w;
@@ -884,7 +890,8 @@ function setAlign(a){
   const nameText=getDisplayName(p);
   const nameLines=nameText.split('\n');
   const nameRo={nameSz:getInt('slName'),nameSzLong:getInt('slNameSzLong'),nameLongOn:S.nameLongOn,nameLongMinLen:S.nameLongMinLen??10};
-  const wName=maxLineWidth(nameLines,effectiveNameSz(nameText,nameRo),nameFont);
+  const nameSzEff=effectiveNameSz(nameText,nameRo);
+  const wName=S.textAlign==='center'?maxLineInkSpan(nameLines,nameSzEff,nameFont):maxLineWidth(nameLines,nameSzEff,nameFont);
   const badgeOn=S.badge&&S.badge!=='none';
   const nrStr=String(p.nr||'');
   const nrSz=getInt('slNrSz');
@@ -2008,7 +2015,34 @@ function textExtent(fontPx,fontFamily,text){
   let des=m.actualBoundingBoxDescent;
   if(!(asc>0))asc=fontPx*TYPO_ASC;
   if(!(des>0))des=fontPx*TYPO_DES;
-  return{w:m.width,asc,des};
+  const inkL=m.actualBoundingBoxLeft||0;
+  const inkR=m.actualBoundingBoxRight||0;
+  return{w:m.width,asc,des,inkL,inkR};
+}
+function textInkBoundsFromAnchor(ax,ex,textAlign){
+  const L=ex.inkL>0?ex.inkL:ex.w/2;
+  const R=ex.inkR>0?ex.inkR:ex.w/2;
+  if(textAlign==='center')return{left:ax-L,right:ax+R};
+  if(textAlign==='right')return{left:ax-L-R,right:ax};
+  return{left:ax-L,right:ax+R};
+}
+function textDrawOffsetX(ex,textAlign){
+  if(textAlign==='center'&&ex.inkL>0&&ex.inkR>0)return(ex.inkR-ex.inkL)/2;
+  return 0;
+}
+function nameInkUnionBounds(anchorX,lines,fontPx,fontFamily,textAlign,vA){
+  const lineYs=nameLinePlateYs(anchorX.y,fontPx,lines,fontFamily,vA);
+  let left=Infinity,right=-Infinity,top=Infinity,bot=-Infinity;
+  lines.forEach((line,i)=>{
+    const ex=textExtent(fontPx,fontFamily,line);
+    const hb=textInkBoundsFromAnchor(anchorX.x,ex,textAlign);
+    left=Math.min(left,hb.left);
+    right=Math.max(right,hb.right);
+    top=Math.min(top,lineYs[i]-ex.asc);
+    bot=Math.max(bot,lineYs[i]+ex.des);
+  });
+  if(!lines.length){left=anchorX.x;right=anchorX.x+1;top=anchorX.y;bot=anchorX.y}
+  return{left,top,right,bottom:bot};
 }
 function nrTextExtent(nrSz,font,text){
   const ex=textExtent(nrSz,font,text);
@@ -2061,13 +2095,26 @@ function refineNrBoundsFromCanvas(cv,approx,platePos,textAlign){
   }
   return{left:platePos.x,right:platePos.x+w,top:scanned.top,bottom:scanned.bottom};
 }
+function refineNameBoundsFromCanvas(cv,approx,platePos,textAlign){
+  if(!cv||!approx)return approx;
+  const pad=18;
+  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,200);
+  if(!scanned)return approx;
+  const w=scanned.right-scanned.left;
+  const h=scanned.bottom-scanned.top;
+  const cy=(scanned.top+scanned.bottom)/2;
+  if(textAlign==='center'){
+    return{left:platePos.x-w/2,right:platePos.x+w/2,top:cy-h/2,bottom:cy+h/2};
+  }
+  if(textAlign==='right'){
+    return{left:platePos.x-w,right:platePos.x,top:cy-h/2,bottom:cy+h/2};
+  }
+  return{left:platePos.x,right:platePos.x+w,top:scanned.top,bottom:scanned.bottom};
+}
 function refineTextBoundsFromCanvas(cv,approx,key,platePos,textAlign){
   if(!cv||!approx)return approx;
   if(key==='nr')return refineNrBoundsFromCanvas(cv,approx,platePos,textAlign);
-  const pad=22;
-  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad);
-  if(!scanned)return approx;
-  return{...scanned,bottom:Math.min(scanned.bottom,approx.bottom+4)};
+  return refineNameBoundsFromCanvas(cv,approx,platePos,textAlign);
 }
 
 // pointer coords – works for mouse AND touch events
@@ -2098,19 +2145,7 @@ function textPlateBounds(key,platePos,opts){
   const p=activeP();
   if(key==='name'){
     const lines=(opts.nameText||getDisplayName(p)).split('\n');
-    const lineYs=nameLinePlateYs(platePos.y,nameSzUse,lines,nameFont,vA);
-    let top=Infinity,bot=-Infinity,maxW=0;
-    lines.forEach((line,i)=>{
-      const ex=textExtent(nameSzUse,nameFont,line);
-      maxW=Math.max(maxW,ex.w);
-      top=Math.min(top,lineYs[i]-ex.asc);
-      bot=Math.max(bot,lineYs[i]+ex.des);
-    });
-    if(!lines.length){top=platePos.y;bot=platePos.y}
-    let left=platePos.x;
-    if(textAlign==='center')left-=maxW/2;
-    else if(textAlign==='right')left-=maxW;
-    return{left,top,right:left+Math.max(maxW,1),bottom:bot};
+    return nameInkUnionBounds(platePos,lines,nameSzUse,nameFont,textAlign,vA);
   }
   if(key==='nr'){
     const text=String(p.nr||'');
@@ -2201,22 +2236,10 @@ function buildDragHandles(opts,plateCv){
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
       }else if(item.key==='name'){
-        const lines=nameText.split('\n');
-        const lineYs=nameLinePlateYs(platePos.y,nameSzUse,lines,font,vA);
-        let top=Infinity,bot=-Infinity,maxW=0;
-        lines.forEach((line,i)=>{
-          const ex=textExtent(nameSzUse,font,line);
-          maxW=Math.max(maxW,ex.w);
-          top=Math.min(top,lineYs[i]-ex.asc);
-          bot=Math.max(bot,lineYs[i]+ex.des);
-        });
-        if(!lines.length){top=platePos.y;bot=platePos.y}
-        pw=maxW*sc;ph=Math.max((bot-top)*sc,8);
-        const baseX=platePos.x*sc;
-        if(textAlign==='left')px=baseX;
-        else if(textAlign==='center')px=baseX-pw/2;
-        else px=baseX-pw;
-        py=top*sc;
+        const b=nameInkUnionBounds(platePos,nameText.split('\n'),nameSzUse,font,textAlign,vA);
+        px=b.left*sc;py=b.top*sc;
+        pw=Math.max((b.right-b.left)*sc,8);
+        ph=Math.max((b.bottom-b.top)*sc,8);
       }else{
         const text=String(p.nr||'');
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
@@ -2596,10 +2619,18 @@ function drawPlate(canvas,w,h,opts,thumb){
   if(thumb){
     ctx.shadowColor=tpl===6?c.nc+'88':'rgba(0,0,0,.6)';ctx.shadowBlur=Z(tpl===6?18:10);
     ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(4);ctx.fillStyle=c.nc;
-    nameLines.forEach((line,li)=>ctx.fillText(line,nameX,Z(nameYsPlate[li])));
+    nameLines.forEach((line,li)=>{
+      const ex=textExtent(effNameSz,nameFont,line);
+      const dx=Z(textDrawOffsetX(ex,textAlign));
+      ctx.fillText(line,nameX-dx,Z(nameYsPlate[li]));
+    });
     ctx.shadowColor='transparent';
   }else{
-    nameLines.forEach((line,li)=>drawFxText(ctx,line,nameX,Z(nameYsPlate[li]),c.nc,opts,Z));
+    nameLines.forEach((line,li)=>{
+      const ex=textExtent(effNameSz,nameFont,line);
+      const dx=Z(textDrawOffsetX(ex,textAlign));
+      drawFxText(ctx,line,nameX-dx,Z(nameYsPlate[li]),c.nc,opts,Z);
+    });
   }
   ctx.restore();
 
