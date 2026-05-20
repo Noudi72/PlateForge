@@ -462,7 +462,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="font-size:.65rem;color:var(--mut);margin-top:5px;line-height:1.5">
         Logo 1, Logo 2, Name und Nummer per Drag&amp;Drop verschieben (auch per Touch).<br>
         <strong>Hilfslinien:</strong> Mitte, Drittel und Randlinien; Elemente rasten beim Ziehen ein.<br>
-        <strong>Druckrand:</strong> roter Rahmen = 3&nbsp;mm Sicherheitszone (bei 400×110&nbsp;mm Schild); Inhalte bleiben beim Ziehen darin.<br>
+        <strong>Druckrand:</strong> roter Rahmen = 3&nbsp;mm Sicherheitszone (bei 200×55&nbsp;mm Schild); Inhalte bleiben beim Ziehen darin.<br>
         <strong>Vertikal:</strong> „Linie“ = erste Textzeile an der y-Position (Standard), „Mitte“ / „Unten“ = Block an Mittelpunkt bzw. untere Kante.<br>
         Element antippen → mit Pfeiltasten fein verschieben (Shift = grob).<br>
         Beim Ziehen rastet die Mitte ein. Logo-Ecke ziehen = skalieren.
@@ -514,8 +514,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 // CONSTANTS
 // ══════════════════════════════════════════
 const W=2000,H=550;
-// Physische Schildgrösse für mm→px (2000×550 px); Druckrand = 3 mm je Seite
-const PLATE_PRINT_W_MM=400,PLATE_PRINT_H_MM=110,SAFE_MARGIN_MM=3;
+// Physische Schildgrösse für mm→px (2000×550 px = 200×55 mm); Druckrand = 3 mm je Seite
+const PLATE_PRINT_W_MM=200,PLATE_PRINT_H_MM=55,SAFE_MARGIN_MM=3;
 let PREV_SCALE=0.45; // recalculated on render
 
 function safeMarginPx(){

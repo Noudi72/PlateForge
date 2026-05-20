@@ -1,6 +1,6 @@
 # PlateForge
 
-Eishockey-Garderoben-Schilder (2000×550 px) — Editor, Team-Roster, Batch-Export.
+Eishockey-Garderoben-Schilder (2000×550 px, Druck **200×55 mm**) — Editor, Team-Roster, Batch-Export.
 
 ## Nur eine `index.html` — reicht das?
 
@@ -54,7 +54,7 @@ Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badg
 
 - **Club-Logo 1 / 2** – separates Upload, Grösse unter Design → Badge & Grössen, Drag & Ecke zum Skalieren  
 - **Hilfslinien** – Mitte, Drittel, Rand (Optionen → Sichtbarkeit); beim Ziehen rasten Elemente ein  
-- **Druckrand (3 mm)** – roter Rahmen = Sicherheitszone (berechnet für 400×110 mm Schild); Inhalte werden beim Verschieben darin gehalten, Kanten rasten ein  
+- **Druckrand (3 mm)** – roter Rahmen = Sicherheitszone (berechnet für 200×55 mm Schild); Inhalte werden beim Verschieben darin gehalten, Kanten rasten ein  
 - **Logo-Bereich (Seitenstreifen)** – dunkler Streifen links/rechts; unter Optionen abschaltbar, falls Logos „auf Schwarz“ wirken
 
 ### Nummern-Badge
