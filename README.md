@@ -40,6 +40,8 @@ Nur sinnvoll, wenn ihr später einen Build habt (z. B. Vite). Für die aktuell
 
 Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Daten liegen im **localStorage** des Browsers (pro Gerät/Domain). Optional Logo und Hintergrundbild mit speichern.
 
+**✨ Neu erstellen** startet ein leeres Design (Standard-Vorlage NHL Classic), ohne eine gespeicherte Vorlage zu überschreiben. Das **Kader** bleibt erhalten. Beim Speichern einen **neuen Namen** wählen.
+
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
 **Hinweis Speicher:** Logo/Hintergrund als volle Data-URLs passen nicht in den Browser (`localStorage` ~5 MB). Logos werden als **PNG** (Transparenz) komprimiert, Hintergrundbilder als JPEG; wenn es trotzdem scheitert, wird ohne Bilder gespeichert – **JSON-Export** behält die volle Vorlage.

@@ -202,8 +202,12 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Eigene Vorlagen</div>
+      <button class="btn btn-r btn-sm" type="button" style="width:100%;margin-bottom:8px" onclick="createNewDesign()">✨ Neu erstellen</button>
+      <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:8px">
+        Leeres Design von Grund auf – überschreibt keine gespeicherte Vorlage. Roster bleibt erhalten.
+      </div>
       <div class="fg">
-        <label class="fl">Name</label>
+        <label class="fl">Name (beim Speichern)</label>
         <input class="fi" id="userTplName" placeholder="z. B. Team Spirit 2026" maxlength="40">
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
@@ -922,6 +926,65 @@ function buildTplGrid(){
     drawPlate(cv,200,50,thumbOpts,true);
   });
 }
+function getDefaultDesignFields(){
+  return{
+    tpl:0,
+    c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
+    font:"'Bebas Neue'",layout:'L',textAlign:'left',textVAlign:'alphabetic',nameMode:'last',
+    logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,bgOp:.4,logoOp:1,
+    frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,
+    showGuides:true,showSafeMargin:true,shadowOn:true,glowOn:false,glowColor:'#00BFFF',
+    shBlur:10,shDist:4,glowSize:26,
+    badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,
+    userTplId:null,pos:{},club:'EHC BIEL-BIENNE',leagueTxt:'NATIONAL LEAGUE',
+    exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
+    sel:null,
+  };
+}
+function designHasUnsavedWork(){
+  return!!(
+    S.userTplId||Object.keys(S.pos||{}).length||
+    S.logo2||S.bgImg||
+    (S.logo&&!S.logoIsSvg) // custom upload vs default EHC
+  );
+}
+function createNewDesign(){
+  if(designHasUnsavedWork()&&!confirm(
+    'Neues Design von Grund auf starten?\n\n'+
+    'Das aktuelle Layout geht verloren (nicht gespeichert).\n'+
+    'Gespeicherte Vorlagen in der Liste bleiben unverändert.\n'+
+    'Das Kader bleibt erhalten.'
+  ))return;
+  const keepRoster=S.roster.slice();
+  const keepActive=S.active;
+  const keepFonts=S.savedFonts.slice();
+  clearLogoRasterCache(S.logo);
+  clearLogoRasterCache(S.logo2);
+  Object.assign(S,getDefaultDesignFields());
+  S.roster=keepRoster;
+  S.active=Math.min(keepActive,Math.max(0,keepRoster.length-1));
+  S.savedFonts=keepFonts;
+  S.logo=null;S.logoIsSvg=false;S.logo2=null;S.logo2IsSvg=false;S.bgImg=null;
+  ['logoPrev','logo2Prev','bgPrev'].forEach(id=>{
+    const p=document.getElementById(id);if(p){p.style.display='none';p.removeAttribute('src')}
+  });
+  document.getElementById('userTplName').value='';
+  document.getElementById('tplName').textContent='NEUES DESIGN';
+  buildTplGrid();
+  renderUserTplList();
+  applyStateToUI();
+  setBadge('none');
+  syncVAlignUi();
+  refreshSwatches();
+  document.querySelectorAll('.tpl-card').forEach(c=>{
+    const bi=c.dataset.builtin,ui=c.dataset.user;
+    c.classList.toggle('on',bi==='0'&&!ui);
+  });
+  pickP(S.active);
+  persistSession();
+  render();
+  showOk('Neues Design gestartet – unter „Name“ speichern, um eine neue Vorlage anzulegen.');
+}
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
@@ -1122,7 +1185,9 @@ async function saveUserTemplate(){
   const include=document.getElementById('userTplIncImg').checked;
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
-  if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
+  if(existing&&existing.id===S.userTplId){
+    // gleiche Vorlage aktualisieren
+  }else if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
   let snap=await buildDesignSnapshot(include);
   if(include)snap=await compressSnapForStorage(snap);
   const entry={id:existing?existing.id:'ut_'+Date.now(),name,updated:Date.now(),snap};
