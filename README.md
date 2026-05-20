@@ -64,6 +64,8 @@ Unter **Design → Badge & Grössen**: Toggle **Lange Namen separat**, dann **Ab
 
 **An Breite anpassen** (empfohlen): Namen, die selbst mit der „langen“ Grösse noch zu breit sind (z. B. GROSSNIKLAUS), werden automatisch weiter verkleinert, bis sie in die Namenszone passen. In der Navigation: `· Name 142px (angepasst)`.
 
+Bei **Ausrichtung ↔ Mitte** werden Namen an der **sichtbaren Schriftkante** zentriert (nicht nur an der typografischen Breite) — BLATTER, KREUTER und REINHARD wirken dadurch gleich mittig.
+
 ### Zwei Logos & Hilfslinien
 
 - **Club-Logo 1 / 2** – separates Upload, Grösse unter Design → Badge & Grössen, Drag & Ecke zum Skalieren  
