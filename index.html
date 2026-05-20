@@ -1808,10 +1808,11 @@ function textExtent(fontPx,fontFamily,text){
 }
 function nrTextExtent(nrSz,font,text){
   const ex=textExtent(nrSz,font,text);
-  ex.des=Math.min(ex.des,nrSz*0.12);
+  ex.des=Math.min(ex.des,nrSz*0.05,ex.asc*0.08);
   return ex;
 }
-function canvasAlphaBounds(cv,left,top,right,bottom){
+function canvasAlphaBounds(cv,left,top,right,bottom,minAlpha){
+  const alpha=minAlpha==null?48:minAlpha;
   const sc=cv.width/W;
   const x0=Math.max(0,Math.floor(left*sc));
   const y0=Math.max(0,Math.floor(top*sc));
@@ -1823,7 +1824,7 @@ function canvasAlphaBounds(cv,left,top,right,bottom){
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   for(let y=0;y<rh;y++){
     for(let x=0;x<rw;x++){
-      if(data[(y*rw+x)*4+3]>48){
+      if(data[(y*rw+x)*4+3]>alpha){
         if(x<minX)minX=x;
         if(x>maxX)maxX=x;
         if(y<minY)minY=y;
@@ -1840,14 +1841,24 @@ function canvasAlphaBounds(cv,left,top,right,bottom){
     bottom:(y0+maxY+1+pad)/sc,
   };
 }
+function refineNrBoundsFromCanvas(cv,approx){
+  if(!cv||!approx)return approx;
+  const pad=10;
+  const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad,210);
+  if(!scanned)return approx;
+  return{
+    left:Math.max(scanned.left,approx.left-2),
+    top:Math.max(scanned.top,approx.top-2),
+    right:Math.min(scanned.right,approx.right+2),
+    bottom:Math.min(scanned.bottom,approx.bottom+1),
+  };
+}
 function refineTextBoundsFromCanvas(cv,approx,key){
   if(!cv||!approx)return approx;
-  // Nummer: Schatten/Glow würden die Canvas-Box nach unten aufblasen → nur Metriken
-  if(key==='nr')return approx;
+  if(key==='nr')return refineNrBoundsFromCanvas(cv,approx);
   const pad=22;
   const scanned=canvasAlphaBounds(cv,approx.left-pad,approx.top-pad,approx.right+pad,approx.bottom+pad);
   if(!scanned)return approx;
-  // Unten nicht weiter als geschätzte Glyphenhöhe (Schatten abgeschnitten)
   return{...scanned,bottom:Math.min(scanned.bottom,approx.bottom+4)};
 }
 
@@ -1913,7 +1924,14 @@ function getElementPlateBounds(key,anchor,opts){
     return{left:platePos.x-bb.halfW,top:platePos.y-bb.halfH,right:platePos.x+bb.halfW,bottom:platePos.y+bb.halfH};
   }
   const tb=textPlateBounds(key,platePos,opts);
-  if(tb)return tb;
+  if(tb){
+    const cv=document.getElementById('plateCanvas');
+    if(cv&&cv.width){
+      if(key==='nr')return refineNrBoundsFromCanvas(cv,tb)||tb;
+      if(key==='name')return refineTextBoundsFromCanvas(cv,tb,key)||tb;
+    }
+    return tb;
+  }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
   const nw=img&&(img.naturalWidth||img.width)||1;
@@ -2106,13 +2124,18 @@ function snapAxis(v,targets,tol){
   });
   return{best,on};
 }
-function applySnap(x,y){
-  const vT=[W/2,W/3,2*W/3,W*.1,W*.9];
-  const hT=[H/2,H/3,2*H/3,H*.12,H*.88];
+function applySnap(x,y,key){
+  const vT=[W/2,W/3,2*W/3];
+  const hT=[H/2,H/3,2*H/3];
+  const textEl=key==='nr'||key==='name';
+  if(!textEl){
+    vT.push(W*.1,W*.9);
+    hT.push(H*.12,H*.88);
+  }
   if(S.showSafeMargin!==false){
     const s=getSafeRect();
     vT.push(s.left,s.right);
-    hT.push(s.top,s.bottom);
+    if(!textEl)hT.push(s.top,s.bottom);
   }
   let sx=snapAxis(x,vT,SNAP_TOL);
   if(!sx.on)sx=snapAxis(x,vT,SNAP_MINOR);
@@ -2137,11 +2160,11 @@ function moveDrag(e){
   const dx=(pt.x-mx)/sc,dy=(pt.y-my)/sc;
   const cur=getPos(key);
   let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
-  const sn=applySnap(nx,ny);
+  const sn=applySnap(nx,ny,key);
   const opts=buildRenderOpts();
   const c=constrainToSafe(key,sn.x,sn.y,opts);
   S.pos[key]={...cur,x:c.x,y:c.y};
-  showSnap(sn.snV,sn.snH,sn.x,sn.y);
+  showSnap(sn.snV,sn.snH,c.x,c.y);
   if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
     const cv=document.getElementById('plateCanvas');
     const opts=buildRenderOpts();
