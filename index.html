@@ -1782,6 +1782,7 @@ function render(){
   if(document.fonts&&document.fonts.ready){
     document.fonts.ready.then(()=>{if(!dragState)placeHandles()});
   }
+  updateSelectionAlignGuides();
   if(!dragState)persistSession();
 }
 
@@ -2124,6 +2125,15 @@ function snapAxis(v,targets,tol){
   });
   return{best,on};
 }
+function boundsCenterFromAnchor(key,ax,ay,opts){
+  const b=getElementPlateBounds(key,{x:ax,y:ay},opts);
+  return{x:(b.left+b.right)/2,y:(b.top+b.bottom)/2};
+}
+function anchorFromBoundsCenter(key,cx,cy,opts){
+  const p=getPos(key);
+  const c=boundsCenterFromAnchor(key,p.x,p.y,opts);
+  return{x:p.x+(cx-c.x),y:p.y+(cy-c.y)};
+}
 function applySnap(x,y,key){
   const vT=[W/2,W/3,2*W/3];
   const hT=[H/2,H/3,2*H/3];
@@ -2143,13 +2153,35 @@ function applySnap(x,y,key){
   if(!sy.on)sy=snapAxis(y,hT,SNAP_MINOR);
   return{x:sx.best,y:sy.best,snV:sx.on,snH:sy.on};
 }
-function showSnap(snV,snH,snapX,snapY){
+function applySnapForElement(key,ax,ay,opts){
+  const c=boundsCenterFromAnchor(key,ax,ay,opts);
+  const sn=applySnap(c.x,c.y,key);
+  const a=anchorFromBoundsCenter(key,sn.x,sn.y,opts);
+  return{x:a.x,y:a.y,snV:sn.snV,snH:sn.snH,guideX:sn.x,guideY:sn.y};
+}
+function showSnap(snV,snH,guideX,guideY){
   const cv=document.getElementById('plateCanvas'),sc=cv.width/W;
   const v=document.getElementById('snapV'),h=document.getElementById('snapH');
-  v.style.left=Math.round((snV?snapX:W/2)*sc)+'px';v.style.opacity=snV?'.85':'0';
-  h.style.top=Math.round((snH?snapY:H/2)*sc)+'px';h.style.opacity=snH?'.85':'0';
+  v.style.left=Math.round((snV?guideX:W/2)*sc)+'px';v.style.opacity=snV?'.85':'0';
+  h.style.top=Math.round((snH?guideY:H/2)*sc)+'px';h.style.opacity=snH?'.85':'0';
 }
 function hideSnap(){document.getElementById('snapV').style.opacity='0';document.getElementById('snapH').style.opacity='0'}
+function updateSelectionAlignGuides(){
+  if(dragState||!S.sel||!(S.sel==='nr'||S.sel==='name'))return hideSnap();
+  const cv=document.getElementById('plateCanvas');
+  if(!cv||!cv.width)return hideSnap();
+  const sc=cv.width/W;
+  const opts=buildRenderOpts();
+  const p=getPos(S.sel);
+  const c=boundsCenterFromAnchor(S.sel,p.x,p.y,opts);
+  const tol=SNAP_TOL;
+  const onV=Math.abs(c.x-W/2)<tol,onH=Math.abs(c.y-H/2)<tol;
+  const v=document.getElementById('snapV'),h=document.getElementById('snapH');
+  v.style.left=Math.round(W/2*sc)+'px';
+  h.style.top=Math.round(H/2*sc)+'px';
+  v.style.opacity=onV?'.9':'.38';
+  h.style.opacity=onH?'.9':'.38';
+}
 
 // ── GLOBAL DRAG (mouse + touch) ───────────
 function moveDrag(e){
@@ -2160,11 +2192,11 @@ function moveDrag(e){
   const dx=(pt.x-mx)/sc,dy=(pt.y-my)/sc;
   const cur=getPos(key);
   let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
-  const sn=applySnap(nx,ny,key);
   const opts=buildRenderOpts();
+  const sn=applySnapForElement(key,nx,ny,opts);
   const c=constrainToSafe(key,sn.x,sn.y,opts);
   S.pos[key]={...cur,x:c.x,y:c.y};
-  showSnap(sn.snV,sn.snH,c.x,c.y);
+  showSnap(sn.snV,sn.snH,sn.guideX,sn.guideY);
   if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
     const cv=document.getElementById('plateCanvas');
     const opts=buildRenderOpts();
@@ -2176,7 +2208,9 @@ function moveDrag(e){
 function endDrag(){
   if(!dragState)return;
   document.querySelectorAll('.dh').forEach(e=>e.classList.remove('active'));
-  dragState=null;hideSnap();
+  dragState=null;
+  if(S.sel)updateSelectionAlignGuides();
+  else hideSnap();
   persistSession();
 }
 document.addEventListener('mousemove',moveDrag);
