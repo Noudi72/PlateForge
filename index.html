@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlateForge – Eishockey Garderoben-Schilder</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Russo+One&family=Teko:wght@500;600;700&family=Anton&family=Black+Ops+One&family=Saira+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#0d0f14;--panel:#161922;--p2:#1e2230;--bdr:rgba(255,255,255,.08);--acc:#e63950;--gold:#f0a500;--txt:#e8eaf0;--mut:#7a8099}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:'Rajdhani',sans-serif;font-weight:500;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{background:var(--panel);border-bottom:1px solid var(--bdr);padding:0 16px;height:50px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:200}
+.logo-mark{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:3px;color:var(--gold);flex-shrink:0}.logo-mark span{color:var(--acc)}
+.vdiv{width:1px;height:22px;background:var(--bdr);flex-shrink:0}
+.tbar-btns{display:flex;gap:5px;margin-left:auto}
+.btn{border:none;border-radius:5px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:1px;padding:6px 12px;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.btn-g{background:transparent;border:1px solid var(--bdr);color:var(--mut)}.btn-g:hover{border-color:var(--gold);color:var(--gold)}
+.btn-r{background:var(--acc);color:#fff}.btn-r:hover{background:#c42d42}
+.btn-y{background:var(--gold);color:#000}.btn-y:hover{background:#d4920a}
+.btn-sm{padding:4px 9px;font-size:.7rem}
+
+/* LAYOUT */
+.app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px)}
+
+/* SIDEBAR */
+.sidebar{width:290px;min-width:260px;background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sb-sec{border-bottom:1px solid var(--bdr);padding:11px 13px}
+.sb-ttl{font-family:'Oswald',sans-serif;font-size:.64rem;letter-spacing:3px;color:var(--mut);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sb-ttl::after{content:'';flex:1;height:1px;background:var(--bdr)}
+.fg{margin-bottom:8px}.fl{display:block;font-size:.68rem;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;margin-bottom:3px}
+.fi{width:100%;background:var(--p2);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:.88rem;padding:5px 9px;outline:none;transition:border-color .15s}
+.fi:focus{border-color:var(--gold)}.fi option{background:#1e2230}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+
+/* SWATCHES */
+.sw-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.sw{width:20px;height:20px;border-radius:3px;cursor:pointer;border:2px solid transparent;transition:all .12s;flex-shrink:0}
+.sw:hover,.sw.sel{border-color:var(--gold);transform:scale(1.2)}
+input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radius:3px;cursor:pointer;background:none;padding:0}
+
+/* UPLOAD ZONE */
+.upzone{border:2px dashed var(--bdr);border-radius:6px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.upzone:hover,.upzone.drag{border-color:var(--gold);background:rgba(240,165,0,.04)}
+.upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upzone-ico{font-size:1.1rem;margin-bottom:2px}.upzone-txt{font-size:.7rem;color:var(--mut);line-height:1.3}
+.up-prev{width:100%;max-height:56px;object-fit:contain;border-radius:3px;margin-top:5px;display:none}
+
+/* ROSTER */
+.roster-list{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
+.ri{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+.ri:hover{background:var(--p2)}.ri.on{background:rgba(240,165,0,.1);border-color:rgba(240,165,0,.3)}
+.ri-nr{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--gold);min-width:22px;text-align:center}
+.ri-name{font-weight:700;font-size:.84rem;flex:1}.ri-pos{font-size:.6rem;color:var(--mut)}
+.ri-del{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.72rem;padding:2px 3px;border-radius:3px}
+.ri-del:hover{color:var(--acc)}
+
+/* STATUS */
+.csv-status{font-size:.7rem;border-radius:4px;padding:5px 7px;margin-top:4px;display:none;line-height:1.4}
+.csv-ok{background:rgba(0,200,100,.1);border:1px solid rgba(0,200,100,.25);color:#0dc87a}
+.csv-err{background:rgba(230,57,80,.1);border:1px solid rgba(230,57,80,.25);color:#e63950}
+.csv-warn{background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);color:var(--gold)}
+
+/* FONT GRID */
+.font-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.font-opt{padding:6px 8px;background:var(--p2);border:2px solid transparent;border-radius:5px;cursor:pointer;transition:all .12s}
+.font-opt:hover,.font-opt.on{border-color:var(--gold);background:rgba(240,165,0,.07)}
+.fp{font-size:1.1rem;color:var(--txt);line-height:1;margin-bottom:1px}.fn{font-size:.57rem;color:var(--mut)}
+.custom-badge{display:inline-flex;align-items:center;gap:3px;background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.3);border-radius:3px;padding:2px 6px;font-size:.65rem;color:var(--gold)}
+
+/* SAVED FONTS */
+.saved-font-item{display:flex;align-items:center;gap:5px;padding:4px 6px;background:var(--p2);border-radius:4px;border:1px solid transparent;cursor:pointer;margin-bottom:3px}
+.saved-font-item:hover{border-color:var(--bdr)}.saved-font-item.on{border-color:var(--gold)}
+.saved-font-name{flex:1;font-size:.8rem}.saved-font-del{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.7rem}
+.saved-font-del:hover{color:var(--acc)}
+
+/* TOGGLE */
+.tog-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.tog-lbl{font-size:.77rem;color:var(--txt)}
+.tog{width:30px;height:16px;background:var(--p2);border-radius:8px;cursor:pointer;position:relative;transition:background .18s;border:1px solid var(--bdr);flex-shrink:0}
+.tog.on{background:var(--gold)}.tog::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;background:#fff;border-radius:50%;transition:transform .18s}
+.tog.on::after{transform:translateX(14px)}
+
+/* SLIDER */
+.sl-row{display:flex;align-items:center;gap:6px}.sl-row input[type=range]{flex:1;accent-color:var(--gold);height:3px}
+.sl-v{min-width:32px;font-size:.76rem;color:var(--gold);text-align:right}
+
+/* ALIGN BUTTONS */
+.align-btns{display:flex;gap:3px}
+.align-btn{background:var(--p2);border:1px solid var(--bdr);border-radius:4px;color:var(--mut);padding:4px 8px;cursor:pointer;font-size:.85rem;flex:1;transition:all .12s;text-align:center}
+.align-btn:hover,.align-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(240,165,0,.08)}
+
+/* TEMPLATE CARDS */
+.tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tpl-card{border-radius:4px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative;aspect-ratio:4/1}
+.tpl-card:hover{border-color:var(--gold)}.tpl-card.on{border-color:var(--gold);box-shadow:0 0 8px rgba(240,165,0,.3)}
+.tpl-card canvas{width:100%;height:100%;display:block}
+.tpl-lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.72);font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:#fff;padding:1px 3px;text-align:center}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* CANVAS TOOLBAR */
+.cv-toolbar{padding:6px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;background:var(--panel);flex-shrink:0;flex-wrap:wrap}
+
+/* CANVAS VIEWPORT */
+.cv-vp{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:20px;
+  background:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);
+  background-size:28px 28px;background-color:#0a0c10}
+#cvWrap{position:relative;display:inline-block;flex-shrink:0;line-height:0}
+#plateCanvas{display:block;box-shadow:0 12px 50px rgba(0,0,0,.8)}
+
+/* DRAG HANDLES – positioned pixel-accurately over canvas text */
+.dh{position:absolute;cursor:grab;pointer-events:all;border:2px dashed transparent;border-radius:3px;transition:border-color .1s}
+.dh:hover{border-color:rgba(240,165,0,.7);background:rgba(240,165,0,.05)}
+.dh.active{cursor:grabbing;border-color:var(--gold);background:rgba(240,165,0,.08);z-index:50}
+.dh-tag{position:absolute;top:-16px;left:0;font-size:.55rem;color:var(--gold);letter-spacing:1px;white-space:nowrap;opacity:0;transition:opacity .1s;pointer-events:none;text-transform:uppercase}
+.dh:hover .dh-tag,.dh.active .dh-tag{opacity:1}
+.dh.sel{border-color:rgba(240,165,0,.6)}
+.dh.sel .dh-tag{opacity:1}
+/* resize handle (bottom-right corner for logo) */
+.dh-resize{position:absolute;bottom:-5px;right:-5px;width:12px;height:12px;background:var(--gold);border-radius:2px;cursor:nwse-resize;opacity:0;transition:opacity .1s}
+.dh:hover .dh-resize,.dh.sel .dh-resize{opacity:1}
+
+/* SNAP GUIDES */
+.snap-g{position:absolute;background:var(--gold);opacity:0;pointer-events:none;z-index:60;box-shadow:0 0 4px rgba(240,165,0,.8);transition:opacity .06s}
+.snap-v{top:0;bottom:0;width:1px}
+.snap-h{left:0;right:0;height:1px}
+
+/* BADGE PICKER */
+.badge-btns{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.badge-btns .align-btn{padding:5px 2px;font-size:.62rem}
+.badge-ico{font-size:.95rem;line-height:1;display:block}
+
+/* TABS (inside sidebar) */
+.side-tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.side-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--mut);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:.75rem;letter-spacing:1px;padding:8px 4px;cursor:pointer;transition:all .15s;text-align:center}
+.side-tab:hover{color:var(--txt)}.side-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.side-panel{display:none;flex-direction:column;overflow-y:auto;flex:1}.side-panel.on{display:flex}
+
+/* BATCH */
+.batch-wrap{padding:20px;flex:1;overflow-y:auto}
+.batch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:10px;margin-top:14px}
+.batch-item{border-radius:6px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.55);position:relative;aspect-ratio:2000/550}
+.batch-item canvas{display:block;width:100%;height:100%;object-fit:contain}
+.batch-lbl{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);border-radius:3px;font-size:.6rem;color:#fff;padding:2px 5px;letter-spacing:1px}
+.batch-dl{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:3px;padding:2px 6px;font-size:.6rem;cursor:pointer}
+.batch-dl:hover{background:var(--gold);color:#000}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-mark">PLATE<span>FORGE</span></div>
+  <div class="vdiv"></div>
+  <span style="font-size:.72rem;color:var(--mut)">2000 × 550 px</span>
+  <div class="tbar-btns">
+    <button class="btn btn-g btn-sm" onclick="switchMain('editor')" id="tabEditor">🎨 Editor</button>
+    <button class="btn btn-g btn-sm" onclick="switchMain('batch')" id="tabBatch">📋 Batch</button>
+    <div class="vdiv"></div>
+    <button class="btn btn-g btn-sm" onclick="exportCurrent()">💾 PNG</button>
+    <button class="btn btn-y btn-sm" onclick="exportAll()">📦 Alle</button>
+  </div>
+</div>
+
+<div class="app">
+<!-- ═══ SIDEBAR ═══ -->
+<div class="sidebar">
+  <div class="side-tabs">
+    <button class="side-tab on" onclick="sideTab('design')">🎨 Design</button>
+    <button class="side-tab" onclick="sideTab('team')">👥 Team</button>
+    <button class="side-tab" onclick="sideTab('settings')">⚙️ Optionen</button>
+  </div>
+
+  <!-- ── DESIGN PANEL ── -->
+  <div class="side-panel on" id="panelDesign">
+    <div class="sb-sec">
+      <div class="sb-ttl">Vorlage</div>
+      <div class="tpl-grid" id="tplGrid"></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Layout</div>
+      <div class="fg">
+        <label class="fl">Ausrichtung</label>
+        <select class="fi" id="selLayout" onchange="resetPos();render()">
+          <option value="L">Logo Links</option>
+          <option value="R">Logo Rechts</option>
+          <option value="S">Split (Nr | Name)</option>
+          <option value="F">Fullscreen</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Text horizontal</label>
+        <div class="align-btns">
+          <button class="align-btn on" id="aLeft" onclick="setAlign('left')">⬅ Links</button>
+          <button class="align-btn" id="aCenter" onclick="setAlign('center')">↔ Mitte</button>
+          <button class="align-btn" id="aRight" onclick="setAlign('right')">➡ Rechts</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">Text vertikal</label>
+        <div class="align-btns">
+          <button class="align-btn on" id="vBase" onclick="setVAlign('alphabetic')">╌ Linie</button>
+          <button class="align-btn" id="vMid" onclick="setVAlign('middle')">↕ Mitte</button>
+          <button class="align-btn" id="vBot" onclick="setVAlign('bottom')">⬇ Unten</button>
+        </div>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Schriftart</div>
+      <select class="fi" id="selFont" style="margin-bottom:7px" onchange="S.font=this.value;render()">
+        <option value="'Bebas Neue'">Bebas Neue</option>
+        <option value="'Oswald'">Oswald</option>
+        <option value="'Anton'">Anton</option>
+        <option value="'Russo One'">Russo One</option>
+        <option value="'Black Ops One'">Black Ops One</option>
+        <option value="'Teko'">Teko</option>
+        <option value="'Barlow Condensed'">Barlow Condensed</option>
+        <option value="'Saira Condensed'">Saira Condensed</option>
+        <option value="'Rajdhani'">Rajdhani</option>
+      </select>
+      <div class="font-grid" id="fontGrid"></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Farben</div>
+      <div class="fg"><label class="fl">Hintergrund 1</label><div class="sw-row" id="swBg1"></div></div>
+      <div class="fg"><label class="fl">Hintergrund 2</label><div class="sw-row" id="swBg2"></div></div>
+      <div class="fg"><label class="fl">Akzent</label><div class="sw-row" id="swAcc"></div></div>
+      <div class="fg"><label class="fl">Name</label><div class="sw-row" id="swNc"></div></div>
+      <div class="fg"><label class="fl">Nummer</label><div class="sw-row" id="swNrc"></div></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Nummern-Badge</div>
+      <div class="fg">
+        <label class="fl">Form</label>
+        <div class="badge-btns" id="badgeBtns">
+          <button class="align-btn on" data-b="none"    onclick="setBadge('none')"><span class="badge-ico">⃠</span>Kein</button>
+          <button class="align-btn"    data-b="circle"  onclick="setBadge('circle')"><span class="badge-ico">●</span>Kreis</button>
+          <button class="align-btn"    data-b="shield"  onclick="setBadge('shield')"><span class="badge-ico">⛊</span>Schild</button>
+          <button class="align-btn"    data-b="hexagon" onclick="setBadge('hexagon')"><span class="badge-ico">⬢</span>Hexa</button>
+          <button class="align-btn"    data-b="diamond" onclick="setBadge('diamond')"><span class="badge-ico">◆</span>Raute</button>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Badge-Farbe</label><div class="sw-row" id="swBadge"></div></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Club-Logo</div>
+      <div class="upzone" id="logoZone">
+        <input type="file" accept="image/*" onchange="loadLogo(this)">
+        <div class="upzone-ico">🏒</div><div class="upzone-txt">PNG / SVG / JPG<br><small>SVG wird für die Vorschau &amp; den Export scharf vorrasterisiert</small></div>
+        <img id="logoPrev" class="up-prev">
+      </div>
+      <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="useEHCLogo()">EHC Biel</button>
+        <button class="btn btn-g btn-sm" onclick="clearLogo()">✕</button>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Hintergrundbild</div>
+      <div class="upzone">
+        <input type="file" accept="image/*" onchange="loadBg(this)">
+        <div class="upzone-ico">🖼️</div><div class="upzone-txt">Bild hochladen</div>
+        <img id="bgPrev" class="up-prev">
+      </div>
+      <div style="display:flex;gap:4px;margin-top:5px">
+        <button class="btn btn-g btn-sm" onclick="clearBg()">✕ Entfernen</button>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Klub & Liga</div>
+      <div class="fg"><label class="fl">Klubname</label><input class="fi" id="iClub" value="EHC BIEL-BIENNE" oninput="render()"></div>
+      <div class="fg"><label class="fl">Liga</label><input class="fi" id="iLeague" value="NATIONAL LEAGUE" oninput="render()"></div>
+    </div>
+  </div>
+
+  <!-- ── TEAM PANEL ── -->
+  <div class="side-panel" id="panelTeam">
+    <div class="sb-sec">
+      <div class="sb-ttl">Spieler</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Vorname</label><input class="fi" id="iFirst" placeholder="Jonas" oninput="syncPlayer()"></div>
+        <div class="fg"><label class="fl">Nachname</label><input class="fi" id="iLast" placeholder="MORNOD" oninput="syncPlayer()"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Nr.</label><input class="fi" id="iNr" placeholder="1" maxlength="3" oninput="syncPlayer()"></div>
+        <div class="fg"><label class="fl">Pos.</label><input class="fi" id="iPos" placeholder="G" oninput="syncPlayer()"></div>
+      </div>
+      <div class="fg"><label class="fl">Nationalität</label><input class="fi" id="iNat" placeholder="SUI" maxlength="3" oninput="syncPlayer()"></div>
+      <button class="btn btn-r" style="width:100%;margin-top:2px" onclick="addPlayer()">＋ Hinzufügen</button>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Roster</div>
+      <div class="roster-list" id="rosterList"></div>
+      <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+        <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
+          📂 CSV/Excel
+          <input type="file" accept=".csv,.xlsx,.xls" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importFile(this)">
+        </label>
+        <button class="btn btn-g btn-sm" onclick="clearRoster()">🗑️</button>
+        <button class="btn btn-g btn-sm" onclick="toggleCsvHint()" id="csvHintBtn">?</button>
+      </div>
+      <div id="csvStatus" class="csv-status"></div>
+      <div id="csvHint" style="font-size:.66rem;color:var(--mut);margin-top:4px;line-height:1.5;display:none">
+        Spalten: <strong style="color:var(--txt)">Vorname, Name, Nr, Pos, Nat</strong><br>
+        Gross-/Kleinschreibung egal. Erkennt auch: Firstname, Lastname, Surname, Number,
+        Nummer, Jersey, Trikotnummer, Rückennummer, Position, Nation, Land.<br>
+        Ohne Kopfzeile: Spalten in der Reihenfolge Vorname · Name · Nr · Pos · Nat.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS PANEL ── -->
+  <div class="side-panel" id="panelSettings">
+    <div class="sb-sec">
+      <div class="sb-ttl">Namensformat</div>
+      <div class="fg"><label class="fl">Anzeige</label>
+        <select class="fi" id="selNameMode" onchange="render()">
+          <option value="last">Nur Nachname</option>
+          <option value="first">Nur Vorname</option>
+          <option value="both">Vor- und Nachname</option>
+          <option value="firstlast">Vorname + Nachname</option>
+          <option value="initial">Initiale + Nachname</option>
+        </select>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Eigene Schriftart</div>
+      <div class="upzone" style="margin-bottom:6px">
+        <input type="file" accept=".ttf,.otf,.woff,.woff2" onchange="loadFont(this)">
+        <div class="upzone-ico">🔤</div><div class="upzone-txt">TTF / OTF / WOFF / WOFF2</div>
+      </div>
+      <div id="savedFontsList"></div>
+      <div id="customFontInfo" style="display:none;margin-top:4px">
+        <span class="custom-badge" id="customFontBadge">Wird geladen…</span>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Sichtbarkeit</div>
+      <div class="tog-row"><span class="tog-lbl">Metallrahmen</span><div class="tog on" id="togFrame" onclick="togOpt('frame')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Schrauben</span><div class="tog on" id="togScrews" onclick="togOpt('screws')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Akzentstreifen</span><div class="tog on" id="togBar" onclick="togOpt('bar')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Position</span><div class="tog on" id="togPos" onclick="togOpt('pos')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Nationalität</span><div class="tog" id="togNat" onclick="togOpt('nat')"></div></div>
+      <div class="tog-row"><span class="tog-lbl">Liga</span><div class="tog on" id="togLeague" onclick="togOpt('league')"></div></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Texteffekte</div>
+      <div class="tog-row"><span class="tog-lbl">Schlagschatten</span><div class="tog on" id="togShadow" onclick="togOpt('shadow')"></div></div>
+      <div class="fg"><label class="fl">Schatten-Weichheit</label>
+        <div class="sl-row"><input type="range" min="0" max="40" value="10" id="slShBlur" oninput="render();sv('slShBlur','vlShBlur')"><span class="sl-v" id="vlShBlur">10</span></div></div>
+      <div class="fg"><label class="fl">Schatten-Versatz</label>
+        <div class="sl-row"><input type="range" min="0" max="30" value="4" id="slShDist" oninput="render();sv('slShDist','vlShDist')"><span class="sl-v" id="vlShDist">4</span></div></div>
+      <div class="tog-row" style="margin-top:9px"><span class="tog-lbl">Neon-Glow</span><div class="tog" id="togGlow" onclick="togOpt('glow')"></div></div>
+      <div class="fg"><label class="fl">Glow-Intensität</label>
+        <div class="sl-row"><input type="range" min="2" max="60" value="26" id="slGlow" oninput="render();sv('slGlow','vlGlow')"><span class="sl-v" id="vlGlow">26</span></div></div>
+      <div class="fg"><label class="fl">Glow-Farbe</label><div class="sw-row" id="swGlow"></div></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Export</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Auflösung</label>
+          <select class="fi" id="selExpScale" onchange="S.exportScale=+this.value">
+            <option value="1">1× · 2000px</option>
+            <option value="2">2× · 4000px</option>
+          </select></div>
+        <div class="fg"><label class="fl">Format</label>
+          <select class="fi" id="selExpFormat" onchange="S.exportFormat=this.value">
+            <option value="png">PNG</option>
+            <option value="jpg">JPG</option>
+          </select></div>
+      </div>
+      <div style="font-size:.65rem;color:var(--mut);margin-top:2px;line-height:1.5">
+        „📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Grössen</div>
+      <div class="fg"><label class="fl">Logo</label>
+        <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div></div>
+      <div class="fg"><label class="fl">Name</label>
+        <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div></div>
+      <div class="fg"><label class="fl">Nummer</label>
+        <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div></div>
+      <div class="fg"><label class="fl">Rahmen</label>
+        <div class="sl-row"><input type="range" min="0" max="32" value="10" id="slFrame" oninput="render();sv('slFrame','vlFrame')"><span class="sl-v" id="vlFrame">10</span></div></div>
+      <div class="fg"><label class="fl">Hintergrund-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="0" max="100" value="40" id="slBgOp" oninput="render();sv('slBgOp','vlBgOp','%')"><span class="sl-v" id="vlBgOp">40%</span></div></div>
+      <div class="fg"><label class="fl">Logo-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="10" max="100" value="100" id="slLogoOp" oninput="render();sv('slLogoOp','vlLogoOp','%')"><span class="sl-v" id="vlLogoOp">100%</span></div></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Positionen</div>
+      <button class="btn btn-g btn-sm" style="width:100%" onclick="resetPos()">↺ Positionen zurücksetzen</button>
+      <div style="font-size:.65rem;color:var(--mut);margin-top:5px;line-height:1.5">
+        Logo, Name und Nummer per Drag&amp;Drop verschieben (auch per Touch).<br>
+        <strong>Vertikal:</strong> „Linie“ = erste Textzeile an der y-Position (Standard), „Mitte“ / „Unten“ = Block an Mittelpunkt bzw. untere Kante.<br>
+        Element antippen → mit Pfeiltasten fein verschieben (Shift = grob).<br>
+        Beim Ziehen rastet die Mitte ein. Logo-Ecke ziehen = skalieren.
+      </div>
+    </div>
+  </div>
+</div><!-- /sidebar -->
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+  <!-- EDITOR -->
+  <div id="viewEditor" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="cv-toolbar">
+      <strong id="tplName" style="color:var(--gold);font-family:'Bebas Neue';letter-spacing:2px;font-size:.9rem">NHL CLASSIC</strong>
+      <div class="vdiv"></div>
+      <span style="font-size:.65rem;color:rgba(255,255,255,.2)">✥ Drag &amp; Drop: Logo, Name, Nr.</span>
+    </div>
+    <div class="cv-vp">
+      <div id="cvWrap">
+        <canvas id="plateCanvas"></canvas>
+        <div class="snap-g snap-v" id="snapV"></div>
+        <div class="snap-g snap-h" id="snapH"></div>
+        <!-- drag handles injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH -->
+  <div id="viewBatch" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="batch-wrap">
+      <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:4px;color:var(--gold)">Team-Export</div>
+      <div style="color:var(--mut);font-size:.8rem;margin-bottom:10px">Alle Schilder mit aktueller Vorlage</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-y btn-sm" onclick="renderBatch()">🔄 Rendern</button>
+        <button class="btn btn-r btn-sm" onclick="exportAll()">📦 Alle PNG</button>
+      </div>
+      <div class="batch-grid" id="batchGrid"></div>
+    </div>
+  </div>
+</div>
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════
+const W=2000,H=550;
+let PREV_SCALE=0.45; // recalculated on render
+
+const TMPL=[
+  {name:'NHL Classic',  bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
+  {name:'Dark Ice',     bg1:'#0d0d0d',bg2:'#1a1a1a',acc:'#00BFFF',nc:'#E0E0E0',nrc:'#00BFFF'},
+  {name:'Gold & Glory', bg1:'#1a1200',bg2:'#2a2000',acc:'#D4B96A',nc:'#D4B96A',nrc:'#FFFFFF'},
+  {name:'Carbon',       bg1:'#141414',bg2:'#202020',acc:'#555',   nc:'#CCCCCC',nrc:'#999'},
+  {name:'Retro Stripe', bg1:'#8B0000',bg2:'#5C0000',acc:'#FFFFFF',nc:'#FFFFFF',nrc:'#FFE066'},
+  {name:'Minimal',      bg1:'#F0F0F0',bg2:'#E0E0E0',acc:'#1a1a3e',nc:'#111',   nrc:'#C8102E'},
+  {name:'Neon Night',   bg1:'#080012',bg2:'#12001a',acc:'#FF00FF',nc:'#FFFFFF',nrc:'#00FFFF'},
+  {name:'Championship', bg1:'#1a0a00',bg2:'#2a1400',acc:'#D4B96A',nc:'#FFFFFF',nrc:'#D4B96A'},
+];
+
+const SWATCHES=['#041E42','#C8102E','#D4B96A','#FFFFFF','#000000','#1a3a6e','#006400','#FF8C00','#4B0082','#00BFFF','#FF00FF','#888','#FFE066','#8B0000','#2d2d2d'];
+const BUILTIN_FONTS=[
+  {l:'Bebas Neue',v:"'Bebas Neue'"},{l:'Oswald',v:"'Oswald'"},{l:'Anton',v:"'Anton'"},
+  {l:'Russo One',v:"'Russo One'"},{l:'Black Ops One',v:"'Black Ops One'"},
+  {l:'Teko',v:"'Teko'"},{l:'Barlow Cond.',v:"'Barlow Condensed'"},{l:'Saira Cond.',v:"'Saira Condensed'"},
+];
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+const S={
+  tpl:0,
+  c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
+  font:"'Bebas Neue'",
+  layout:'L',
+  textAlign:'left',
+  textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
+  nameMode:'last', // last | first | both | firstlast | initial
+  logo:null,logoIsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
+  frame:true,screws:true,bar:true,showPos:true,showNat:false,showLeague:true,
+  logoSz:140,nameSz:190,nrSz:260,frameW:10,
+  // text effects
+  shadowOn:true,glowOn:false,glowColor:'#00BFFF',
+  // number badge
+  badge:'none',badgeColor:'#C8102E',
+  // export
+  exportScale:1,exportFormat:'png',
+  // currently selected drag element (for keyboard nudging)
+  sel:null,
+  club:'EHC BIEL-BIENNE',leagueTxt:'NATIONAL LEAGUE',
+  roster:[
+    {first:'',last:'LEUENBERGER',nr:'1', pos:'G', nat:'SUI'},
+    {first:'RAJALA',last:'RAJALA',nr:'14',pos:'LW',nat:'FIN'},
+    {first:'',last:'FUCHS',nr:'20',pos:'D', nat:'SUI'},
+    {first:'KÜNZLE',last:'KÜNZLE',nr:'61',pos:'C', nat:'SUI'},
+  ],
+  active:0,
+  savedFonts:[], // [{name,fontFamily}]
+  // free positions {logo:{x,y,sz}, name:{x,y}, nr:{x,y}} in plate coords (0-W, 0-H)
+  pos:{}
+};
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function sv(id,vid,suf=''){document.getElementById(vid).textContent=document.getElementById(id).value+suf}
+function getVal(id){return document.getElementById(id).value}
+function getInt(id){return parseInt(document.getElementById(id).value)}
+function getFloat(id){return parseFloat(document.getElementById(id).value)}
+
+function getDisplayName(p){
+  const f=(p.first||'').trim().toUpperCase();
+  const l=(p.last||'').trim().toUpperCase();
+  const mode=getVal('selNameMode');
+  if(mode==='last')  return l||f;
+  if(mode==='first') return f||l;
+  if(mode==='both')  return [f,l].filter(Boolean).join('\n');
+  if(mode==='firstlast') return [f,l].filter(Boolean).join(' ');
+  if(mode==='initial') return (f?f[0]+'. ':'')+l;
+  return l||f;
+}
+
+// ══════════════════════════════════════════
+// DEFAULT POSITIONS
+// ══════════════════════════════════════════
+function defPos(layout){
+  if(layout==='L') return{logo:{x:85, y:275,sz:S.logoSz},name:{x:680,y:330},nr:{x:680,y:168}};
+  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},name:{x:180,y:330},nr:{x:180,y:168}};
+  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},name:{x:950,y:345},nr:{x:360,y:355}};
+  return               {logo:{x:1760,y:275,sz:S.logoSz},name:{x:180,y:330},nr:{x:180,y:168}};
+}
+function getPos(key){
+  const d=defPos(S.layout);
+  let base=d[key];
+  // when a badge is active, the number anchor is its CENTER → use a vertically centred default
+  if(key==='nr'&&S.badge&&S.badge!=='none')base={...base,y:H/2};
+  return S.pos[key]?{...base,...S.pos[key]}:base;
+}
+function resetPos(){S.pos={};render()}
+
+// ══════════════════════════════════════════
+// SIDE TABS / MAIN TABS
+// ══════════════════════════════════════════
+function sideTab(name){
+  ['design','team','settings'].forEach(t=>{
+    document.getElementById('panel'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('on',t===name);
+    document.querySelectorAll('.side-tab')[['design','team','settings'].indexOf(t)].classList.toggle('on',t===name);
+  });
+}
+function switchMain(view){
+  document.getElementById('viewEditor').style.display=view==='editor'?'flex':'none';
+  document.getElementById('viewBatch').style.display=view==='batch'?'flex':'none';
+  document.getElementById('tabEditor').classList.toggle('btn-y',view==='editor');
+  document.getElementById('tabBatch').classList.toggle('btn-y',view==='batch');
+  if(view==='batch')renderBatch();
+}
+
+// ══════════════════════════════════════════
+// TEXT ALIGN
+// ══════════════════════════════════════════
+// Textbreite (eine Zeile) für Ausrichtungs-Korrektur
+function measureTextWidth(text,fontPx,fontFamily){
+  const ctx=document.createElement('canvas').getContext('2d');
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  return ctx.measureText(text||' ').width;
+}
+function maxLineWidth(lines,fontPx,fontFamily){
+  const ctx=document.createElement('canvas').getContext('2d');
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  return Math.max(...lines.map(l=>ctx.measureText(l||' ').width),1);
+}
+function anchorOffsetX(align,w){
+  if(align==='center')return w/2;
+  if(align==='right')return w;
+  return 0;
+}
+// Bei Wechsel der horizontalen Ausrichtung X so anpassen, dass die Bounding-Box gleich bleibt
+function setAlign(a){
+  if(a===S.textAlign)return;
+  const old=S.textAlign;
+  const p=activeP();
+  const font=S.font;
+  const nameText=getDisplayName(p);
+  const nameLines=nameText.split('\n');
+  const wName=maxLineWidth(nameLines,getInt('slName'),font);
+  const badgeOn=S.badge&&S.badge!=='none';
+  const nrStr=badgeOn?String(p.nr):('#'+p.nr);
+  const wNr=badgeOn?0:measureTextWidth(nrStr,getInt('slNrSz'),font);
+  function shiftKey(key,w){
+    if(!w)return;
+    const base=getPos(key);
+    const merged={...base,...S.pos[key]};
+    const curX=merged.x;
+    const newX=curX-anchorOffsetX(old,w)+anchorOffsetX(a,w);
+    S.pos[key]={...merged,x:newX};
+  }
+  shiftKey('name',wName);
+  if(!badgeOn)shiftKey('nr',wNr);
+  S.textAlign=a;
+  ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===a));
+  render();
+}
+function syncVAlignUi(){
+  const m={alphabetic:'vBase',middle:'vMid',bottom:'vBot'};
+  ['vBase','vMid','vBot'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',id===m[S.textVAlign||'alphabetic'])});
+}
+function setVAlign(v){
+  S.textVAlign=v;
+  syncVAlignUi();
+  render();
+}
+
+// ══════════════════════════════════════════
+// SWATCHES
+// ══════════════════════════════════════════
+function mkSwatchG(cid,getV,setV){
+  const c=document.getElementById(cid);if(!c)return;
+  c.innerHTML='';
+  SWATCHES.forEach(h=>{
+    const d=document.createElement('div');d.className='sw'+(getV()===h?' sel':'');
+    d.style.background=h;d.title=h;
+    d.onclick=()=>{setV(h);c.querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');render()};
+    c.appendChild(d);
+  });
+  const inp=document.createElement('input');inp.type='color';inp.value=getV();
+  inp.oninput=()=>{setV(inp.value);render()};
+  c.appendChild(inp);
+}
+function mkSwatch(cid,key){mkSwatchG(cid,()=>S.c[key],v=>S.c[key]=v)}
+
+function refreshSwatches(){
+  [['swBg1','bg1'],['swBg2','bg2'],['swAcc','acc'],['swNc','nc'],['swNrc','nrc']].forEach(([id,k])=>mkSwatch(id,k));
+  mkSwatchG('swGlow', ()=>S.glowColor, v=>S.glowColor=v);
+  mkSwatchG('swBadge',()=>S.badgeColor,v=>S.badgeColor=v);
+}
+
+// ══════════════════════════════════════════
+// FONT GRID + SAVED FONTS
+// ══════════════════════════════════════════
+function buildFontGrid(){
+  const g=document.getElementById('fontGrid');g.innerHTML='';
+  BUILTIN_FONTS.forEach(f=>{
+    const d=document.createElement('div');d.className='font-opt'+(S.font===f.v?' on':'');
+    d.innerHTML=`<div class="fp" style="font-family:${f.v}">${f.l.split(' ')[0].toUpperCase()}</div><div class="fn">${f.l}</div>`;
+    d.onclick=()=>{S.font=f.v;document.getElementById('selFont').value=f.v;g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');render()};
+    g.appendChild(d);
+  });
+}
+
+function loadFont(inp){
+  const file=inp.files[0];if(!file)return;
+  const url=URL.createObjectURL(file);
+  const fname=file.name.replace(/\.[^.]+$/,'');
+  const ffName='PF_'+Date.now();
+  new FontFace(ffName,`url(${url})`).load().then(f=>{
+    document.fonts.add(f);
+    const fontVal=`'${ffName}'`;
+    S.savedFonts.push({name:fname,fontFamily:fontVal,url});
+    S.font=fontVal;
+    document.getElementById('selFont').value='';
+    buildFontGrid();
+    renderSavedFonts();
+    render();
+  }).catch(()=>alert('Font konnte nicht geladen werden.'));
+  inp.value='';
+}
+
+function renderSavedFonts(){
+  const el=document.getElementById('savedFontsList');
+  el.innerHTML='';
+  if(!S.savedFonts.length){document.getElementById('customFontInfo').style.display='none';return}
+  document.getElementById('customFontInfo').style.display='block';
+  document.getElementById('customFontBadge').textContent=`${S.savedFonts.length} eigene Font(s) geladen`;
+  S.savedFonts.forEach((sf,i)=>{
+    const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
+    d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
+      <button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`;
+    d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;S.font=sf.fontFamily;document.getElementById('selFont').value='';document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on');render()};
+    el.appendChild(d);
+  });
+}
+
+function removeSavedFont(i,e){
+  e.stopPropagation();
+  if(S.font===S.savedFonts[i].fontFamily)S.font="'Bebas Neue'";
+  URL.revokeObjectURL(S.savedFonts[i].url);
+  S.savedFonts.splice(i,1);
+  renderSavedFonts();render();
+}
+
+// ══════════════════════════════════════════
+// TEMPLATES
+// ══════════════════════════════════════════
+function buildTplGrid(){
+  const g=document.getElementById('tplGrid');g.innerHTML='';
+  TMPL.forEach((t,i)=>{
+    const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl?' on':'');wrap.onclick=()=>selectTpl(i);
+    const cv=document.createElement('canvas');cv.width=200;cv.height=50;
+    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
+    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    const thumbOpts={...S,tpl:i,c:{...t.bg1&&{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},...{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc}},last:'MÜLLER',first:'',nr:'17',pos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,pos_override:defPos('L')};
+    drawPlate(cv,200,50,thumbOpts,true);
+  });
+}
+function selectTpl(i){
+  S.tpl=i;const t=TMPL[i];
+  S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
+  S.badgeColor=t.acc;
+  document.getElementById('tplName').textContent=t.name.toUpperCase();
+  document.querySelectorAll('.tpl-card').forEach((c,j)=>c.classList.toggle('on',j===i));
+  refreshSwatches();
+  render();
+}
+
+// ══════════════════════════════════════════
+// NUMBER BADGE PICKER
+// ══════════════════════════════════════════
+function setBadge(shape){
+  S.badge=shape;
+  document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===shape));
+  render();
+}
+
+// ══════════════════════════════════════════
+// ROSTER
+// ══════════════════════════════════════════
+function buildRoster(){
+  const l=document.getElementById('rosterList');l.innerHTML='';
+  S.roster.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='ri'+(i===S.active?' on':'');
+    const display=getDisplayName(p);
+    d.innerHTML=`<span class="ri-nr">#${p.nr}</span><span class="ri-name">${display.replace('\n',' ')}</span><span class="ri-pos">${p.pos||''}</span><button class="ri-del" onclick="delP(${i},event)">✕</button>`;
+    d.onclick=e=>{if(e.target.classList.contains('ri-del'))return;pickP(i)};
+    l.appendChild(d);
+  });
+}
+function pickP(i){
+  S.active=i;const p=S.roster[i];
+  document.getElementById('iFirst').value=p.first||'';
+  document.getElementById('iLast').value=p.last||'';
+  document.getElementById('iNr').value=p.nr;
+  document.getElementById('iPos').value=p.pos||'';
+  document.getElementById('iNat').value=p.nat||'';
+  buildRoster();render();
+  refreshBatchIfVisible();
+}
+function syncPlayer(){
+  if(!S.roster.length)return;
+  const p=S.roster[S.active];
+  p.first=getVal('iFirst').trim().toUpperCase();
+  p.last=getVal('iLast').trim().toUpperCase();
+  p.nr=getVal('iNr').trim();
+  p.pos=getVal('iPos').trim().toUpperCase();
+  p.nat=getVal('iNat').trim().toUpperCase();
+  buildRoster();render();
+  refreshBatchIfVisible();
+}
+function addPlayer(){
+  const first=getVal('iFirst').trim().toUpperCase();
+  const last=getVal('iLast').trim().toUpperCase();
+  const nr=getVal('iNr').trim();
+  if(!last&&!first||!nr)return;
+  S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase()});
+  S.active=S.roster.length-1;buildRoster();render();refreshBatchIfVisible();
+}
+function delP(i,e){e.stopPropagation();S.roster.splice(i,1);if(S.active>=S.roster.length)S.active=Math.max(0,S.roster.length-1);buildRoster();render();refreshBatchIfVisible()}
+function clearRoster(){if(confirm('Roster leeren?')){S.roster=[];S.active=0;buildRoster();render();refreshBatchIfVisible()}}
+
+// ══════════════════════════════════════════
+// CSV / EXCEL
+// ══════════════════════════════════════════
+const LAST_K =['lastname','last','nachname','name','surname','familienname','familyname','spieler','player','spielername','nom'];
+const FIRST_K=['firstname','first','vorname','prename','givenname','rufname','prenom'];
+const NR_K   =['nr','number','nummer','jersey','jerseynr','jerseynumber','jerseyno','no','rückennummer','ruckennummer','trikotnummer','rn','num','#'];
+const POS_K  =['pos','position','posizione','spielposition','rolle'];
+const NAT_K  =['nat','nation','nationality','country','land','nationalität','nationalitaet','herkunft'];
+// normalise a header: lowercase + strip everything but letters/digits
+function norm(s){return String(s).toLowerCase().replace(/[^a-z0-9à-ÿ]/g,'')}
+// find the original key of obj that matches any of the (already normalised) candidate keys
+function fk(obj,keys){
+  const map={};
+  for(const k in obj){
+    const raw=String(k).trim();
+    if(raw==='#'&&!('#'in map))map['#']=k;
+    const n=norm(k);
+    if(n&&!(n in map))map[n]=k;
+  }
+  for(const want of keys)if(want in map)return map[want];
+  return null;
+}
+
+function toggleCsvHint(){const h=document.getElementById('csvHint');h.style.display=h.style.display==='block'?'none':'block'}
+
+function importFile(inp){
+  const file=inp.files[0];if(!file)return;
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='csv'){
+    Papa.parse(file,{header:true,skipEmptyLines:'greedy',encoding:'UTF-8',transformHeader:h=>h.trim(),
+      complete:r=>{
+        if(r.errors&&r.errors.length&&!r.data.length){showErr('CSV-Fehler: '+r.errors[0].message);return}
+        if(!r.data.length){showErr('Keine Datenzeilen in der CSV gefunden.');return}
+        processRows(r.data,file.name);
+      },
+      error:e=>showErr('CSV konnte nicht gelesen werden: '+e.message)});
+  }else if(['xlsx','xls'].includes(ext)){
+    const rd=new FileReader();
+    rd.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:'binary'});
+        if(!wb.SheetNames.length){showErr('Excel-Datei enthält keine Tabellenblätter.');return}
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+        if(!data.length){showErr('Keine Datenzeilen im ersten Tabellenblatt.');return}
+        processRows(data,file.name);
+      }catch(err){showErr('Excel-Fehler: '+err.message)}
+    };
+    rd.onerror=()=>showErr('Datei konnte nicht gelesen werden.');
+    rd.readAsBinaryString(file);
+  }else showErr('Format nicht unterstützt: .'+ext+' – bitte CSV, XLSX oder XLS.');
+  inp.value='';
+}
+
+function processRows(data,fname){
+  const first=data[0];
+  const lk=fk(first,LAST_K),fik=fk(first,FIRST_K),nrk=fk(first,NR_K),pk=fk(first,POS_K),natk=fk(first,NAT_K);
+  const positional=!lk&&!fik&&!nrk; // no recognised headers → read by column order
+  const added=[],skipped=[];
+  data.forEach((row,idx)=>{
+    let last='',firstname='',nr='',pos='',nat='';
+    if(positional){
+      const v=Object.values(row);
+      firstname=String(v[0]||'').trim().toUpperCase();
+      last=String(v[1]||'').trim().toUpperCase();
+      nr=String(v[2]||'').trim();
+      pos=String(v[3]||'').trim().toUpperCase();
+      nat=String(v[4]||'').trim().toUpperCase();
+    }else{
+      if(lk)last=String(row[lk]||'').trim().toUpperCase();
+      if(fik)firstname=String(row[fik]||'').trim().toUpperCase();
+      if(nrk)nr=String(row[nrk]||'').trim();
+      if(pk)pos=String(row[pk]||'').trim().toUpperCase();
+      if(natk)nat=String(row[natk]||'').trim().toUpperCase();
+    }
+    nr=nr.replace(/^#/,'').trim();
+    if((last||firstname)&&nr)added.push({first:firstname,last,nr,pos,nat});
+    else if(last||firstname||nr)skipped.push(idx+2);
+  });
+  if(!added.length){
+    showErr(`Keine gültigen Einträge in „${fname}". Erwartete Spalten: Vorname, Name, Nr (optional Pos, Nat).`);
+    return;
+  }
+  S.roster.push(...added);S.active=S.roster.length-1;buildRoster();render();refreshBatchIfVisible();
+  // duplicate jersey-number check across the whole roster
+  const cnt={};
+  S.roster.forEach(p=>{const n=String(p.nr).trim();if(n)cnt[n]=(cnt[n]||0)+1});
+  const dupes=Object.keys(cnt).filter(n=>cnt[n]>1);
+  let msg=`✅ ${added.length} Spieler aus „${fname}" importiert`;
+  if(skipped.length)msg+=` · ${skipped.length} Zeile(n) übersprungen`;
+  if(dupes.length)showWarn(msg+`<br>⚠ Doppelte Trikotnummern: ${dupes.join(', ')}`);
+  else showOk(msg);
+}
+function setStatus(cls,m){const e=document.getElementById('csvStatus');e.className='csv-status '+cls;e.innerHTML=m;e.style.display='block';clearTimeout(e._t);return e}
+function showOk(m){const e=setStatus('csv-ok',m);e._t=setTimeout(()=>e.style.display='none',6000)}
+function showWarn(m){const e=setStatus('csv-warn',m);e._t=setTimeout(()=>e.style.display='none',12000)}
+function showErr(m){setStatus('csv-err',m)}
+
+// ══════════════════════════════════════════
+// LOGO / BG
+// ══════════════════════════════════════════
+function loadImgFile(file,cb){
+  const r=new FileReader();
+  r.onload=e=>{
+    const src=e.target.result;
+    const i=new Image();
+    i.decoding='async';
+    i.onload=()=>cb(i,src);
+    i.src=src;
+  };
+  r.readAsDataURL(file);
+}
+function clearLogoRasterCache(img){
+  if(!img||!img._pfLogoCache)return;
+  try{img._pfLogoCache.canvas.width=0;img._pfLogoCache.canvas.height=0}catch(e){}
+  img._pfLogoCache=null;
+}
+function detectSvgLogo(file,src){
+  if(file&&(file.type==='image/svg+xml'||/\.svg$/i.test(file.name||'')))return true;
+  return/^data:image\/svg\+xml/i.test(String(src||''));
+}
+// SVG auf hoher interner Auflösung rasterisieren, dann auf Zielgrösse skalieren (scharfe Kanten)
+function drawSvgLogoSharp(ctx,logo,cx,cy,lsz){
+  if(lsz<2)return;
+  const dpr=typeof devicePixelRatio==='number'&&devicePixelRatio>=1?devicePixelRatio:1;
+  const boost=lsz>500?2.2:lsz>220?2.6:3;
+  let side=Math.ceil(lsz*dpr*boost);
+  side=Math.max(side,Math.ceil(lsz*2));
+  const cap=2400;
+  side=Math.min(cap,Math.max(Math.ceil(lsz),side));
+  const key=`${side}|${logo.src||''}|${logo.naturalWidth}`;
+  if(!logo._pfLogoCache||logo._pfLogoCache.key!==key){
+    clearLogoRasterCache(logo);
+    const oc=document.createElement('canvas');oc.width=side;oc.height=side;
+    const ox=oc.getContext('2d');
+    ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';
+    try{ox.drawImage(logo,0,0,side,side)}catch(e){}
+    logo._pfLogoCache={canvas:oc,key};
+  }
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(logo._pfLogoCache.canvas,cx-lsz/2,cy-lsz/2,lsz,lsz);
+}
+function drawLogoOnPlate(ctx,logo,lx,ly,lsz,isSvg,thumb){
+  if(!logo)return;
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  if(thumb||!isSvg){ctx.drawImage(logo,lx-lsz/2,ly-lsz/2,lsz,lsz);return}
+  drawSvgLogoSharp(ctx,logo,lx,ly,lsz);
+}
+function loadLogo(inp){
+  const file=inp.files[0];if(!file)return;
+  loadImgFile(file,(img,src)=>{
+    clearLogoRasterCache(S.logo);
+    S.logo=img;
+    S.logoIsSvg=detectSvgLogo(file,src);
+    const p=document.getElementById('logoPrev');p.src=src;p.style.display='block';
+    render();
+  });
+  inp.value='';
+}
+function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';render()});inp.value=''}
+function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';render()}
+function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';render()}
+
+function useEHCLogo(){
+  const oc=document.createElement('canvas');oc.width=400;oc.height=400;
+  ehcLogo(oc.getContext('2d'),200,200,180);
+  const url=oc.toDataURL();
+  const img=new Image();img.onload=()=>{clearLogoRasterCache(S.logo);S.logo=img;S.logoIsSvg=false;render()};img.src=url;
+  const p=document.getElementById('logoPrev');p.src=url;p.style.display='block';
+}
+
+// EHC BIEL LOGO
+function ehcLogo(ctx,cx,cy,r){
+  ctx.save();
+  ctx.beginPath();ctx.moveTo(cx,cy-r);ctx.lineTo(cx+r*.85,cy-r*.55);ctx.lineTo(cx+r*.85,cy+r*.18);
+  ctx.bezierCurveTo(cx+r*.85,cy+r*.75,cx+r*.3,cy+r*.95,cx,cy+r);
+  ctx.bezierCurveTo(cx-r*.3,cy+r*.95,cx-r*.85,cy+r*.75,cx-r*.85,cy+r*.18);
+  ctx.lineTo(cx-r*.85,cy-r*.55);ctx.closePath();
+  ctx.fillStyle='#041E42';ctx.fill();ctx.strokeStyle='#C8102E';ctx.lineWidth=r*.07;ctx.stroke();
+  ctx.strokeStyle='#D4B96A';ctx.lineWidth=r*.025;
+  ctx.beginPath();ctx.moveTo(cx,cy-r*.82);ctx.lineTo(cx+r*.7,cy-r*.44);ctx.lineTo(cx+r*.7,cy+r*.18);
+  ctx.bezierCurveTo(cx+r*.7,cy+r*.65,cx+r*.25,cy+r*.82,cx,cy+r*.88);
+  ctx.bezierCurveTo(cx-r*.25,cy+r*.82,cx-r*.7,cy+r*.65,cx-r*.7,cy+r*.18);
+  ctx.lineTo(cx-r*.7,cy-r*.44);ctx.closePath();ctx.stroke();
+  ctx.fillStyle='#C8102E';ctx.fillRect(cx-r*.7,cy-r*.08,r*1.4,r*.28);
+  ctx.fillStyle='#fff';ctx.font=`bold ${r*.34}px 'Bebas Neue',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('EHC',cx,cy-r*.3);
+  ctx.fillStyle='#D4B96A';ctx.font=`bold ${r*.25}px 'Bebas Neue',sans-serif`;ctx.fillText('BIEL',cx,cy+r*.22);
+  ctx.strokeStyle='#fff';ctx.lineWidth=r*.045;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-r*.48,cy+r*.5);ctx.lineTo(cx-r*.2,cy+r*.72);ctx.lineTo(cx-r*.03,cy+r*.72);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+r*.48,cy+r*.5);ctx.lineTo(cx+r*.2,cy+r*.72);ctx.lineTo(cx+r*.03,cy+r*.72);ctx.stroke();
+  ctx.fillStyle='#C8102E';ctx.beginPath();ctx.ellipse(cx,cy+r*.72,r*.12,r*.06,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════
+// TOGGLES
+// ══════════════════════════════════════════
+const TOG_MAP={frame:'frame',screws:'screws',bar:'bar',pos:'showPos',nat:'showNat',league:'showLeague',shadow:'shadowOn',glow:'glowOn'};
+function togOpt(k){
+  const key=TOG_MAP[k];S[key]=!S[key];
+  document.getElementById('tog'+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle('on',S[key]);
+  render();
+}
+
+// ══════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════
+function activeP(){return S.roster.length?S.roster[Math.min(S.active,S.roster.length-1)]:{first:'',last:'SPIELER',nr:'##',pos:'',nat:''}}
+
+function readSizeOpts(){
+  return{
+    logoSz:getInt('slLogo'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
+    frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
+    font:S.font,layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    nameMode:getVal('selNameMode'),
+    shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
+    club:getVal('iClub')||'EHC BIEL-BIENNE',
+    leagueTxt:getVal('iLeague')||'NATIONAL LEAGUE',
+    logoIsSvg:!!S.logoIsSvg,
+  };
+}
+
+function render(){
+  const cv=document.getElementById('plateCanvas');
+  const vp=document.getElementById('cvWrap').parentElement;
+  const vpW=vp.clientWidth-40;
+  PREV_SCALE=Math.min(0.48,vpW/W);
+  cv.width=Math.round(W*PREV_SCALE);
+  cv.height=Math.round(H*PREV_SCALE);
+  cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
+  const opts={...S,...readSizeOpts(),...activeP()};
+  drawPlate(cv,cv.width,cv.height,opts,false);
+  buildDragHandles(opts);
+}
+
+// ══════════════════════════════════════════
+// DRAG HANDLES – pixel-accurate
+// ══════════════════════════════════════════
+/*
+  Strategy: measure actual text bounding on a temp canvas,
+  then place the div overlay exactly over that text.
+*/
+let dragState=null;
+
+function measureText(text,fontPx,fontFamily,canvas_w,canvas_h){
+  const oc=document.createElement('canvas');oc.width=canvas_w;oc.height=canvas_h;
+  const ctx=oc.getContext('2d');
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  const m=ctx.measureText(text);
+  return{
+    w:m.width,
+    ascent:m.actualBoundingBoxAscent||fontPx*.75,
+    descent:m.actualBoundingBoxDescent||fontPx*.25,
+  };
+}
+
+// pointer coords – works for mouse AND touch events
+function ptXY(e){
+  const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0]);
+  return t?{x:t.clientX,y:t.clientY}:{x:e.clientX,y:e.clientY};
+}
+
+// halber „Radius“ des Nummern-Badges: stabil über Spieler/Ziffernlängen; Padding aus Ziffernbreiten der gewählten Schrift
+function badgeR(nrText,nrFontPx,fontFamily){
+  const ctx=document.createElement('canvas').getContext('2d');
+  ctx.font=`${nrFontPx}px ${fontFamily},sans-serif`;
+  const t=String(nrText);
+  const wAct=ctx.measureText(t).width;
+  let maxDigit=0;
+  for(const d of'0123456789')maxDigit=Math.max(maxDigit,ctx.measureText(d).width);
+  const wWide=Math.max(ctx.measureText('8').width,ctx.measureText('0').width,maxDigit);
+  const min2=wWide*2.18;
+  const min3=wWide*3.08;
+  const wPad=Math.max(min2,min3*0.98,ctx.measureText('88').width*1.03,nrFontPx*1.12);
+  const tw=Math.max(wAct,wPad);
+  const padX=nrFontPx*0.42;
+  const minCore=nrFontPx*0.64;
+  return Math.max(tw/2+padX,minCore);
+}
+
+function buildDragHandles(opts){
+  const wrap=document.getElementById('cvWrap');
+  wrap.querySelectorAll('.dh').forEach(e=>e.remove());
+  const cv=document.getElementById('plateCanvas');
+  const sc=cv.width/W; // scale factor preview→plate
+
+  const {nameSz,nrSz,logoSz,font,textAlign,textVAlign}=opts;
+  const vA=textVAlign||'alphabetic';
+  const p=activeP();
+  const nameText=getDisplayName(p);
+  const badgeOn=S.badge&&S.badge!=='none';
+
+  const items=[
+    {key:'nr',  fontSize:nrSz,  isText:!badgeOn},
+    {key:'name',fontSize:nameSz,isText:true},
+    {key:'logo',fontSize:logoSz,isText:false},
+  ];
+
+  items.forEach(item=>{
+    const platePos=getPos(item.key);
+    let px,py,pw,ph;
+
+    if(item.key==='nr'&&badgeOn){
+      // badge: centred square box around the badge centre
+      const R=badgeR(p.nr,item.fontSize,font);
+      const half=R*1.7;
+      px=(platePos.x-half)*sc;py=(platePos.y-half)*sc;pw=2*half*sc;ph=2*half*sc;
+    }else if(item.isText){
+      if(item.key==='name'){
+        const lines=nameText.split('\n');
+        const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
+        const oc=document.createElement('canvas').getContext('2d');
+        oc.font=`${nameSz}px ${font},sans-serif`;
+        let maxW=0;
+        const mets=lines.map(line=>{
+          const m=oc.measureText(line||' ');
+          maxW=Math.max(maxW,m.width);
+          return{asc:m.actualBoundingBoxAscent||nameSz*.72,des:m.actualBoundingBoxDescent||nameSz*.22};
+        });
+        const top=lineYs[0]-mets[0].asc;
+        const bot=lineYs[lines.length-1]+mets[mets.length-1].des;
+        pw=maxW*sc;ph=Math.max((bot-top)*sc,8);
+        const baseX=platePos.x*sc;
+        if(textAlign==='left')px=baseX;
+        else if(textAlign==='center')px=baseX-pw/2;
+        else px=baseX-pw;
+        py=top*sc;
+      }else{
+        const text='#'+p.nr;
+        const baseline=nrBaselinePlateY(platePos.y,nrSz,text,font,vA);
+        const m=measureText(text,item.fontSize,font,W,H);
+        pw=m.w*sc;ph=(m.ascent+m.descent)*sc;
+        const baseX=platePos.x*sc,baseY=baseline*sc;
+        if(textAlign==='left')px=baseX;
+        else if(textAlign==='center')px=baseX-pw/2;
+        else px=baseX-pw;
+        py=baseY-m.ascent*sc;
+      }
+    }else{
+      const lsz=item.fontSize*sc;
+      px=platePos.x*sc-lsz/2;py=platePos.y*sc-lsz/2;pw=lsz;ph=lsz;
+    }
+
+    const el=document.createElement('div');
+    el.className='dh'+(S.sel===item.key?' sel':'');
+    el.dataset.key=item.key;
+    el.style.cssText=`left:${px}px;top:${py}px;width:${Math.max(pw,20)}px;height:${Math.max(ph,20)}px`;
+    const tag=document.createElement('div');tag.className='dh-tag';
+    tag.textContent={nr:'✥ Nummer',name:'✥ Name',logo:'✥ Logo'}[item.key];
+    el.appendChild(tag);
+
+    // resize handle for logo (mouse + touch)
+    if(item.key==='logo'){
+      const rh=document.createElement('div');rh.className='dh-resize';
+      const startResize=e=>{
+        e.preventDefault();e.stopPropagation();
+        const startX=ptXY(e).x,startSz=getPos('logo').sz||S.logoSz;
+        const onmove=ev=>{
+          const delta=(ptXY(ev).x-startX)/sc;
+          const newSz=Math.max(20,Math.min(1200,Math.round(startSz+delta)));
+          S.pos.logo={...getPos('logo'),sz:newSz};
+          document.getElementById('slLogo').value=newSz;sv('slLogo','vlLogo');
+          render();
+        };
+        const onup=()=>{
+          document.removeEventListener('mousemove',onmove);document.removeEventListener('mouseup',onup);
+          document.removeEventListener('touchmove',onmove);document.removeEventListener('touchend',onup);
+        };
+        document.addEventListener('mousemove',onmove);document.addEventListener('mouseup',onup);
+        document.addEventListener('touchmove',onmove,{passive:false});document.addEventListener('touchend',onup);
+      };
+      rh.addEventListener('mousedown',startResize);
+      rh.addEventListener('touchstart',startResize,{passive:false});
+      el.appendChild(rh);
+    }
+
+    // drag start (mouse + touch) – also selects the element for keyboard nudging
+    const startDrag=e=>{
+      if(e.target.classList.contains('dh-resize'))return;
+      e.preventDefault();
+      S.sel=item.key;
+      document.querySelectorAll('.dh').forEach(d=>d.classList.toggle('sel',d.dataset.key===item.key));
+      const plateP=getPos(item.key),pt=ptXY(e);
+      dragState={key:item.key,mx:pt.x,my:pt.y,ox:plateP.x,oy:plateP.y,sc};
+      el.classList.add('active');
+    };
+    el.addEventListener('mousedown',startDrag);
+    el.addEventListener('touchstart',startDrag,{passive:false});
+    wrap.appendChild(el);
+  });
+}
+
+// ── SNAPPING ──────────────────────────────
+const SNAP_TOL=16; // plate units
+function applySnap(x,y){
+  let sx=x,sy=y,snV=false,snH=false;
+  if(Math.abs(x-W/2)<SNAP_TOL){sx=W/2;snV=true}
+  if(Math.abs(y-H/2)<SNAP_TOL){sy=H/2;snH=true}
+  return{x:sx,y:sy,snV,snH};
+}
+function showSnap(snV,snH){
+  const cv=document.getElementById('plateCanvas'),sc=cv.width/W;
+  const v=document.getElementById('snapV'),h=document.getElementById('snapH');
+  v.style.left=(W/2*sc)+'px';v.style.opacity=snV?'.85':'0';
+  h.style.top=(H/2*sc)+'px';h.style.opacity=snH?'.85':'0';
+}
+function hideSnap(){document.getElementById('snapV').style.opacity='0';document.getElementById('snapH').style.opacity='0'}
+
+// ── GLOBAL DRAG (mouse + touch) ───────────
+function moveDrag(e){
+  if(!dragState)return;
+  if(e.cancelable)e.preventDefault();
+  const{key,mx,my,ox,oy,sc}=dragState;
+  const pt=ptXY(e);
+  const dx=(pt.x-mx)/sc,dy=(pt.y-my)/sc;
+  const cur=getPos(key);
+  let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
+  const sn=applySnap(nx,ny);
+  S.pos[key]={...cur,x:sn.x,y:sn.y};
+  showSnap(sn.snV,sn.snH);
+  if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
+    const cv=document.getElementById('plateCanvas');
+    const opts={...S,...readSizeOpts(),...activeP()};
+    drawPlate(cv,cv.width,cv.height,opts,false);
+    buildDragHandles(opts);
+    if(dragState)dragState.raf=null;
+  });
+}
+function endDrag(){
+  if(!dragState)return;
+  document.querySelectorAll('.dh').forEach(e=>e.classList.remove('active'));
+  dragState=null;hideSnap();
+}
+document.addEventListener('mousemove',moveDrag);
+document.addEventListener('mouseup',endDrag);
+document.addEventListener('touchmove',moveDrag,{passive:false});
+document.addEventListener('touchend',endDrag);
+
+// ── KEYBOARD NUDGE of the selected element ─
+document.addEventListener('keydown',e=>{
+  if(!S.sel)return;
+  const tag=(document.activeElement&&document.activeElement.tagName)||'';
+  if(['INPUT','SELECT','TEXTAREA'].includes(tag))return;
+  if(e.key==='Escape'){S.sel=null;render();return}
+  const step=e.shiftKey?25:4;
+  const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[e.key];
+  if(!d)return;
+  e.preventDefault();
+  const cur=getPos(S.sel);
+  S.pos[S.sel]={...cur,x:Math.max(0,Math.min(W,cur.x+d[0])),y:Math.max(0,Math.min(H,cur.y+d[1]))};
+  render();
+});
+
+// Vertikale Text-Anker (Plate-Koordinaten, Schrift in px wie nameSz / nrSz)
+function nameLinePlateYs(yAnchor,nameSzPlate,nameLines,font,vAlign){
+  const gap=nameSzPlate*1.05;
+  const oc=document.createElement('canvas').getContext('2d');
+  oc.font=`${nameSzPlate}px ${font},sans-serif`;
+  const mets=nameLines.map(line=>{
+    const m=oc.measureText(line||' ');
+    return{asc:m.actualBoundingBoxAscent||nameSzPlate*.72,des:m.actualBoundingBoxDescent||nameSzPlate*.22};
+  });
+  const firstAsc=mets[0].asc;
+  const lastDes=mets[mets.length-1].des;
+  const blockH=nameLines.length?(nameLines.length-1)*gap+firstAsc+lastDes:0;
+  let yFirst=yAnchor;
+  if(vAlign==='middle')yFirst=yAnchor-blockH/2+firstAsc;
+  else if(vAlign==='bottom')yFirst=yAnchor-blockH+firstAsc;
+  return nameLines.map((_,i)=>yFirst+i*gap);
+}
+function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign){
+  const oc=document.createElement('canvas').getContext('2d');
+  oc.font=`${nrSzPlate}px ${font},sans-serif`;
+  const m=oc.measureText(nrText||' ');
+  const asc=m.actualBoundingBoxAscent||nrSzPlate*.72;
+  const des=m.actualBoundingBoxDescent||nrSzPlate*.22;
+  if(vAlign==='middle')return yAnchor-(asc-des)/2;
+  if(vAlign==='bottom')return yAnchor-des;
+  return yAnchor;
+}
+
+// ══════════════════════════════════════════
+// DRAW PLATE
+// ══════════════════════════════════════════
+function drawPlate(canvas,w,h,opts,thumb){
+  const ctx=canvas.getContext('2d');
+  const sc=w/W;const Z=v=>v*sc;
+  const{tpl,c,font,layout,logo,bgImg,bgOp,logoOp,frame,screws,bar,showPos,showNat,showLeague,
+    logoSz,nameSz,nrSz,frameW,club,leagueTxt,textAlign,textVAlign,nameMode,logoIsSvg,
+    first='',last='SPIELER',nr='##',pos='',nat=''}=opts;
+  const vA=textVAlign||'alphabetic';
+
+  ctx.clearRect(0,0,w,h);
+  const fw=Z(frameW);
+
+  // FRAME
+  if(frame&&!thumb){
+    const g=ctx.createLinearGradient(0,0,w,h);
+    ['#d0d0d0','#888','#e0e0e0','#777','#aaa'].forEach((c,i)=>g.addColorStop(i/4,c));
+    ctx.save();rrect(ctx,0,0,w,h,Z(13));
+    ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=Z(26);ctx.shadowOffsetY=Z(5);
+    ctx.fillStyle=g;ctx.fill();ctx.shadowColor='transparent';ctx.restore();
+  }
+
+  // INNER CLIP
+  const ix=fw,iy=fw,iw=w-fw*2,ih=h-fw*2;
+  ctx.save();rrect(ctx,ix,iy,iw,ih,frame&&!thumb?Z(7):Z(13));ctx.clip();
+
+  // BG
+  const bg=ctx.createLinearGradient(ix,iy,ix+iw,iy+ih);bg.addColorStop(0,c.bg1);bg.addColorStop(1,c.bg2);
+  ctx.fillStyle=bg;ctx.fillRect(ix,iy,iw,ih);
+  drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
+  if(bgImg){ctx.globalAlpha=bgOp;ctx.drawImage(bgImg,ix,iy,iw,ih);ctx.globalAlpha=1}
+
+  // LOGO BAND (visual only for L/R)
+  if(!thumb&&(layout==='L'||layout==='R')){
+    const lp=opts.pos?.logo||getPos('logo');
+    const bw=Z((lp.sz||logoSz)+55);
+    const bx=layout==='L'?ix:ix+iw-bw;
+    const g2=ctx.createLinearGradient(bx,0,bx+bw,0);
+    g2.addColorStop(0,layout==='L'?darken(c.bg1,28):c.bg2);
+    g2.addColorStop(1,layout==='L'?c.bg1:darken(c.bg1,28));
+    ctx.fillStyle=g2;ctx.fillRect(bx,iy,bw,ih);
+    const sepX=layout==='L'?bx+bw:bx;
+    const sg=ctx.createLinearGradient(0,iy,0,iy+ih);
+    sg.addColorStop(0,c.acc);sg.addColorStop(.5,lighten(c.acc,28));sg.addColorStop(1,c.acc);
+    ctx.strokeStyle=sg;ctx.lineWidth=Z(5);
+    ctx.beginPath();ctx.moveTo(sepX,iy);ctx.lineTo(sepX,iy+ih);ctx.stroke();
+  }
+
+  // GET POSITIONS
+  const logoPosData=opts.pos?.logo||getPos('logo');
+  const namePosData=opts.pos?.name||getPos('name');
+  const nrPosData=opts.pos?.nr||getPos('nr');
+  const effLogoSz=logoPosData.sz||logoSz;
+
+  // LOGO – drawn with smoothing enabled
+  const lsz=Z(thumb?52:effLogoSz);
+  const lx=Z(logoPosData.x),ly=Z(logoPosData.y);
+  ctx.save();
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.globalAlpha=thumb?1:logoOp;
+  if(logo)drawLogoOnPlate(ctx,logo,lx,ly,lsz,!!logoIsSvg,thumb);
+  else ehcLogo(ctx,lx,ly,lsz/2);
+  ctx.globalAlpha=1;ctx.restore();
+
+  // NUMBER (+ optional badge)
+  const hasBadge=opts.badge&&opts.badge!=='none'&&!thumb;
+  const nrText=hasBadge?String(nr):('#'+nr);
+  const nrFontPx=Z(thumb?58:nrSz);
+  const nrX=Z(nrPosData.x),nrY=Z(nrPosData.y);
+  ctx.save();
+  ctx.font=`${nrFontPx}px ${font},sans-serif`;
+  if(thumb){
+    ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
+    ctx.shadowColor=tpl===6?c.nrc:'rgba(0,0,0,.55)';ctx.shadowBlur=Z(tpl===6?20:8);
+    ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nrc;
+    ctx.fillText(nrText,nrX,nrY);ctx.shadowColor='transparent';
+  }else if(hasBadge){
+    const Rp=badgeR(nr,nrFontPx,font);
+    drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.shadowOn);
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    drawFxText(ctx,nrText,nrX,nrY,c.nrc,opts,Z);
+  }else{
+    ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
+    const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,font,vA));
+    drawFxText(ctx,nrText,nrX,nrYb,c.nrc,opts,Z);
+  }
+  ctx.restore();
+
+  // NAME – handle multi-line (both / newline modes)
+  const nameText=getDisplayNameFromOpts({first,last},nameMode||'last');
+  const nameFontPx=Z(thumb?44:nameSz);
+  const nameLines=nameText.split('\n');
+  const nameX=Z(namePosData.x),nameY=Z(namePosData.y);
+  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,nameSz,nameLines,font,'alphabetic'):nameLinePlateYs(namePosData.y,nameSz,nameLines,font,vA);
+  ctx.save();
+  ctx.font=`${nameFontPx}px ${font},sans-serif`;
+  ctx.textBaseline='alphabetic';
+  setTextAlign(ctx,textAlign);
+  if(thumb){
+    ctx.shadowColor=tpl===6?c.nc+'88':'rgba(0,0,0,.6)';ctx.shadowBlur=Z(tpl===6?18:10);
+    ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(4);ctx.fillStyle=c.nc;
+    nameLines.forEach((line,li)=>ctx.fillText(line,nameX,Z(nameYsPlate[li])));
+    ctx.shadowColor='transparent';
+  }else{
+    nameLines.forEach((line,li)=>drawFxText(ctx,line,nameX,Z(nameYsPlate[li]),c.nc,opts,Z));
+  }
+  ctx.restore();
+
+  // SUBINFO
+  if(!thumb){
+    const parts=[];
+    if(showLeague)parts.push(leagueTxt);
+    if(showPos&&pos)parts.push(pos);
+    if(showNat&&nat)parts.push(nat);
+    if(parts.length){
+      ctx.save();
+      ctx.font=`${Z(30)}px 'Rajdhani',sans-serif`;
+      ctx.fillStyle='rgba(255,255,255,.33)';
+      setTextAlign(ctx,textAlign);
+      ctx.textBaseline='alphabetic';
+      const oc=document.createElement('canvas').getContext('2d');
+      oc.font=`${nameSz}px ${font},sans-serif`;
+      const lastLine=nameLines[nameLines.length-1]||'';
+      const mLast=oc.measureText(lastLine);
+      const lastDes=mLast.actualBoundingBoxDescent||nameSz*.22;
+      const lastBase=nameYsPlate[nameYsPlate.length-1];
+      ctx.fillText(parts.join('  ·  '),nameX,Z(lastBase+lastDes+6));
+      ctx.restore();
+    }
+  }
+
+  ctx.restore(); // inner clip
+
+  // BARS
+  if(bar&&!thumb){
+    const bh=Z(9);const bg3=ctx.createLinearGradient(ix,0,ix+iw,0);
+    bg3.addColorStop(0,c.acc);bg3.addColorStop(.5,lighten(c.acc,32));bg3.addColorStop(1,c.acc);
+    ctx.fillStyle=bg3;ctx.fillRect(ix,iy,iw,bh);ctx.fillRect(ix,iy+ih-bh,iw,bh);
+  }
+
+  // SCREWS
+  if(screws&&frame&&!thumb){
+    const so=Z(18);
+    [[so,so],[w-so,so],[so,h-so],[w-so,h-so]].forEach(([x,y])=>drawScrew(ctx,x,y,Z(7)));
+  }
+}
+
+function getDisplayNameFromOpts(p,mode){
+  const f=(p.first||'').trim().toUpperCase();
+  const l=(p.last||'').trim().toUpperCase();
+  if(mode==='last')  return l||f;
+  if(mode==='first') return f||l;
+  if(mode==='both')  return [f,l].filter(Boolean).join('\n');
+  if(mode==='firstlast') return [f,l].filter(Boolean).join(' ');
+  if(mode==='initial') return (f?f[0]+'. ':'')+l;
+  return l||f;
+}
+
+function setTextAlign(ctx,align){
+  ctx.textAlign=align==='center'?'center':align==='right'?'right':'left';
+}
+
+// ══════════════════════════════════════════
+// TEXT EFFECTS – shadow + glow (uses current ctx font/align/baseline)
+// ══════════════════════════════════════════
+function drawFxText(ctx,text,x,y,color,opts,Z){
+  ctx.save();
+  ctx.fillStyle=color;
+  // glow pass (drawn twice for a denser halo)
+  if(opts.glowOn){
+    ctx.shadowColor=opts.glowColor||'#00BFFF';
+    ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+    ctx.shadowBlur=Z(opts.glowSize||26);
+    ctx.fillText(text,x,y);
+    ctx.fillText(text,x,y);
+  }
+  // drop-shadow pass
+  if(opts.shadowOn){
+    ctx.shadowColor='rgba(0,0,0,.6)';
+    ctx.shadowBlur=Z(opts.shBlur||0);
+    ctx.shadowOffsetX=Z((opts.shDist||0)*.55);
+    ctx.shadowOffsetY=Z(opts.shDist||0);
+    ctx.fillText(text,x,y);
+  }
+  // crisp fill on top
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+  ctx.fillText(text,x,y);
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════
+// NUMBER BADGE – circle / shield / hexagon / diamond
+// ══════════════════════════════════════════
+function drawBadge(ctx,shape,cx,cy,R,color,withShadow){
+  ctx.save();
+  if(withShadow){ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=R*.30;ctx.shadowOffsetY=R*.12}
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  if(shape==='circle'){
+    ctx.arc(cx,cy,R*1.16,0,Math.PI*2);
+  }else if(shape==='diamond'){
+    const d=R*1.5;
+    ctx.moveTo(cx,cy-d);ctx.lineTo(cx+d,cy);ctx.lineTo(cx,cy+d);ctx.lineTo(cx-d,cy);ctx.closePath();
+  }else if(shape==='hexagon'){
+    const s=R*1.34;
+    for(let i=0;i<6;i++){const a=i*Math.PI/3;const X=cx+s*Math.cos(a),Y=cy+s*Math.sin(a);i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)}
+    ctx.closePath();
+  }else if(shape==='shield'){
+    const wd=R*1.34,tp=cy-R*1.36,md=cy+R*.45,bt=cy+R*1.55;
+    ctx.moveTo(cx-wd,tp);ctx.lineTo(cx+wd,tp);ctx.lineTo(cx+wd,md);
+    ctx.quadraticCurveTo(cx+wd,cy+R*1.12,cx,bt);
+    ctx.quadraticCurveTo(cx-wd,cy+R*1.12,cx-wd,md);
+    ctx.closePath();
+  }
+  ctx.fill();
+  // inner ring outline
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  ctx.lineWidth=Math.max(2,R*.08);
+  ctx.strokeStyle='rgba(255,255,255,.8)';
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════
+// TEMPLATE BACKGROUNDS
+// ══════════════════════════════════════════
+function drawTplBg(ctx,tpl,x,y,w,h,c,sc,thumb){
+  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+  const Z=v=>v*sc;
+  if(tpl===0){ctx.strokeStyle='rgba(255,255,255,.022)';ctx.lineWidth=Z(2);for(let i=-h;i<w+h;i+=Z(50)){ctx.beginPath();ctx.moveTo(x+i,y);ctx.lineTo(x+i+h,y+h);ctx.stroke()}}
+  else if(tpl===1){ctx.strokeStyle='rgba(0,191,255,.055)';ctx.lineWidth=Z(1);for(let r=0;r<7;r++)for(let cc=0;cc<30;cc++){hexPath(ctx,x+cc*Z(68)+(r%2)*Z(34),y+r*Z(58),Z(26));ctx.stroke()}}
+  else if(tpl===2){const g=ctx.createRadialGradient(x+w*.5,y+h*.5,0,x+w*.5,y+h*.5,Z(330));g.addColorStop(0,'rgba(212,185,106,.12)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(x,y,w,h)}
+  else if(tpl===3){for(let r=0;r<h;r+=Z(8))for(let cc=0;cc<w;cc+=Z(8)){ctx.fillStyle=`rgba(255,255,255,${((Math.floor(r/Z(8))+Math.floor(cc/Z(8)))%2)*.016+.007})`;ctx.fillRect(x+cc,y+r,Z(8),Z(8))}}
+  else if(tpl===4){[.22,.5,.78].forEach(p=>{ctx.fillStyle='rgba(255,255,255,.052)';ctx.fillRect(x,y+h*p-Z(13),w,Z(26))})}
+  else if(tpl===5){ctx.fillStyle='rgba(0,0,0,.035)';for(let i=0;i<150;i++)ctx.fillRect(x+Math.random()*w,y+Math.random()*h,Z(2),Z(2))}
+  else if(tpl===6){['#FF00FF','#00FFFF'].forEach((cc,i)=>{const g=ctx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,'transparent');g.addColorStop(.5,cc+'2a');g.addColorStop(1,'transparent');ctx.globalAlpha=.24;ctx.strokeStyle=g;ctx.lineWidth=Z(i*20+10);ctx.beginPath();ctx.moveTo(x,y+(i?h:0));ctx.lineTo(x+w,y+(i?0:h));ctx.stroke();ctx.globalAlpha=1})}
+  else if(tpl===7){ctx.fillStyle='rgba(212,185,106,.048)';for(let i=0;i<9;i++){starPath(ctx,x+(i/8)*w,y+h/2,Z(28),Z(11),5);ctx.fill()}}
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════
+// SHAPE HELPERS
+// ══════════════════════════════════════════
+function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath()}
+function hexPath(ctx,x,y,r){ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3-Math.PI/6;i?ctx.lineTo(x+r*Math.cos(a),y+r*Math.sin(a)):ctx.moveTo(x+r*Math.cos(a),y+r*Math.sin(a))}ctx.closePath()}
+function starPath(ctx,x,y,ro,ri,pts){ctx.beginPath();for(let i=0;i<pts*2;i++){const r=i%2?ri:ro,a=i*Math.PI/pts-Math.PI/2;i?ctx.lineTo(x+r*Math.cos(a),y+r*Math.sin(a)):ctx.moveTo(x+r*Math.cos(a),y+r*Math.sin(a))}ctx.closePath()}
+function drawScrew(ctx,x,y,r){const g=ctx.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r);g.addColorStop(0,'#ddd');g.addColorStop(1,'#777');ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=.5;ctx.stroke();ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.strokeStyle='rgba(0,0,0,.38)';ctx.lineWidth=r*.28;ctx.beginPath();ctx.moveTo(-r*.6,0);ctx.lineTo(r*.6,0);ctx.stroke();ctx.restore()}
+function darken(h,a){return adjBr(h,-a)}function lighten(h,a){return adjBr(h,a)}
+function adjBr(hex,a){let r=parseInt(hex.slice(1,3),16)+a,g=parseInt(hex.slice(3,5),16)+a,b=parseInt(hex.slice(5,7),16)+a;return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('')}
+
+// ══════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════
+// NOTE: drag positions are resolved via getPos() (global S.pos), so opts.pos
+// must keep the player's POSITION string – do not overwrite it with S.pos.
+function makeFullOpts(p){return{...S,...readSizeOpts(),...p}}
+function safeName(s){return String(s||'').trim().replace(/[^\wÀ-ſ-]+/g,'_')||'X'}
+function exportFileName(p,prefix){return (prefix||'')+'nameplate_'+safeName(p.last||p.first)+'_'+safeName(p.nr);}
+
+// renders one plate at the chosen export resolution / format
+function renderExportCanvas(p){
+  const sc=S.exportScale||1,ew=W*sc,eh=H*sc;
+  const cv=document.createElement('canvas');cv.width=ew;cv.height=eh;
+  drawPlate(cv,ew,eh,makeFullOpts(p),false);
+  // JPG has no alpha → paint a dark backdrop BEHIND the (rounded) plate
+  if(S.exportFormat==='jpg'){
+    const ctx=cv.getContext('2d');
+    ctx.globalCompositeOperation='destination-over';
+    ctx.fillStyle='#0b0d12';ctx.fillRect(0,0,ew,eh);
+    ctx.globalCompositeOperation='source-over';
+  }
+  return cv;
+}
+function exportCurrent(){
+  const p=activeP();
+  dlCv(renderExportCanvas(p),exportFileName(p)+'.'+S.exportFormat);
+}
+function exportAll(){
+  if(!S.roster.length){alert('Kein Roster!');return}
+  const fmt=S.exportFormat,mime=fmt==='jpg'?'image/jpeg':'image/png';
+  if(typeof JSZip!=='undefined'){
+    // bundle every plate into a single ZIP archive
+    const zip=new JSZip();
+    S.roster.forEach((p,i)=>{
+      const data=renderExportCanvas(p).toDataURL(mime,.95).split(',')[1];
+      zip.file(exportFileName(p,String(i+1).padStart(2,'0')+'_')+'.'+fmt,data,{base64:true});
+    });
+    zip.generateAsync({type:'blob'}).then(blob=>{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=safeName(S.club||'team')+'_nameplates.zip';
+      a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    }).catch(()=>alert('ZIP-Export fehlgeschlagen.'));
+  }else{
+    // fallback: individual downloads
+    S.roster.forEach((p,i)=>setTimeout(()=>{
+      dlCv(renderExportCanvas(p),exportFileName(p,String(i+1).padStart(2,'0')+'_')+'.'+fmt);
+    },i*250));
+  }
+}
+function dlCv(cv,name){
+  const mime=/\.jpe?g$/i.test(name)?'image/jpeg':'image/png';
+  const a=document.createElement('a');a.href=cv.toDataURL(mime,.95);a.download=name;a.click();
+}
+
+// BATCH
+function renderBatch(){
+  const g=document.getElementById('batchGrid');g.innerHTML='';
+  if(!S.roster.length){g.innerHTML='<p style="color:var(--mut);padding:14px">Kein Roster.</p>';return}
+  const opts=readSizeOpts();
+  S.roster.forEach(p=>{
+    const bw=560,bh=Math.round(H*(bw/W));
+    const wrap=document.createElement('div');wrap.className='batch-item';
+    const cv=document.createElement('canvas');cv.width=bw;cv.height=bh;
+    drawPlate(cv,bw,bh,{...S,...opts,...p},false);
+    const lbl=document.createElement('div');lbl.className='batch-lbl';lbl.textContent=`#${p.nr} ${(p.last||p.first)}`;
+    const dlb=document.createElement('button');dlb.className='batch-dl';dlb.textContent='💾';
+    dlb.onclick=()=>dlCv(renderExportCanvas(p),exportFileName(p)+'.'+S.exportFormat);
+    wrap.appendChild(cv);wrap.appendChild(lbl);wrap.appendChild(dlb);g.appendChild(wrap);
+  });
+}
+function refreshBatchIfVisible(){
+  const vb=document.getElementById('viewBatch');
+  if(vb&&vb.style.display!=='none')renderBatch();
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+window.addEventListener('load',()=>{
+  refreshSwatches();
+  buildTplGrid();buildFontGrid();buildRoster();
+  syncVAlignUi();
+  useEHCLogo();pickP(0);
+  switchMain('editor');
+  // sync export controls with state
+  document.getElementById('selExpScale').value=S.exportScale;
+  document.getElementById('selExpFormat').value=S.exportFormat;
+  // click empty canvas area → deselect the active drag element
+  document.getElementById('plateCanvas').addEventListener('pointerdown',()=>{
+    if(S.sel){S.sel=null;render()}
+  });
+  // Upload zone drag hover
+  document.querySelectorAll('.upzone').forEach(z=>{
+    z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag')});
+    z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+    z.addEventListener('drop',()=>z.classList.remove('drag'));
+  });
+  // Resize observer
+  new ResizeObserver(()=>render()).observe(document.getElementById('cvWrap').parentElement);
+});
+</script>
+</body>
+</html>
