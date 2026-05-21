@@ -30,7 +30,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Rajdhani',sans-serif;fon
 .app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px)}
 
 /* SIDEBAR */
-.sidebar{width:290px;min-width:260px;background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar{width:var(--sidebar-w,290px);min-width:260px;max-width:min(720px,65vw);background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;position:relative}
+.sidebar-resizer{width:8px;align-self:stretch;flex:0 0 8px;cursor:col-resize;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(240,165,0,.08),rgba(255,255,255,.02));border-right:1px solid var(--bdr);position:relative;z-index:50}
+.sidebar-resizer:hover,.sidebar-resizer.drag{background:rgba(240,165,0,.22)}
+body.resizing-sidebar{cursor:col-resize;user-select:none}
 .sb-sec{border-bottom:1px solid var(--bdr);padding:11px 13px}
 .sb-ttl{font-family:'Oswald',sans-serif;font-size:.64rem;letter-spacing:3px;color:var(--mut);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .sb-ttl::after{content:'';flex:1;height:1px;background:var(--bdr)}
@@ -511,6 +514,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     </div>
   </div>
 </div><!-- /sidebar -->
+<div class="sidebar-resizer" id="sidebarResizer" title="Sidebar-Breite ziehen"></div>
 
 <!-- ═══ MAIN ═══ -->
 <div class="main">
@@ -3028,6 +3032,39 @@ function dlCv(cv,name){
   const a=document.createElement('a');a.href=cv.toDataURL(mime,.95);a.download=name;a.click();
 }
 
+// SIDEBAR RESIZE
+const SIDEBAR_W_KEY='plateforge_sidebar_width';
+function initSidebarResize(){
+  const sb=document.querySelector('.sidebar');
+  const rz=document.getElementById('sidebarResizer');
+  if(!sb||!rz)return;
+  const saved=parseInt(localStorage.getItem(SIDEBAR_W_KEY)||'',10);
+  if(saved)document.documentElement.style.setProperty('--sidebar-w',Math.max(260,Math.min(720,saved))+'px');
+  let startX=0,startW=0;
+  const clamp=w=>Math.max(260,Math.min(Math.min(720,window.innerWidth*.65),w));
+  const move=e=>{
+    const w=clamp(startW+(e.clientX-startX));
+    document.documentElement.style.setProperty('--sidebar-w',Math.round(w)+'px');
+    render();
+  };
+  const up=()=>{
+    document.body.classList.remove('resizing-sidebar');
+    rz.classList.remove('drag');
+    document.removeEventListener('pointermove',move);
+    document.removeEventListener('pointerup',up);
+    localStorage.setItem(SIDEBAR_W_KEY,Math.round(sb.getBoundingClientRect().width));
+  };
+  rz.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    startX=e.clientX;
+    startW=sb.getBoundingClientRect().width;
+    document.body.classList.add('resizing-sidebar');
+    rz.classList.add('drag');
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  });
+}
+
 // BATCH
 function renderBatch(){
   const g=document.getElementById('batchGrid');g.innerHTML='';
@@ -3057,6 +3094,7 @@ function refreshBatchIfVisible(){
 // INIT
 // ══════════════════════════════════════════
 window.addEventListener('load',async()=>{
+  initSidebarResize();
   refreshSwatches();
   await restoreCustomFonts();
   restoreRoster();
