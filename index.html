@@ -269,7 +269,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Schriftart</div>
-      <select class="fi" id="selFont" style="margin-bottom:7px" onchange="S.font=this.value;persistActiveFont();render()">
+      <select class="fi" id="selFont" style="margin-bottom:7px" onchange="setFontFamily(this.value)">
         <option value="'Bebas Neue'">Bebas Neue</option>
         <option value="'Oswald'">Oswald</option>
         <option value="'Anton'">Anton</option>
@@ -842,19 +842,47 @@ function hexToRgba(hex,a){
 // FONT GRID + SAVED FONTS
 // ══════════════════════════════════════════
 function buildFontGrid(){
+  syncFontSelectOptions();
   const g=document.getElementById('fontGrid');g.innerHTML='';
   BUILTIN_FONTS.forEach(f=>{
     const d=document.createElement('div');d.className='font-opt'+(S.font===f.v?' on':'');
+    d.dataset.font=f.v;
     d.innerHTML=`<div class="fp" style="font-family:${f.v}">${f.l.split(' ')[0].toUpperCase()}</div><div class="fn">${f.l}</div>`;
-    d.onclick=()=>{S.font=f.v;document.getElementById('selFont').value=f.v;g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    d.onclick=()=>setFontFamily(f.v);
     g.appendChild(d);
   });
   S.savedFonts.forEach(sf=>{
     const d=document.createElement('div');d.className='font-opt'+(S.font===sf.fontFamily?' on':'');
+    d.dataset.font=sf.fontFamily;
     d.innerHTML=`<div class="fp" style="font-family:${sf.fontFamily}">${sf.name.split(/[\\s_-]/)[0].toUpperCase()}</div><div class="fn">${sf.name}</div>`;
-    d.onclick=()=>{S.font=sf.fontFamily;document.getElementById('selFont').value='';g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    d.onclick=()=>setFontFamily(sf.fontFamily);
     g.appendChild(d);
   });
+}
+function fontNormName(name){
+  return String(name||'').replace(/\.[^.]+$/,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+}
+function syncFontSelectOptions(){
+  const sel=document.getElementById('selFont');
+  if(!sel)return;
+  const cur=S.font;
+  sel.innerHTML='';
+  const addOpt=(label,value,fontFamily,group)=>{
+    const opt=document.createElement('option');
+    opt.value=value;opt.textContent=group?`${label} · ${group}`:label;
+    opt.style.fontFamily=fontFamily;
+    sel.appendChild(opt);
+  };
+  BUILTIN_FONTS.forEach(f=>addOpt(f.l,f.v,f.v,'Standard'));
+  const seen=new Set(BUILTIN_FONTS.map(f=>fontNormName(f.l)));
+  S.savedFonts.forEach(sf=>{
+    const key=fontNormName(sf.name);
+    if(seen.has(key))return;
+    seen.add(key);
+    addOpt(sf.name,sf.fontFamily,sf.fontFamily,sf.static?'Repo':(sf.folder?'Ordner':'Eigen'));
+  });
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+  sel.style.fontFamily=cur||"'Rajdhani'";
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
@@ -868,6 +896,14 @@ function persistCustomFonts(){
   }catch(e){showWarn('Fonts konnten nicht dauerhaft gespeichert werden (Speicher voll?).')}
 }
 function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
+function setFontFamily(fontFamily){
+  S.font=fontFamily||"'Bebas Neue'";
+  const sel=document.getElementById('selFont');
+  if(sel){sel.value=S.font;sel.style.fontFamily=S.font}
+  document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===S.font));
+  persistActiveFont();
+  render();
+}
 function readFileAsDataUrl(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -902,7 +938,8 @@ async function restoreCustomFonts(){
 }
 async function loadStaticFonts(){
   for(const sf of STATIC_FONTS){
-    if(S.savedFonts.some(f=>f.path===sf.path))continue;
+    const key=fontNormName(sf.name);
+    if(S.savedFonts.some(f=>f.path===sf.path||fontNormName(f.name)===key))continue;
     try{
       const ffName='PF_STATIC_'+safeName(sf.name);
       const url=encodeURI(sf.path);
@@ -920,13 +957,14 @@ async function loadFont(inp){
     const b64=dataUrl.split(',')[1]||'';
     const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||file.type||'font/woff2';
     const fname=file.name.replace(/\.[^.]+$/,'');
+    const key=fontNormName(fname);
+    S.savedFonts=S.savedFonts.filter(f=>fontNormName(f.name)!==key||f.static);
     const ffName='PF_'+Date.now();
     const f=await new FontFace(ffName,`url(${dataUrl})`).load();
     document.fonts.add(f);
     const fontVal=`'${ffName}'`;
     S.savedFonts.push({name:fname,fontFamily:fontVal,ffName,b64,mime,url:dataUrl});
     S.font=fontVal;
-    document.getElementById('selFont').value='';
     persistCustomFonts();
     buildFontGrid();
     renderSavedFonts();
@@ -942,11 +980,15 @@ function renderSavedFonts(){
   if(!S.savedFonts.length){document.getElementById('customFontInfo').style.display='none';return}
   document.getElementById('customFontInfo').style.display='block';
   document.getElementById('customFontBadge').textContent=`${S.savedFonts.length} eigene Font(s) geladen`;
+  const seen=new Set();
   S.savedFonts.forEach((sf,i)=>{
+    const key=fontNormName(sf.name);
+    if(seen.has(key))return;
+    seen.add(key);
     const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
     d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
       ${sf.static||sf.folder?'<span style="font-size:.58rem;color:var(--mut)">Repo</span>':`<button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`}`;
-    d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;S.font=sf.fontFamily;document.getElementById('selFont').value='';document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;setFontFamily(sf.fontFamily);document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on')};
     el.appendChild(d);
   });
 }
@@ -1219,6 +1261,7 @@ function applyStateToUI(){
   const ps1=document.getElementById('togPdfSingle');if(ps1)ps1.classList.toggle('on',S.pdfIncludeSingle!==false);
   syncExportUi();
   ['left','center','right'].forEach(x=>document.getElementById('a'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('on',x===S.textAlign));
+  syncFontSelectOptions();
   syncVAlignUi();
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===S.badge));
   const badgeOn=S.badge&&S.badge!=='none';
@@ -1660,7 +1703,8 @@ async function scanFontsFolder(dir){
 }
 async function registerFolderFont(file,path){
   const fname=path.replace(/\.[^.]+$/,'').split('/').pop();
-  if(S.savedFonts.some(f=>f.name===fname&&f.folder))return false;
+  const key=fontNormName(fname);
+  if(S.savedFonts.some(f=>fontNormName(f.name)===key))return false;
   try{
     const dataUrl=await readFileAsDataUrl(file);
     const ffName='PF_DIR_'+safeName(fname)+'_'+Math.random().toString(36).slice(2,6);
