@@ -108,7 +108,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 
 /* TEMPLATE CARDS */
 .tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.tpl-card{border-radius:4px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative;aspect-ratio:4/1}
+.tpl-card{border-radius:4px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative;aspect-ratio:2000/550;background:#080a0f}
 .tpl-card:hover{border-color:var(--gold)}.tpl-card.on{border-color:var(--gold);box-shadow:0 0 8px rgba(240,165,0,.3)}
 .tpl-card canvas{width:100%;height:100%;display:block}
 .tpl-lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.72);font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:#fff;padding:1px 3px;text-align:center}
@@ -1068,28 +1068,65 @@ function removeSavedFont(i,e){
 // ══════════════════════════════════════════
 // TEMPLATES
 // ══════════════════════════════════════════
+let _tplGridRenderRun=0;
+function loadThumbImage(src){
+  return new Promise(resolve=>{
+    if(!src){resolve(null);return}
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>resolve(null);
+    img.src=src;
+  });
+}
+function thumbPlayer(){
+  const p=activeP();
+  return{last:p.last||'MÜLLER',first:p.first||'',nr:p.nr||'17',playerPos:p.pos||'C',nat:p.nat||'SUI'};
+}
+function drawTemplatePreview(cv,opts,pos){
+  const keep={layout:S.layout,pos:S.pos,badge:S.badge,logoSz:S.logoSz,logo2Sz:S.logo2Sz};
+  S.layout=opts.layout||'L';
+  S.pos=pos?JSON.parse(JSON.stringify(pos)):{};
+  S.badge=opts.badge||'none';
+  S.logoSz=opts.logoSz??S.logoSz;
+  S.logo2Sz=opts.logo2Sz??S.logo2Sz;
+  try{drawPlate(cv,cv.width,cv.height,opts,false)}
+  finally{Object.assign(S,keep)}
+}
 function buildTplGrid(){
+  const run=++_tplGridRenderRun;
   const g=document.getElementById('tplGrid');g.innerHTML='';
+  const player=thumbPlayer();
   TMPL.forEach((t,i)=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
     wrap.onclick=()=>selectTpl(i);
-    const cv=document.createElement('canvas');cv.width=200;cv.height=50;
+    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const thumbOpts={...S,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},last:'MÜLLER',first:'',nr:'17',playerPos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badge:'none'};
-    drawPlate(cv,200,50,thumbOpts,true);
+    const thumbOpts={...S,...player,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false};
+    drawTemplatePreview(cv,thumbOpts,{});
   });
   loadUserTemplates().forEach(ut=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
     wrap.dataset.user=ut.id;
     wrap.onclick=()=>loadUserTemplate(ut.id);
-    const cv=document.createElement('canvas');cv.width=200;cv.height=50;
+    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     const s=ut.snap;
-    const thumbOpts={...S,...s,tpl:s.tpl??0,c:s.c,last:'MÜLLER',first:'',nr:'17',playerPos:'C',nat:'SUI',frame:false,screws:false,bar:false,logo:null,bgImg:null,badgeScale:s.badgeScale??72};
-    drawPlate(cv,200,50,thumbOpts,true);
+    const baseOpts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo:null,logo2:null,bgImg:null,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
+    drawTemplatePreview(cv,baseOpts,s.pos);
+    (async()=>{
+      const enriched=await enrichSnapFromAssetIdb(s,ut.id);
+      const [logo,logo2,bgImg]=await Promise.all([
+        loadThumbImage(enriched.logoData),
+        loadThumbImage(enriched.logo2Data),
+        loadThumbImage(enriched.bgData),
+      ]);
+      if(run!==_tplGridRenderRun||!cv.isConnected)return;
+      const imgOpts={...baseOpts,logo,logo2,bgImg,logoIsSvg:!!enriched.logoIsSvg,logo2IsSvg:!!enriched.logo2IsSvg,bgOp:enriched.bgOp??baseOpts.bgOp};
+      drawTemplatePreview(cv,imgOpts,enriched.pos||s.pos);
+    })();
   });
 }
 function selectTpl(i){

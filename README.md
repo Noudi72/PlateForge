@@ -61,6 +61,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Vorlagen bearbeiten:** Beim Auswählen einer Vorlage wird ihr Name automatisch ins Feld **Name** übernommen. Änderungen können direkt mit **💾 Speichern** wieder unter derselben Vorlage gesichert werden.
 
+**Echte Vorschau:** Die Vorlagen-Kacheln werden als kleine komplette Schilder gerendert, inklusive gespeicherter Logos, Hintergründe, Positionen, Badge und aktuellem Spielertext.
+
 **Text-Boxen:** Name und Nummer werden direkt aus dem tatsächlich gerenderten Canvas-Text pixelgenau vermessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen. Über **Textbox-Rand X/Y** kann der Rahmen je Vorlage zusätzlich vergrössert oder verkleinert werden.
 
 ### Badge & Grössen (Design)
