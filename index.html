@@ -206,6 +206,15 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="tpl-grid" id="tplGrid"></div>
     </div>
     <div class="sb-sec">
+      <div class="sb-ttl">Asset-Bibliothek</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
+        <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder(true)">📁 Vorlagen-Bilder</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder(true)">🔤 Fonts</button>
+      </div>
+      <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
+      <div id="assetGrid" class="asset-grid"></div>
+    </div>
+    <div class="sb-sec">
       <div class="sb-ttl">Eigene Vorlagen</div>
       <div class="fg">
         <label class="fl">Name</label>
@@ -228,16 +237,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
         <strong>3-fach für Bilder:</strong> IndexedDB (automatisch) · Vorlage 💾 · JSON in <strong>Vorlagen json</strong> (📁 einmal wählen). Session = Layout/Positionen.
       </div>
-      <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
-    </div>
-    <div class="sb-sec">
-      <div class="sb-ttl">Asset-Bibliothek</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
-        <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder(true)">📁 Vorlagen-Bilder</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder(true)">🔤 Fonts</button>
-      </div>
-      <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
-      <div id="assetGrid" class="asset-grid"></div>
+      <div id="userTplList" style="font-size:.72rem;color:var(--mut);max-height:210px;overflow-y:auto">Noch keine gespeicherten Vorlagen.</div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Layout</div>
