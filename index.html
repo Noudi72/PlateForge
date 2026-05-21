@@ -52,6 +52,11 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .upzone-ico{font-size:1.1rem;margin-bottom:2px}.upzone-txt{font-size:.7rem;color:var(--mut);line-height:1.3}
 .up-prev{width:100%;max-height:56px;object-fit:contain;border-radius:3px;margin-top:5px;display:none}
+.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;max-height:170px;overflow-y:auto}
+.asset-card{background:var(--p2);border:1px solid var(--bdr);border-radius:5px;padding:3px;min-width:0}
+.asset-card img{width:100%;height:42px;object-fit:contain;background:rgba(255,255,255,.04);border-radius:3px;display:block}
+.asset-actions{display:flex;gap:2px;margin-top:3px}.asset-actions button{flex:1;border:0;border-radius:3px;background:#111722;color:var(--mut);font-size:.58rem;font-family:'Rajdhani',sans-serif;font-weight:700;padding:2px;cursor:pointer}.asset-actions button:hover{color:var(--gold)}
+.asset-name{font-size:.55rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 
 /* ROSTER */
 .roster-list{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
@@ -224,6 +229,15 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <strong>3-fach für Bilder:</strong> IndexedDB (automatisch) · Vorlage 💾 · JSON in <strong>Vorlagen json</strong> (📁 einmal wählen). Session = Layout/Positionen.
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-ttl">Asset-Bibliothek</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
+        <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder(true)">📁 Vorlagen-Bilder</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder(true)">🔤 Fonts</button>
+      </div>
+      <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
+      <div id="assetGrid" class="asset-grid"></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Layout</div>
@@ -1342,7 +1356,11 @@ const TPL_JSON_VER=1;
 const META_IDB='plateforge_meta';
 const META_STORE='kv';
 const EXPORT_DIR_KEY='exportDir';
+const ASSET_DIR_KEY='assetDir';
+const FONTS_DIR_KEY='fontsDir';
 const PREFERRED_EXPORT_FOLDER='Vorlagen json';
+const PREFERRED_ASSET_FOLDER='Vorlagen Garderobenschilder';
+const PREFERRED_FONTS_FOLDER='Fonts';
 
 function fsExportSupported(){return typeof window.showDirectoryPicker==='function'}
 function openMetaDb(){
@@ -1357,20 +1375,26 @@ function openMetaDb(){
   });
 }
 async function storeExportDirHandle(handle){
+  return storeMetaHandle(EXPORT_DIR_KEY,handle);
+}
+async function storeMetaHandle(key,handle){
   const db=await openMetaDb();
   return new Promise((res,rej)=>{
     const tx=db.transaction(META_STORE,'readwrite');
-    tx.objectStore(META_STORE).put(handle,EXPORT_DIR_KEY);
+    tx.objectStore(META_STORE).put(handle,key);
     tx.oncomplete=()=>res();
     tx.onerror=()=>rej(tx.error);
   });
 }
 async function loadExportDirHandle(){
+  return loadMetaHandle(EXPORT_DIR_KEY);
+}
+async function loadMetaHandle(key){
   try{
     const db=await openMetaDb();
     return new Promise((res,rej)=>{
       const tx=db.transaction(META_STORE,'readonly');
-      const r=tx.objectStore(META_STORE).get(EXPORT_DIR_KEY);
+      const r=tx.objectStore(META_STORE).get(key);
       r.onsuccess=()=>res(r.result||null);
       r.onerror=()=>rej(r.error);
     });
@@ -1501,6 +1525,114 @@ async function initJsonExportDir(){
     updateJsonExportDirLabel(h.name);
     await autoImportTemplatesFromDir(h);
   }else updateJsonExportDirLabel(null);
+}
+async function* walkDir(dir,prefix=''){
+  for await(const [name,handle] of dir.entries()){
+    const path=prefix?prefix+'/'+name:name;
+    if(handle.kind==='directory')yield* walkDir(handle,path);
+    else yield{path,handle};
+  }
+}
+function updateAssetFolderLabel(assetName,fontName){
+  const el=document.getElementById('assetFolderInfo');
+  if(!el)return;
+  const parts=[];
+  parts.push(assetName?'Bilder → '+assetName+'/':'Bilder → 📁 '+PREFERRED_ASSET_FOLDER+' wählen');
+  parts.push(fontName?'Fonts → '+fontName+'/':'Fonts → 🔤 '+PREFERRED_FONTS_FOLDER+' wählen');
+  el.textContent=parts.join(' · ');
+}
+async function pickAssetFolder(showTip){
+  if(!fsExportSupported()){showWarn('Ordner-Bibliothek braucht Chrome/Edge.');return null}
+  try{
+    if(showTip)alert('Bitte den Ordner „'+PREFERRED_ASSET_FOLDER+'“ wählen.');
+    const h=await window.showDirectoryPicker({mode:'read',id:'plateforge-assets',startIn:'documents'});
+    await storeMetaHandle(ASSET_DIR_KEY,h);
+    await scanAssetFolder(h);
+    return h;
+  }catch(e){if(e&&e.name!=='AbortError')showErr('Asset-Ordner: '+(e.message||e));return null}
+}
+async function pickFontsFolder(showTip){
+  if(!fsExportSupported()){showWarn('Font-Ordner braucht Chrome/Edge.');return null}
+  try{
+    if(showTip)alert('Bitte den Ordner „'+PREFERRED_FONTS_FOLDER+'“ wählen.');
+    const h=await window.showDirectoryPicker({mode:'read',id:'plateforge-fonts',startIn:'documents'});
+    await storeMetaHandle(FONTS_DIR_KEY,h);
+    await scanFontsFolder(h);
+    return h;
+  }catch(e){if(e&&e.name!=='AbortError')showErr('Fonts-Ordner: '+(e.message||e));return null}
+}
+async function initLocalFolders(){
+  if(!fsExportSupported()){updateAssetFolderLabel(null,null);return}
+  const ah=await loadMetaHandle(ASSET_DIR_KEY);
+  const fh=await loadMetaHandle(FONTS_DIR_KEY);
+  const an=ah&&await ensureDirPermission(ah,false)?ah.name:null;
+  const fn=fh&&await ensureDirPermission(fh,false)?fh.name:null;
+  updateAssetFolderLabel(an,fn);
+  if(ah&&an)await scanAssetFolder(ah);
+  if(fh&&fn)await scanFontsFolder(fh);
+}
+async function scanAssetFolder(dir){
+  const grid=document.getElementById('assetGrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  let count=0;
+  for await(const item of walkDir(dir)){
+    if(!/\.(png|jpe?g|webp|svg)$/i.test(item.path))continue;
+    const file=await item.handle.getFile();
+    const url=URL.createObjectURL(file);
+    const card=document.createElement('div');
+    card.className='asset-card';
+    card.innerHTML=`<img src="${url}" alt=""><div class="asset-name" title="${item.path}">${item.path}</div><div class="asset-actions"><button type="button">L1</button><button type="button">L2</button><button type="button">BG</button></div>`;
+    const [b1,b2,bg]=card.querySelectorAll('button');
+    b1.onclick=()=>applyImageAsset('logo',url,file.name);
+    b2.onclick=()=>applyImageAsset('logo2',url,file.name);
+    bg.onclick=()=>applyImageAsset('bg',url,file.name);
+    grid.appendChild(card);
+    count++;
+  }
+  updateAssetFolderLabel(dir.name,(await loadMetaHandle(FONTS_DIR_KEY))?.name||null);
+  if(!count)grid.innerHTML='<div style="font-size:.65rem;color:var(--mut)">Keine Bilder gefunden.</div>';
+}
+async function applyImageAsset(kind,src,name){
+  const img=new Image();
+  img.onload=()=>{
+    const isSvg=/\.svg$/i.test(name||src);
+    if(kind==='logo'){
+      clearLogoRasterCache(S.logo);S.logo=img;S.logoIsSvg=isSvg;
+      const p=document.getElementById('logoPrev');p.src=src;p.style.display='block';
+    }else if(kind==='logo2'){
+      clearLogoRasterCache(S.logo2);S.logo2=img;S.logo2IsSvg=isSvg;
+      const p=document.getElementById('logo2Prev');p.src=src;p.style.display='block';
+    }else{
+      S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';
+    }
+    scheduleAssetIdbSync();persistSession();render();showOk((name||'Bild')+' angewendet.');
+  };
+  img.onerror=()=>showErr('Bild konnte nicht geladen werden: '+(name||src));
+  img.src=src;
+}
+async function scanFontsFolder(dir){
+  let added=0;
+  for await(const item of walkDir(dir)){
+    if(!/\.(ttf|otf|woff2?)$/i.test(item.path))continue;
+    const file=await item.handle.getFile();
+    if(await registerFolderFont(file,item.path))added++;
+  }
+  renderSavedFonts();buildFontGrid();
+  updateAssetFolderLabel((await loadMetaHandle(ASSET_DIR_KEY))?.name||null,dir.name);
+  if(added)showOk(`${added} Font(s) aus ${dir.name} geladen.`);
+}
+async function registerFolderFont(file,path){
+  const fname=path.replace(/\.[^.]+$/,'').split('/').pop();
+  if(S.savedFonts.some(f=>f.name===fname&&f.folder))return false;
+  try{
+    const ffName='PF_DIR_'+safeName(fname)+'_'+Math.random().toString(36).slice(2,6);
+    const url=URL.createObjectURL(file);
+    const f=await new FontFace(ffName,`url(${url})`).load();
+    document.fonts.add(f);
+    S.savedFonts.push({name:fname,fontFamily:`'${ffName}'`,ffName,url,folder:true});
+    return true;
+  }catch(e){return false}
 }
 function normalizeImportedTemplates(data){
   if(!data)return null;
@@ -2850,6 +2982,7 @@ window.addEventListener('load',async()=>{
   restoreRoster();
   await restoreSession();
   await initJsonExportDir();
+  await initLocalFolders();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);

@@ -53,6 +53,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 2. Ordner **📁 `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
 3. Bilder liegen parallel in **IndexedDB** (Browser, großzügiger als `localStorage`) und werden beim Laden aus Vorlage + IDB zusammengeführt.
 
+**Schneller Workflow mit lokalen Ordnern:** Unter **Asset-Bibliothek** einmal **📁 Vorlagen-Bilder** und **🔤 Fonts** wählen. Danach erscheinen Bilder aus `Vorlagen Garderobenschilder/` direkt in der App (Buttons **L1**, **L2**, **BG**) und Fonts aus `Fonts/` stehen als eigene Schriften bereit.
+
 ### Badge & Grössen (Design)
 
 Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft. Bei aktivem Badge gibt es zusätzlich **Nummer im Badge X/Y**, um Ziffern je nach Font optisch in der Form zu zentrieren.
