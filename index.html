@@ -78,6 +78,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 
 /* FONT GRID */
 .font-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.font-grid.collapsed{display:none}
 .font-opt{padding:6px 8px;background:var(--p2);border:2px solid transparent;border-radius:5px;cursor:pointer;transition:all .12s}
 .font-opt:hover,.font-opt.on{border-color:var(--gold);background:rgba(240,165,0,.07)}
 .fp{font-size:1.1rem;color:var(--txt);line-height:1;margin-bottom:1px}.fn{font-size:.57rem;color:var(--mut)}
@@ -283,6 +284,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <option value="'Saira Condensed'">Saira Condensed</option>
         <option value="'Rajdhani'">Rajdhani</option>
       </select>
+      <button class="btn btn-g btn-sm" type="button" id="fontGridToggle" style="margin-bottom:7px" onclick="toggleFontGrid()">Kacheln anzeigen</button>
       <div class="font-grid" id="fontGrid"></div>
     </div>
     <div class="sb-sec">
@@ -727,6 +729,7 @@ async function restoreSession(){
         await applyDesignSnapshot(enriched,{restoreImages:true});
         S.userTplId=tplId;
         document.getElementById('tplName').textContent=t.name.toUpperCase();
+        setTemplateNameInput(t.name);
         if(sessSnap.pos&&Object.keys(sessSnap.pos).length)S.pos=JSON.parse(JSON.stringify(sessSnap.pos));
         render();
         return;
@@ -862,6 +865,7 @@ function buildFontGrid(){
     d.onclick=()=>setFontFamily(sf.fontFamily);
     g.appendChild(d);
   });
+  syncFontGridToggle();
 }
 function fontNormName(name){
   return String(name||'').replace(/\.[^.]+$/,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
@@ -900,13 +904,30 @@ function persistCustomFonts(){
   }catch(e){showWarn('Fonts konnten nicht dauerhaft gespeichert werden (Speicher voll?).')}
 }
 function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
-function setFontFamily(fontFamily){
+function setFontFamily(fontFamily,collapse=true){
   S.font=fontFamily||"'Bebas Neue'";
   const sel=document.getElementById('selFont');
   if(sel){sel.value=S.font;sel.style.fontFamily=S.font}
   document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===S.font));
+  if(collapse)collapseFontGrid();
   persistActiveFont();
   render();
+}
+function collapseFontGrid(){
+  const g=document.getElementById('fontGrid');
+  if(g)g.classList.add('collapsed');
+  syncFontGridToggle();
+}
+function toggleFontGrid(){
+  const g=document.getElementById('fontGrid');
+  if(!g)return;
+  g.classList.toggle('collapsed');
+  syncFontGridToggle();
+}
+function syncFontGridToggle(){
+  const b=document.getElementById('fontGridToggle');
+  const g=document.getElementById('fontGrid');
+  if(b&&g)b.textContent=g.classList.contains('collapsed')?'Kacheln anzeigen':'Kacheln ausblenden';
 }
 function readFileAsDataUrl(file){
   return new Promise((res,rej)=>{
@@ -1038,6 +1059,7 @@ function selectTpl(i){
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
   S.badgeColor=t.acc;
   document.getElementById('tplName').textContent=t.name.toUpperCase();
+  setTemplateNameInput(t.name);
   document.querySelectorAll('.tpl-card').forEach(c=>{
     const bi=c.dataset.builtin,ui=c.dataset.user;
     c.classList.toggle('on',bi!==undefined&&+bi===i&&!ui);
@@ -1383,6 +1405,7 @@ async function autoBackupTemplateJson(entry){
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
   document.getElementById('tplName').textContent=name.toUpperCase();
+  setTemplateNameInput(name);
   buildTplGrid();renderUserTplList();persistSession();render();
 }
 async function loadUserTemplate(id){
@@ -1392,6 +1415,7 @@ async function loadUserTemplate(id){
   const enriched=await enrichSnapFromAssetIdb(t.snap,id);
   await applyDesignSnapshot(enriched,{restoreImages:true});
   document.getElementById('tplName').textContent=t.name.toUpperCase();
+  setTemplateNameInput(t.name);
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
   persistSession();
 }
@@ -1400,8 +1424,12 @@ function deleteUserTemplate(id,e){
   if(!confirm('Vorlage löschen?'))return;
   const list=loadUserTemplates().filter(t=>t.id!==id);
   persistUserTemplates(list);
-  if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase()}
+  if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
   buildTplGrid();renderUserTplList();render();
+}
+function setTemplateNameInput(name){
+  const inp=document.getElementById('userTplName');
+  if(inp)inp.value=name||'';
 }
 function renderUserTplList(){
   const el=document.getElementById('userTplList');
