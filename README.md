@@ -55,6 +55,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Für **Name** und **Nummer/Badge** kann je eine eigene Schrift gewählt werden. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
 
+**Zusätzliche Webfonts:** Neben den lokalen Fonts sind auch **Graduate**, **Orbitron**, **Exo 2** und **Saira Stencil One** direkt integriert.
+
 **Sidebar:** Die linke Seitenleiste ist am rechten Rand ziehbar; die Breite wird im Browser gespeichert. Praktisch für lange Font-Namen im Schrift-Kachelraster.
 
 **Vorlagen bearbeiten:** Beim Auswählen einer Vorlage wird ihr Name automatisch ins Feld **Name** übernommen. Änderungen können direkt mit **💾 Speichern** wieder unter derselben Vorlage gesichert werden.
