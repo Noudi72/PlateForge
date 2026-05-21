@@ -221,7 +221,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </label>
       <div id="jsonExportDirInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        JSON-Exporte landen im Ordner <strong>Vorlagen json</strong> (einmal 📁 wählen). Layout/Positionen: automatische Session. Logos/Hintergrund: Vorlage mit Checkbox oder JSON.
+        <strong>3-fach für Bilder:</strong> IndexedDB (automatisch) · Vorlage 💾 · JSON in <strong>Vorlagen json</strong> (📁 einmal wählen). Session = Layout/Positionen.
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -693,7 +693,8 @@ async function restoreSession(){
     if(tplId){
       const t=loadUserTemplates().find(x=>x.id===tplId);
       if(t&&t.snap){
-        await applyDesignSnapshot(t.snap,{restoreImages:true});
+        const enriched=await enrichSnapFromAssetIdb(t.snap,tplId);
+        await applyDesignSnapshot(enriched,{restoreImages:true});
         S.userTplId=tplId;
         document.getElementById('tplName').textContent=t.name.toUpperCase();
         if(sessSnap.pos&&Object.keys(sessSnap.pos).length)S.pos=JSON.parse(JSON.stringify(sessSnap.pos));
@@ -701,8 +702,9 @@ async function restoreSession(){
         return;
       }
     }
-    const hasImg=!!(sessSnap.logoData||sessSnap.logo2Data||sessSnap.bgData);
-    await applyDesignSnapshot(sessSnap,{restoreImages:hasImg});
+    const enriched=await enrichSnapFromAssetIdb(sessSnap,null);
+    const hasImg=!!(enriched.logoData||enriched.logo2Data||enriched.bgData);
+    await applyDesignSnapshot(enriched,{restoreImages:hasImg});
     if(sessSnap.userTplId)S.userTplId=sessSnap.userTplId;
   }catch(e){}
 }
@@ -1042,6 +1044,108 @@ async function compressSnapForStorage(snap){
   return s;
 }
 
+// Bilder getrennt in IndexedDB (unabhängig von Session/localStorage-Quota)
+const ASSET_IDB='plateforge_assets';
+const ASSET_STORE='data';
+let _assetDbPromise=null;
+let _assetSyncTimer=null;
+
+function assetIdbSupported(){return typeof indexedDB!=='undefined'}
+function assetKeySet(tplId){
+  const p=tplId?`tpl:${tplId}`:'cur';
+  return{logo:`${p}:logo`,logo2:`${p}:logo2`,bg:`${p}:bg`};
+}
+function openAssetVaultDb(){
+  if(!assetIdbSupported())return Promise.resolve(null);
+  if(_assetDbPromise)return _assetDbPromise;
+  _assetDbPromise=new Promise((resolve,reject)=>{
+    const req=indexedDB.open(ASSET_IDB,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE);
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>{_assetDbPromise=null;reject(req.error)};
+  });
+  return _assetDbPromise;
+}
+async function idbAssetPut(key,dataUrl){
+  if(!dataUrl||!assetIdbSupported())return;
+  try{
+    const db=await openAssetVaultDb();
+    if(!db)return;
+    await new Promise((res,rej)=>{
+      const tx=db.transaction(ASSET_STORE,'readwrite');
+      tx.objectStore(ASSET_STORE).put({v:dataUrl,ts:Date.now()},key);
+      tx.oncomplete=()=>res();
+      tx.onerror=()=>rej(tx.error);
+    });
+  }catch(e){}
+}
+async function idbAssetGet(key){
+  if(!assetIdbSupported())return null;
+  try{
+    const db=await openAssetVaultDb();
+    if(!db)return null;
+    return await new Promise((res,rej)=>{
+      const tx=db.transaction(ASSET_STORE,'readonly');
+      const r=tx.objectStore(ASSET_STORE).get(key);
+      r.onsuccess=()=>res(r.result?r.result.v:null);
+      r.onerror=()=>rej(r.error);
+    });
+  }catch(e){return null}
+}
+async function idbAssetDel(key){
+  if(!assetIdbSupported())return;
+  try{
+    const db=await openAssetVaultDb();
+    if(!db)return;
+    await new Promise((res,rej)=>{
+      const tx=db.transaction(ASSET_STORE,'readwrite');
+      tx.objectStore(ASSET_STORE).delete(key);
+      tx.oncomplete=()=>res();
+      tx.onerror=()=>rej(tx.error);
+    });
+  }catch(e){}
+}
+async function storeSnapAssetsInIdb(snap,tplId){
+  if(!snap)return;
+  const k=assetKeySet(tplId);
+  if(snap.logoData)await idbAssetPut(k.logo,snap.logoData);
+  else await idbAssetDel(k.logo);
+  if(snap.logo2Data)await idbAssetPut(k.logo2,snap.logo2Data);
+  else await idbAssetDel(k.logo2);
+  if(snap.bgData)await idbAssetPut(k.bg,snap.bgData);
+  else await idbAssetDel(k.bg);
+}
+async function enrichSnapFromAssetIdb(snap,tplId){
+  const s={...snap};
+  const k=assetKeySet(tplId);
+  const cur=assetKeySet(null);
+  if(!s.logoData){
+    s.logoData=await idbAssetGet(k.logo)||await idbAssetGet(cur.logo);
+    if(s.logoData&&!s.logoIsSvg)s.logoIsSvg=false;
+  }
+  if(!s.logo2Data){
+    s.logo2Data=await idbAssetGet(k.logo2)||await idbAssetGet(cur.logo2);
+    if(s.logo2Data&&!s.logo2IsSvg)s.logo2IsSvg=false;
+  }
+  if(!s.bgData)s.bgData=await idbAssetGet(k.bg)||await idbAssetGet(cur.bg);
+  return s;
+}
+function scheduleAssetIdbSync(){
+  clearTimeout(_assetSyncTimer);
+  _assetSyncTimer=setTimeout(()=>syncCanvasAssetsToIdb(),700);
+}
+async function syncCanvasAssetsToIdb(){
+  try{
+    let snap=await buildDesignSnapshot(true);
+    snap=await compressSnapForStorage(snap);
+    await storeSnapAssetsInIdb(snap,null);
+    if(S.userTplId)await storeSnapAssetsInIdb(snap,S.userTplId);
+  }catch(e){}
+}
+
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
   document.getElementById('selFont').value=S.font;
@@ -1173,8 +1277,17 @@ async function saveUserTemplate(){
     showErr('Speichern fehlgeschlagen. Vorlagen in der Liste löschen oder „Logo/Hintergrund“ deaktivieren.');
     return;
   }
+  await storeSnapAssetsInIdb(entry.snap,entry.id);
+  await storeSnapAssetsInIdb(entry.snap,null);
+  const jsonNote=await autoBackupTemplateJson(entry);
   finishSaveUserTemplate(entry,name);
-  showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder komprimiert)':''));
+  showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder komprimiert)':'')+jsonNote);
+}
+async function autoBackupTemplateJson(entry){
+  const fname='plateforge_'+safeName(entry.name)+'.json';
+  const payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[entry]};
+  if(await writeJsonToExportDir(fname,JSON.stringify(payload,null,2)))return' → auch in Vorlagen json/';
+  return'';
 }
 function finishSaveUserTemplate(entry,name){
   S.userTplId=entry.id;
@@ -1185,7 +1298,8 @@ async function loadUserTemplate(id){
   const t=loadUserTemplates().find(x=>x.id===id);
   if(!t)return;
   S.userTplId=id;
-  await applyDesignSnapshot(t.snap,{restoreImages:true});
+  const enriched=await enrichSnapFromAssetIdb(t.snap,id);
+  await applyDesignSnapshot(enriched,{restoreImages:true});
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
   persistSession();
@@ -1683,12 +1797,12 @@ function loadLogo(inp){
     S.logo=img;
     S.logoIsSvg=detectSvgLogo(file,src);
     const p=document.getElementById('logoPrev');p.src=src;p.style.display='block';
-    persistSession();render();
+    scheduleAssetIdbSync();persistSession();render();
   });
   inp.value='';
 }
-function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';persistSession();render()});inp.value=''}
-function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';persistSession();render()}
+function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';scheduleAssetIdbSync();persistSession();render()});inp.value=''}
+function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';idbAssetDel(assetKeySet(null).logo);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).logo);persistSession();render()}
 function loadLogo2(inp){
   const file=inp.files[0];if(!file)return;
   loadImgFile(file,(img,src)=>{
@@ -1696,12 +1810,12 @@ function loadLogo2(inp){
     S.logo2=img;
     S.logo2IsSvg=detectSvgLogo(file,src);
     const p=document.getElementById('logo2Prev');p.src=src;p.style.display='block';
-    persistSession();render();
+    scheduleAssetIdbSync();persistSession();render();
   });
   inp.value='';
 }
-function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';persistSession();render()}
-function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';persistSession();render()}
+function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';idbAssetDel(assetKeySet(null).logo2);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).logo2);persistSession();render()}
+function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';idbAssetDel(assetKeySet(null).bg);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).bg);persistSession();render()}
 
 function useEHCLogo(){
   const oc=document.createElement('canvas');oc.width=400;oc.height=400;

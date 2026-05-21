@@ -46,7 +46,12 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Wenn das Speichern mit Bildern scheitert, erscheint ein Hinweis — dann **JSON-Export** nutzen oder ältere Vorlagen löschen.
 
-**Session:** Layout, Positionen und die zuletzt geladene **Vorlagen-ID** werden automatisch gesichert. Beim Reload wird die **gespeicherte Vorlage** (inkl. Bilder) wieder geladen, nicht nur eine leere Session-Kopie.
+**Session:** Layout, Positionen und die zuletzt geladene **Vorlagen-ID** werden automatisch gesichert. Beim Reload wird die **gespeicherte Vorlage** (inkl. Bilder) wieder geladen.
+
+**Bilder zuverlässig halten (empfohlen):**
+1. Nach Logo/Hintergrund-Upload einmal **💾 Speichern** (Checkbox „Logo & Hintergrund“ an).
+2. Ordner **📁 `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
+3. Bilder liegen parallel in **IndexedDB** (Browser, großzügiger als `localStorage`) und werden beim Laden aus Vorlage + IDB zusammengeführt.
 
 ### Badge & Grössen (Design)
 
