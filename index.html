@@ -904,12 +904,11 @@ function persistCustomFonts(){
   }catch(e){showWarn('Fonts konnten nicht dauerhaft gespeichert werden (Speicher voll?).')}
 }
 function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
-function setFontFamily(fontFamily,collapse=true){
+function setFontFamily(fontFamily){
   S.font=fontFamily||"'Bebas Neue'";
   const sel=document.getElementById('selFont');
   if(sel){sel.value=S.font;sel.style.fontFamily=S.font}
   document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===S.font));
-  if(collapse)collapseFontGrid();
   persistActiveFont();
   render();
 }
