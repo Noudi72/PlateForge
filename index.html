@@ -591,6 +591,13 @@ const BUILTIN_FONTS=[
   {l:'Russo One',v:"'Russo One'"},{l:'Black Ops One',v:"'Black Ops One'"},
   {l:'Teko',v:"'Teko'"},{l:'Barlow Cond.',v:"'Barlow Condensed'"},{l:'Saira Cond.',v:"'Saira Condensed'"},
 ];
+const STATIC_ASSETS=[
+  'background 1.png','background 2.png','background 3.png','background 6.png','background 7.png','background 8.png','background 9.png','background 10.png','background 11.png','background 12.png','background 13.png','background 14.png','background 15.png','background 16.png','background 17.png','background 18.png','background 19.png','background 20.png','background 21.png','background 22.png','background 23.png','background 24.png','background 25.png','background 26.png','background 27.svg','background 28.webp','background 72.png',
+  'EHCB Logo.png','EHCB Logo.svg','EHCB Logo.webp','EHCB_Spirit Viking.PNG','Logo Spirit.png','Logo VK.png','Logo VK 1.png','Logo VK.svg','Logo_EHCB.png','Spirit Viking.PNG','Spirit Viking 3x.webp',
+].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
+const STATIC_FONTS=[
+  '28 Days Later.ttf','AGRESSIVE.otf','AtlantaCollegeRegular-1Gva2.ttf','BaseballClubSolid-E4X69.ttf','Calvier.ttf','ChicagoAthleticSlabSerif2-8OjMn.ttf','HeadCapitalBoldGrunge-KV9RA.otf','Horizon Italic.otf','JackportRegularNcv-BeY3.ttf','JerseyM54-aLX9.ttf','OldSport02AthleticNcv-E0gj.ttf','Race Sport Free.ttf','SpaceX.ttf','SportingOutline-x3e85.ttf','SupportSports-E4Xvl.ttf','UniversidadPersonalUseBold-X3D6a.ttf','VarsityTeam-Bold.otf','Vtks Escape.ttf','ZingRustDemo-Base.otf','ZingRustLH1Demo-Fill.otf','beantown.regular.ttf','heroesassemble2.ttf','heroesassemble3d.ttf','heroesassemble3dital.ttf','heroesassembleexpandital2.ttf','heroesassemblegrad.ttf','heroesassemblegradital.ttf','soviet-program.regular.ttf','swera-demo.bold.otf','thunderstrike.ttf','thunderstrikehalf.ttf',
+].map(name=>({name:name.replace(/\.[^.]+$/,''),path:'Fonts/'+name}));
 
 // ══════════════════════════════════════════
 // STATE
@@ -877,6 +884,7 @@ async function restoreCustomFonts(){
       S.savedFonts.push({name:entry.name,fontFamily:entry.fontFamily,ffName:entry.ffName,b64:entry.b64,mime,url});
     }catch(e){/* einzelne kaputte Fonts überspringen */}
   }
+  await loadStaticFonts();
   const active=localStorage.getItem(ACTIVE_FONT_KEY);
   if(active&&(BUILTIN_FONTS.some(b=>b.v===active)||S.savedFonts.some(sf=>sf.fontFamily===active))){
     S.font=active;
@@ -885,6 +893,17 @@ async function restoreCustomFonts(){
   }
   renderSavedFonts();
   buildFontGrid();
+}
+async function loadStaticFonts(){
+  for(const sf of STATIC_FONTS){
+    if(S.savedFonts.some(f=>f.path===sf.path))continue;
+    try{
+      const ffName='PF_STATIC_'+safeName(sf.name);
+      const f=await new FontFace(ffName,`url("${encodeURI(sf.path)}")`).load();
+      document.fonts.add(f);
+      S.savedFonts.push({name:sf.name,fontFamily:`'${ffName}'`,ffName,url:sf.path,path:sf.path,static:true});
+    }catch(e){}
+  }
 }
 async function loadFont(inp){
   const file=inp.files[0];if(!file)return;
@@ -919,7 +938,7 @@ function renderSavedFonts(){
   S.savedFonts.forEach((sf,i)=>{
     const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
     d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
-      <button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`;
+      ${sf.static||sf.folder?'<span style="font-size:.58rem;color:var(--mut)">Repo</span>':`<button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`}`;
     d.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;S.font=sf.fontFamily;document.getElementById('selFont').value='';document.querySelectorAll('.saved-font-item').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
     el.appendChild(d);
   });
@@ -1562,14 +1581,31 @@ async function pickFontsFolder(showTip){
   }catch(e){if(e&&e.name!=='AbortError')showErr('Fonts-Ordner: '+(e.message||e));return null}
 }
 async function initLocalFolders(){
-  if(!fsExportSupported()){updateAssetFolderLabel(null,null);return}
+  if(!fsExportSupported()){updateAssetFolderLabel(null,null);renderStaticAssets();return}
   const ah=await loadMetaHandle(ASSET_DIR_KEY);
   const fh=await loadMetaHandle(FONTS_DIR_KEY);
   const an=ah&&await ensureDirPermission(ah,false)?ah.name:null;
   const fn=fh&&await ensureDirPermission(fh,false)?fh.name:null;
   updateAssetFolderLabel(an,fn);
   if(ah&&an)await scanAssetFolder(ah);
+  else renderStaticAssets();
   if(fh&&fn)await scanFontsFolder(fh);
+}
+function addAssetCard(grid,src,name){
+  const card=document.createElement('div');
+  card.className='asset-card';
+  card.innerHTML=`<img src="${src}" alt=""><div class="asset-name" title="${name}">${name}</div><div class="asset-actions"><button type="button">L1</button><button type="button">L2</button><button type="button">BG</button></div>`;
+  const [b1,b2,bg]=card.querySelectorAll('button');
+  b1.onclick=()=>applyImageAsset('logo',src,name);
+  b2.onclick=()=>applyImageAsset('logo2',src,name);
+  bg.onclick=()=>applyImageAsset('bg',src,name);
+  grid.appendChild(card);
+}
+function renderStaticAssets(){
+  const grid=document.getElementById('assetGrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  STATIC_ASSETS.forEach(a=>addAssetCard(grid,encodeURI(a.path),a.name));
 }
 async function scanAssetFolder(dir){
   const grid=document.getElementById('assetGrid');
@@ -1580,14 +1616,7 @@ async function scanAssetFolder(dir){
     if(!/\.(png|jpe?g|webp|svg)$/i.test(item.path))continue;
     const file=await item.handle.getFile();
     const url=URL.createObjectURL(file);
-    const card=document.createElement('div');
-    card.className='asset-card';
-    card.innerHTML=`<img src="${url}" alt=""><div class="asset-name" title="${item.path}">${item.path}</div><div class="asset-actions"><button type="button">L1</button><button type="button">L2</button><button type="button">BG</button></div>`;
-    const [b1,b2,bg]=card.querySelectorAll('button');
-    b1.onclick=()=>applyImageAsset('logo',url,file.name);
-    b2.onclick=()=>applyImageAsset('logo2',url,file.name);
-    bg.onclick=()=>applyImageAsset('bg',url,file.name);
-    grid.appendChild(card);
+    addAssetCard(grid,url,item.path);
     count++;
   }
   updateAssetFolderLabel(dir.name,(await loadMetaHandle(FONTS_DIR_KEY))?.name||null);
