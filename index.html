@@ -299,6 +299,11 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <label class="fl">Badge-Grösse</label>
         <div class="sl-row"><input type="range" min="25" max="160" value="72" id="slBadgeScale" oninput="S.badgeScale=+this.value;render();sv('slBadgeScale','vlBadgeScale','%')"><span class="sl-v" id="vlBadgeScale">72%</span></div>
       </div>
+      <div class="fg" id="badgeNrAdjustRow">
+        <label class="fl">Nummer im Badge X / Y</label>
+        <div class="sl-row"><input type="range" min="-80" max="80" value="0" id="slBadgeNrDx" oninput="S.badgeNrDx=+this.value;render();sv('slBadgeNrDx','vlBadgeNrDx')"><span class="sl-v" id="vlBadgeNrDx">0</span></div>
+        <div class="sl-row"><input type="range" min="-80" max="80" value="0" id="slBadgeNrDy" oninput="S.badgeNrDy=+this.value;render();sv('slBadgeNrDy','vlBadgeNrDy')"><span class="sl-v" id="vlBadgeNrDy">0</span></div>
+      </div>
       <div class="fg"><label class="fl">Nummer (Schrift)</label>
         <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div>
       </div>
@@ -590,7 +595,7 @@ const S={
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
-  badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,
+  badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,badgeNrDx:0,badgeNrDy:0,
   userTplId:null,
   // export
   exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
@@ -1003,7 +1008,8 @@ function getDesignSnapshotBase(){
   return{
     tpl:S.tpl,c:{...S.c},font:S.font,layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
-    badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',badgeScale:S.badgeScale??72,
+    badge:S.badge,badgeColor:S.badgeColor,badgeFillOp:S.badgeFillOp??1,badgeBorderColor:S.badgeBorderColor||'#FFFFFF',
+    badgeScale:S.badgeScale??72,badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     nameMode:S.nameMode||getVal('selNameMode'),
     userTplId:S.userTplId||null,
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
@@ -1157,6 +1163,8 @@ function applyStateToUI(){
   document.getElementById('slName').value=S.nameSz;sv('slName','vlName');
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
+  const bdx=document.getElementById('slBadgeNrDx');if(bdx){bdx.value=S.badgeNrDx||0;sv('slBadgeNrDx','vlBadgeNrDx')}
+  const bdy=document.getElementById('slBadgeNrDy');if(bdy){bdy.value=S.badgeNrDy||0;sv('slBadgeNrDy','vlBadgeNrDy')}
   document.getElementById('slBadgeFillOp').value=Math.round((S.badgeFillOp??1)*100);sv('slBadgeFillOp','vlBadgeFillOp','%');
   document.getElementById('slFrame').value=S.frameW;sv('slFrame','vlFrame');
   document.getElementById('slBgOp').value=Math.round((S.bgOp??.4)*100);sv('slBgOp','vlBgOp','%');
@@ -1175,6 +1183,7 @@ function applyStateToUI(){
   document.querySelectorAll('#badgeBtns .align-btn').forEach(b=>b.classList.toggle('on',b.dataset.b===S.badge));
   const badgeOn=S.badge&&S.badge!=='none';
   document.getElementById('badgeScaleRow').style.display=badgeOn?'block':'none';
+  const ba=document.getElementById('badgeNrAdjustRow');if(ba)ba.style.display=badgeOn?'block':'none';
   const be=document.getElementById('badgeExtraRow');if(be)be.style.display=badgeOn?'block':'none';
   Object.entries(TOG_MAP).forEach(([k,prop])=>{
     const id='tog'+(k==='logoBand'?'LogoBand':k.charAt(0).toUpperCase()+k.slice(1));
@@ -1197,6 +1206,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeFillOp=snap.badgeFillOp??1;
   S.badgeBorderColor=snap.badgeBorderColor||'#FFFFFF';
   S.badgeScale=snap.badgeScale??72;
+  S.badgeNrDx=snap.badgeNrDx||0;S.badgeNrDy=snap.badgeNrDy||0;
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
@@ -1259,29 +1269,23 @@ async function saveUserTemplate(){
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
   if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
-  let snap=await buildDesignSnapshot(include);
-  if(include)snap=await compressSnapForStorage(snap);
-  const entry={id:existing?existing.id:'ut_'+Date.now(),name,updated:Date.now(),snap};
+  const id=existing?existing.id:'ut_'+Date.now();
+  let fullSnap=await buildDesignSnapshot(include);
+  if(include)fullSnap=await compressSnapForStorage(fullSnap);
+  await storeSnapAssetsInIdb(fullSnap,id);
+  await storeSnapAssetsInIdb(fullSnap,null);
+  // Im Browser bleibt die Vorlage schlank; Bilder liegen in IndexedDB und im JSON-Backup.
+  const entry={id,name,updated:Date.now(),snap:stripSnapImages(fullSnap)};
+  const backupEntry={...entry,snap:fullSnap};
   if(existing)list[list.indexOf(existing)]=entry;else list.push(entry);
   let ok=persistUserTemplates(list);
-  if(!ok&&include){
-    entry.snap=stripSnapImages(snap);
-    if(existing)list[list.indexOf(existing)]=entry;else list[list.length-1]=entry;
-    ok=persistUserTemplates(list);
-    if(ok)showWarn(`„${name}" gespeichert (ohne Bilder – Browser-Speicher voll). Nutze 📤 JSON für Logo/Hintergrund.`);
-    else showErr('Speichern fehlgeschlagen. Ältere Vorlagen löschen oder JSON-Export nutzen.');
-    if(ok){finishSaveUserTemplate(entry,name)}
-    return;
-  }
   if(!ok){
-    showErr('Speichern fehlgeschlagen. Vorlagen in der Liste löschen oder „Logo/Hintergrund“ deaktivieren.');
+    showErr('Speichern fehlgeschlagen. Ältere Vorlagen löschen oder JSON-Export nutzen.');
     return;
   }
-  await storeSnapAssetsInIdb(entry.snap,entry.id);
-  await storeSnapAssetsInIdb(entry.snap,null);
-  const jsonNote=await autoBackupTemplateJson(entry);
+  const jsonNote=await autoBackupTemplateJson(backupEntry);
   finishSaveUserTemplate(entry,name);
-  showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder komprimiert)':'')+jsonNote);
+  showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder in IndexedDB + JSON)':'')+jsonNote);
 }
 async function autoBackupTemplateJson(entry){
   const fname='plateforge_'+safeName(entry.name)+'.json';
@@ -1479,7 +1483,7 @@ async function exportTemplatesJson(onlyId){
     }
     let templates=onlyId?list.filter(t=>t.id===onlyId):[...list];
     templates=await Promise.all(templates.map(async t=>{
-      let snap=t.snap?{...t.snap}:getDesignSnapshotBase();
+      let snap=t.snap?await enrichSnapFromAssetIdb(t.snap,t.id):getDesignSnapshotBase();
       if(includeImg&&(snap.logoData||snap.logo2Data||snap.bgData))snap=await compressSnapForStorage(snap);
       else if(!includeImg)snap=stripSnapImages(snap);
       return{...t,snap};
@@ -1493,8 +1497,10 @@ async function exportTemplatesJson(onlyId){
 async function initJsonExportDir(){
   if(!fsExportSupported()){updateJsonExportDirLabel(null);return}
   const h=await loadExportDirHandle();
-  if(h&&await ensureDirPermission(h,true))updateJsonExportDirLabel(h.name);
-  else updateJsonExportDirLabel(null);
+  if(h&&await ensureDirPermission(h,true)){
+    updateJsonExportDirLabel(h.name);
+    await autoImportTemplatesFromDir(h);
+  }else updateJsonExportDirLabel(null);
 }
 function normalizeImportedTemplates(data){
   if(!data)return null;
@@ -1503,6 +1509,50 @@ function normalizeImportedTemplates(data){
   if(data.snap&&data.name)return [{id:data.id||'ut_'+Date.now(),name:data.name,updated:data.updated||Date.now(),snap:data.snap}];
   if(data.tpl!==undefined||data.c)return [{id:'ut_'+Date.now(),name:data.name||'Import',updated:Date.now(),snap:data}];
   return null;
+}
+async function upsertImportedTemplates(valid,opts={}){
+  const list=loadUserTemplates();
+  let added=0,over=0;
+  for(const t of valid){
+    const name=String(t.name||'Import').trim();
+    const existing=list.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(opts.skipOlder&&existing&&existing.updated&&(t.updated||0)<existing.updated)continue;
+    const id=existing?existing.id:(t.id&&String(t.id).startsWith('ut_')?t.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
+    let snap=t.snap||{};
+    if(snap.logoData||snap.logo2Data||snap.bgData){
+      snap=await compressSnapForStorage(snap);
+      await storeSnapAssetsInIdb(snap,id);
+    }
+    const entry={id,name,updated:t.updated||Date.now(),snap:stripSnapImages(snap)};
+    if(existing){list[list.indexOf(existing)]=entry;over++}
+    else{list.push(entry);added++}
+  }
+  if(!persistUserTemplates(list)){
+    showErr((opts.label||'Import')+' ok, aber Browser-Speicher voll – JSON-Dateien bleiben Backup.');
+    return{added,over,ok:false};
+  }
+  return{added,over,ok:true};
+}
+async function autoImportTemplatesFromDir(dir){
+  if(!dir||dir._plateForgeImported)return;
+  dir._plateForgeImported=true;
+  try{
+    const valid=[];
+    for await(const [name,handle] of dir.entries()){
+      if(handle.kind!=='file'||!/\.json$/i.test(name))continue;
+      const file=await handle.getFile();
+      const raw=JSON.parse(await file.text());
+      const incoming=normalizeImportedTemplates(raw)||[];
+      incoming.forEach(t=>{if(t&&t.snap&&(t.name||t.snap.club))valid.push(t)});
+    }
+    if(!valid.length)return;
+    const r=await upsertImportedTemplates(valid,{label:'Auto-Import',skipOlder:true});
+    if(r.ok&&(r.added||r.over)){
+      showOk(`Auto-Import aus ${dir.name}: ${r.added} neu, ${r.over} aktualisiert.`);
+    }
+  }catch(e){
+    console.warn('Auto-Import Vorlagen json',e);
+  }
 }
 function importTemplatesJson(inp){
   const file=inp.files[0];if(!file)return;
@@ -1518,24 +1568,8 @@ function importTemplatesJson(inp){
         `${valid.length} Vorlage(n) gefunden.\n\nOK = hinzufügen / gleiche Namen überschreiben\nAbbrechen = Import abbrechen`
       );
       if(!mode)return;
-      const list=loadUserTemplates();
-      let added=0,over=0;
-      valid.forEach(t=>{
-        const name=String(t.name||'Import').trim();
-        const snap=t.snap;
-        const existing=list.find(x=>x.name.toLowerCase()===name.toLowerCase());
-        const entry={id:existing?existing.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name,updated:Date.now(),snap};
-        if(existing){list[list.indexOf(existing)]=entry;over++}else{list.push(entry);added++}
-      });
-      const slim=await Promise.all(list.map(async t=>{
-        if(t.snap&&(t.snap.logoData||t.snap.logo2Data||t.snap.bgData))return{...t,snap:await compressSnapForStorage(t.snap)};
-        return t;
-      }));
-      if(!persistUserTemplates(slim)){
-        const noImg=slim.map(t=>({...t,snap:stripSnapImages(t.snap)}));
-        if(!persistUserTemplates(noImg))showErr('Import ok, aber Browser-Speicher voll – nur JSON-Datei behalten.');
-        else showWarn(`Import: ${added} neu, ${over} aktualisiert (Bilder nur in JSON, nicht im Browser).`);
-      }else showOk(`Import: ${added} neu, ${over} aktualisiert.`);
+      const r=await upsertImportedTemplates(valid,{label:'Import'});
+      if(r.ok)showOk(`Import: ${r.added} neu, ${r.over} aktualisiert.`);
       buildTplGrid();renderUserTplList();
     }catch(e){showErr('JSON konnte nicht gelesen werden: '+e.message)}
     inp.value='';
@@ -1552,6 +1586,8 @@ function setBadge(shape){
   const on=shape!=='none';
   const row=document.getElementById('badgeScaleRow');
   if(row)row.style.display=on?'block':'none';
+  const adj=document.getElementById('badgeNrAdjustRow');
+  if(adj)adj.style.display=on?'block':'none';
   const extra=document.getElementById('badgeExtraRow');
   if(extra)extra.style.display=on?'block':'none';
   persistSession();render();
@@ -1878,6 +1914,7 @@ function activeP(){
 function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
+    badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     font:S.font,layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nameMode:getVal('selNameMode'),
@@ -2354,7 +2391,7 @@ function drawPlate(canvas,w,h,opts,thumb){
     const Rp=Z(badgeR(nr,nrSz,font,opts.badgeScale??S.badgeScale??72));
     drawBadge(ctx,opts.badge,nrX,nrY,Rp,opts.badgeColor||'#C8102E',opts.badgeFillOp??1,opts.badgeBorderColor||'#FFFFFF',opts.shadowOn);
     ctx.textAlign='center';ctx.textBaseline='middle';
-    drawFxText(ctx,nrText,nrX,nrY,c.nrc,opts,Z);
+    drawFxText(ctx,nrText,nrX+Z(opts.badgeNrDx||0),nrY+Z(opts.badgeNrDy||0),c.nrc,opts,Z);
   }else{
     ctx.textBaseline='alphabetic';setTextAlign(ctx,textAlign);
     const nrYb=Z(nrBaselinePlateY(nrPosData.y,nrSz,nrText,font,vA));
@@ -2817,6 +2854,8 @@ window.addEventListener('load',async()=>{
   syncVAlignUi();
   setBadge(S.badge);
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
+  const bdx=document.getElementById('slBadgeNrDx');if(bdx){bdx.value=S.badgeNrDx||0;sv('slBadgeNrDx','vlBadgeNrDx')}
+  const bdy=document.getElementById('slBadgeNrDy');if(bdy){bdy.value=S.badgeNrDy||0;sv('slBadgeNrDy','vlBadgeNrDy')}
   if(!S.logo)useEHCLogo();
   pickP(S.active);
   updatePlayerNav();

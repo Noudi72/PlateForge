@@ -38,13 +38,13 @@ Nur sinnvoll, wenn ihr später einen Build habt (z. B. Vite). Für die aktuell
 
 ### Eigene Vorlagen
 
-Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Daten liegen im **localStorage** des Browsers (pro Gerät/Domain). **Logo & Hintergrund in Vorlage/JSON** (Checkbox, standardmässig an): Bilder werden komprimiert mitgespeichert.
+Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Vorlagenliste bleibt im **localStorage** bewusst schlank; Logos und Hintergründe werden zusätzlich in **IndexedDB** und im JSON-Backup gesichert.
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die JSON-Dateien direkt dorthin (Chrome/Edge). Ohne Ordnerwahl: Fallback in den Download-Ordner.
+**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die JSON-Dateien direkt dorthin (Chrome/Edge). Beim Start werden JSON-Dateien aus diesem Ordner automatisch importiert/aktualisiert.
 
-**Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Wenn das Speichern mit Bildern scheitert, erscheint ein Hinweis — dann **JSON-Export** nutzen oder ältere Vorlagen löschen.
+**Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Deshalb werden Bilddaten nicht mehr dauerhaft in der Vorlagenliste gehalten, sondern in IndexedDB/JSON ausgelagert — dadurch sind deutlich mehr Vorlagen möglich.
 
 **Session:** Layout, Positionen und die zuletzt geladene **Vorlagen-ID** werden automatisch gesichert. Beim Reload wird die **gespeicherte Vorlage** (inkl. Bilder) wieder geladen.
 
@@ -55,7 +55,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 ### Badge & Grössen (Design)
 
-Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft.
+Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft. Bei aktivem Badge gibt es zusätzlich **Nummer im Badge X/Y**, um Ziffern je nach Font optisch in der Form zu zentrieren.
 
 ### Zwei Logos & Hilfslinien
 
