@@ -42,6 +42,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
+**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die JSON-Dateien direkt dorthin (Chrome/Edge). Ohne Ordnerwahl: Fallback in den Download-Ordner.
+
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Wenn das Speichern mit Bildern scheitert, erscheint ein Hinweis — dann **JSON-Export** nutzen oder ältere Vorlagen löschen.
 
 **Session:** Layout, Positionen und die zuletzt geladene **Vorlagen-ID** werden automatisch gesichert. Beim Reload wird die **gespeicherte Vorlage** (inkl. Bilder) wieder geladen, nicht nur eine leere Session-Kopie.

@@ -209,6 +209,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
         <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 JSON</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
           📥 Import
           <input type="file" accept=".json,application/json" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
@@ -218,8 +219,9 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <span class="tog-lbl" style="font-size:.7rem">Logo &amp; Hintergrund in Vorlage/JSON</span>
         <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)" checked title="JPEG/PNG-komprimiert; für Browser-Speicher empfohlen">
       </label>
+      <div id="jsonExportDirInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        Layout und Positionen werden automatisch gesichert. <strong>Logos/Hintergrund</strong> bleiben nur erhalten, wenn du die Vorlage mit aktivierter Checkbox speicherst oder JSON nutzt.
+        JSON-Exporte landen im Ordner <strong>Vorlagen json</strong> (einmal 📁 wählen). Layout/Positionen: automatische Session. Logos/Hintergrund: Vorlage mit Checkbox oder JSON.
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut)">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -1219,10 +1221,98 @@ function renderUserTplList(){
 
 // JSON export/import – Vorlagen teamübergreifend teilen (nicht an localStorage gebunden)
 const TPL_JSON_VER=1;
-function buildTemplatesExportPayload(onlyId){
-  let list=loadUserTemplates();
-  if(onlyId)list=list.filter(t=>t.id===onlyId);
-  return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:list};
+const META_IDB='plateforge_meta';
+const META_STORE='kv';
+const EXPORT_DIR_KEY='exportDir';
+const PREFERRED_EXPORT_FOLDER='Vorlagen json';
+
+function fsExportSupported(){return typeof window.showDirectoryPicker==='function'}
+function openMetaDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(META_IDB,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(META_STORE))db.createObjectStore(META_STORE);
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function storeExportDirHandle(handle){
+  const db=await openMetaDb();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(META_STORE,'readwrite');
+    tx.objectStore(META_STORE).put(handle,EXPORT_DIR_KEY);
+    tx.oncomplete=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function loadExportDirHandle(){
+  try{
+    const db=await openMetaDb();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction(META_STORE,'readonly');
+      const r=tx.objectStore(META_STORE).get(EXPORT_DIR_KEY);
+      r.onsuccess=()=>res(r.result||null);
+      r.onerror=()=>rej(r.error);
+    });
+  }catch(e){return null}
+}
+async function ensureDirPermission(handle,write){
+  if(!handle)return false;
+  const opts={mode:write?'readwrite':'read'};
+  try{
+    if((await handle.queryPermission(opts))==='granted')return true;
+    return(await handle.requestPermission(opts))==='granted';
+  }catch(e){return false}
+}
+function updateJsonExportDirLabel(name){
+  const el=document.getElementById('jsonExportDirInfo');
+  if(!el)return;
+  if(name)el.textContent='JSON-Export → '+name+'/';
+  else if(fsExportSupported())el.textContent='JSON-Export → beim ersten 📤 JSON Ordner „'+PREFERRED_EXPORT_FOLDER+'“ wählen';
+  else el.textContent='JSON-Export → Download (Ordner-API nicht verfügbar, z. B. Safari)';
+}
+async function pickJsonExportFolder(showTip){
+  if(!fsExportSupported()){
+    showWarn('Dieser Browser kann keinen Projektordner beschreiben — Export geht in den Download-Ordner.');
+    return null;
+  }
+  try{
+    if(showTip)alert(
+      'Bitte den Ordner „'+PREFERRED_EXPORT_FOLDER+'“ wählen\n'+
+      '(im Plate-Forge-Projekt neben index.html).\n\n'+
+      'Danach speichert 📤 JSON automatisch dort — ohne Download-Dialog.'
+    );
+    const handle=await window.showDirectoryPicker({
+      mode:'readwrite',
+      id:'plateforge-vorlagen-json',
+      startIn:'documents',
+    });
+    await storeExportDirHandle(handle);
+    updateJsonExportDirLabel(handle.name);
+    showOk('Export-Ordner: '+handle.name);
+    return handle;
+  }catch(e){
+    if(e&&e.name!=='AbortError')showErr('Ordnerwahl fehlgeschlagen: '+(e.message||e));
+    return null;
+  }
+}
+async function writeJsonToExportDir(filename,jsonText){
+  if(!fsExportSupported())return false;
+  let dir=await loadExportDirHandle();
+  if(!dir)dir=await pickJsonExportFolder(true);
+  if(!dir||!(await ensureDirPermission(dir,true)))return false;
+  try{
+    const fh=await dir.getFileHandle(filename,{create:true});
+    const w=await fh.createWritable();
+    await w.write(jsonText);
+    await w.close();
+    return true;
+  }catch(e){
+    console.warn('writeJsonToExportDir',e);
+    return false;
+  }
 }
 function downloadJsonFile(obj,filename){
   try{
@@ -1241,6 +1331,25 @@ function downloadJsonFile(obj,filename){
     return false;
   }
 }
+async function saveJsonExport(obj,filename){
+  const json=JSON.stringify(obj,null,2);
+  if(await writeJsonToExportDir(filename,json)){
+    const dir=await loadExportDirHandle();
+    const folder=dir?dir.name:PREFERRED_EXPORT_FOLDER;
+    showOk('Gespeichert: '+folder+'/'+filename);
+    return true;
+  }
+  if(downloadJsonFile(obj,filename)){
+    showWarn('In Download-Ordner gespeichert (Ordner „'+PREFERRED_EXPORT_FOLDER+'“ nicht verbunden — 📁 wählen).');
+    return true;
+  }
+  return false;
+}
+function buildTemplatesExportPayload(onlyId){
+  let list=loadUserTemplates();
+  if(onlyId)list=list.filter(t=>t.id===onlyId);
+  return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:list};
+}
 async function exportTemplatesJson(onlyId){
   try{
     const list=loadUserTemplates();
@@ -1250,9 +1359,8 @@ async function exportTemplatesJson(onlyId){
       const name=(getVal('userTplName')||'').trim()||'design';
       let snap=await buildDesignSnapshot(includeImg);
       if(includeImg)snap=await compressSnapForStorage(snap);
-      if(!downloadJsonFile({plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[{id:'ut_export',name,updated:Date.now(),snap}]},
-        'plateforge_vorlage_'+safeName(name)+'.json'))return;
-      showOk('Aktuelles Design als JSON exportiert.');
+      const fname='plateforge_vorlage_'+safeName(name)+'.json';
+      if(!await saveJsonExport({plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[{id:'ut_export',name,updated:Date.now(),snap}]},fname))return;
       return;
     }
     let templates=onlyId?list.filter(t=>t.id===onlyId):[...list];
@@ -1265,9 +1373,14 @@ async function exportTemplatesJson(onlyId){
     const payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates};
     const one=templates[0];
     const fname=onlyId&&one?'plateforge_'+safeName(one.name)+'.json':'plateforge_vorlagen_'+new Date().toISOString().slice(0,10)+'.json';
-    if(!downloadJsonFile(payload,fname))return;
-    showOk(onlyId?`„${one.name}" exportiert.`:`${templates.length} Vorlage(n) exportiert.`);
+    if(!await saveJsonExport(payload,fname))return;
   }catch(e){showErr('JSON-Export: '+(e.message||e))}
+}
+async function initJsonExportDir(){
+  if(!fsExportSupported()){updateJsonExportDirLabel(null);return}
+  const h=await loadExportDirHandle();
+  if(h&&await ensureDirPermission(h,true))updateJsonExportDirLabel(h.name);
+  else updateJsonExportDirLabel(null);
 }
 function normalizeImportedTemplates(data){
   if(!data)return null;
@@ -2585,6 +2698,7 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
+  await initJsonExportDir();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);
