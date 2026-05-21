@@ -53,7 +53,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 2. Ordner **📁 `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
 3. Bilder liegen parallel in **IndexedDB** (Browser, großzügiger als `localStorage`) und werden beim Laden aus Vorlage + IDB zusammengeführt.
 
-**Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` und Fonts aus `Fonts/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
+**Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
 
 ### Badge & Grössen (Design)
 

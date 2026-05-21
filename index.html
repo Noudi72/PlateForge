@@ -849,6 +849,12 @@ function buildFontGrid(){
     d.onclick=()=>{S.font=f.v;document.getElementById('selFont').value=f.v;g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
     g.appendChild(d);
   });
+  S.savedFonts.forEach(sf=>{
+    const d=document.createElement('div');d.className='font-opt'+(S.font===sf.fontFamily?' on':'');
+    d.innerHTML=`<div class="fp" style="font-family:${sf.fontFamily}">${sf.name.split(/[\\s_-]/)[0].toUpperCase()}</div><div class="fn">${sf.name}</div>`;
+    d.onclick=()=>{S.font=sf.fontFamily;document.getElementById('selFont').value='';g.querySelectorAll('.font-opt').forEach(x=>x.classList.remove('on'));d.classList.add('on');persistActiveFont();render()};
+    g.appendChild(d);
+  });
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
@@ -899,9 +905,10 @@ async function loadStaticFonts(){
     if(S.savedFonts.some(f=>f.path===sf.path))continue;
     try{
       const ffName='PF_STATIC_'+safeName(sf.name);
-      const f=await new FontFace(ffName,`url("${encodeURI(sf.path)}")`).load();
+      const url=encodeURI(sf.path);
+      const f=await new FontFace(ffName,`url("${url}")`).load();
       document.fonts.add(f);
-      S.savedFonts.push({name:sf.name,fontFamily:`'${ffName}'`,ffName,url:sf.path,path:sf.path,static:true});
+      S.savedFonts.push({name:sf.name,fontFamily:`'${ffName}'`,ffName,url,path:sf.path,static:true});
     }catch(e){}
   }
 }
@@ -1655,11 +1662,11 @@ async function registerFolderFont(file,path){
   const fname=path.replace(/\.[^.]+$/,'').split('/').pop();
   if(S.savedFonts.some(f=>f.name===fname&&f.folder))return false;
   try{
+    const dataUrl=await readFileAsDataUrl(file);
     const ffName='PF_DIR_'+safeName(fname)+'_'+Math.random().toString(36).slice(2,6);
-    const url=URL.createObjectURL(file);
-    const f=await new FontFace(ffName,`url(${url})`).load();
+    const f=await new FontFace(ffName,`url("${dataUrl}")`).load();
     document.fonts.add(f);
-    S.savedFonts.push({name:fname,fontFamily:`'${ffName}'`,ffName,url,folder:true});
+    S.savedFonts.push({name:fname,fontFamily:`'${ffName}'`,ffName,url:dataUrl,folder:true});
     return true;
   }catch(e){return false}
 }
