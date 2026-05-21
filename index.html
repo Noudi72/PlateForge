@@ -333,6 +333,11 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div class="fg"><label class="fl">Name</label>
         <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
       </div>
+      <div class="fg">
+        <label class="fl">Textbox-Rand X / Y</label>
+        <div class="sl-row"><input type="range" min="-80" max="120" value="0" id="slTextBoxPadX" oninput="S.textBoxPadX=+this.value;render();sv('slTextBoxPadX','vlTextBoxPadX')"><span class="sl-v" id="vlTextBoxPadX">0</span></div>
+        <div class="sl-row"><input type="range" min="-80" max="120" value="0" id="slTextBoxPadY" oninput="S.textBoxPadY=+this.value;render();sv('slTextBoxPadY','vlTextBoxPadY')"><span class="sl-v" id="vlTextBoxPadY">0</span></div>
+      </div>
       <div class="fg"><label class="fl">Logo 1 (längste Seite)</label>
         <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
       </div>
@@ -626,6 +631,7 @@ const S={
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
+  textBoxPadX:0,textBoxPadY:0,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
   // number badge
@@ -1153,6 +1159,7 @@ function getDesignSnapshotBase(){
     nameMode:S.nameMode||getVal('selNameMode'),
     userTplId:S.userTplId||null,
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
+    textBoxPadX:S.textBoxPadX||0,textBoxPadY:S.textBoxPadY||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
     showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
@@ -1303,6 +1310,8 @@ function applyStateToUI(){
   document.getElementById('slLogo2').value=S.logo2Sz??90;sv('slLogo2','vlLogo2');
   document.getElementById('slName').value=S.nameSz;sv('slName','vlName');
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
+  const tbx=document.getElementById('slTextBoxPadX');if(tbx){tbx.value=S.textBoxPadX||0;sv('slTextBoxPadX','vlTextBoxPadX')}
+  const tby=document.getElementById('slTextBoxPadY');if(tby){tby.value=S.textBoxPadY||0;sv('slTextBoxPadY','vlTextBoxPadY')}
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
   const bdx=document.getElementById('slBadgeNrDx');if(bdx){bdx.value=S.badgeNrDx||0;sv('slBadgeNrDx','vlBadgeNrDx')}
   const bdy=document.getElementById('slBadgeNrDy');if(bdy){bdy.value=S.badgeNrDy||0;sv('slBadgeNrDy','vlBadgeNrDy')}
@@ -1352,6 +1361,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeNrDx=snap.badgeNrDx||0;S.badgeNrDy=snap.badgeNrDy||0;
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
+  S.textBoxPadX=snap.textBoxPadX||0;S.textBoxPadY=snap.textBoxPadY||0;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
   S.logoBand=snap.logoBand!==false;
@@ -2248,7 +2258,10 @@ function horizontalTextBounds(anchorX,metrics,align){
   if(align==='right')return{left:anchorX-metrics.w-metrics.left,right:anchorX-metrics.w+metrics.right};
   return{left:anchorX-metrics.left,right:anchorX+metrics.right};
 }
-function textBoxPad(fontPx){return Math.max(4,fontPx*.035)}
+function textBoxPad(fontPx,axis){
+  const extra=axis==='x'?(S.textBoxPadX||0):(S.textBoxPadY||0);
+  return Math.max(-fontPx*.35,fontPx*.035+extra);
+}
 function textLinesBounds(anchorX,anchorY,lines,fontPx,fontFamily,align,vAlign){
   const metrics=lines.map(line=>measureText(line||' ',fontPx,fontFamily,W,H));
   const gap=fontPx*1.05;
@@ -2265,8 +2278,8 @@ function textLinesBounds(anchorX,anchorY,lines,fontPx,fontFamily,align,vAlign){
     left=Math.min(left,hb.left);right=Math.max(right,hb.right);
     top=Math.min(top,y-m.ascent);bottom=Math.max(bottom,y+m.descent);
   });
-  const pad=textBoxPad(fontPx);
-  return{left:left-pad,top:top-pad,right:right+pad,bottom:bottom+pad};
+  const padX=textBoxPad(fontPx,'x'),padY=textBoxPad(fontPx,'y');
+  return{left:left-padX,top:top-padY,right:right+padX,bottom:bottom+padY};
 }
 
 // pointer coords – works for mouse AND touch events
@@ -2319,8 +2332,8 @@ function getElementPlateBounds(key,anchor,opts){
     const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
     const m=measureText(text,nrSz,numberFont,W,H);
     const hb=horizontalTextBounds(platePos.x,m,textAlign);
-    const pad=textBoxPad(nrSz);
-    return{left:hb.left-pad,top:baseline-m.ascent-pad,right:hb.right+pad,bottom:baseline+m.descent+pad};
+    const padX=textBoxPad(nrSz,'x'),padY=textBoxPad(nrSz,'y');
+    return{left:hb.left-padX,top:baseline-m.ascent-padY,right:hb.right+padX,bottom:baseline+m.descent+padY};
   }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
@@ -2380,11 +2393,11 @@ function buildDragHandles(opts){
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
         const m=measureText(text,item.fontSize,numberFont,W,H);
         const hb=horizontalTextBounds(platePos.x,m,textAlign);
-        const pad=textBoxPad(item.fontSize);
-        px=(hb.left-pad)*sc;
-        py=(baseline-m.ascent-pad)*sc;
-        pw=Math.max((hb.right-hb.left+pad*2)*sc,8);
-        ph=Math.max((m.ascent+m.descent+pad*2)*sc,8);
+        const padX=textBoxPad(item.fontSize,'x'),padY=textBoxPad(item.fontSize,'y');
+        px=(hb.left-padX)*sc;
+        py=(baseline-m.ascent-padY)*sc;
+        pw=Math.max((hb.right-hb.left+padX*2)*sc,8);
+        ph=Math.max((m.ascent+m.descent+padY*2)*sc,8);
       }
     }else{
       const maxSide=item.fontSize;

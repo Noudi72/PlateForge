@@ -61,7 +61,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Vorlagen bearbeiten:** Beim Auswählen einer Vorlage wird ihr Name automatisch ins Feld **Name** übernommen. Änderungen können direkt mit **💾 Speichern** wieder unter derselben Vorlage gesichert werden.
 
-**Text-Boxen:** Name und Nummer werden mit echten Canvas-Glyph-Metriken (`actualBoundingBox…`) gemessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen.
+**Text-Boxen:** Name und Nummer werden mit echten Canvas-Glyph-Metriken (`actualBoundingBox…`) gemessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen. Über **Textbox-Rand X/Y** kann der Rahmen je Vorlage zusätzlich vergrössert oder verkleinert werden.
 
 ### Badge & Grössen (Design)
 
