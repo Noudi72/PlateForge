@@ -2258,25 +2258,51 @@ function horizontalTextBounds(anchorX,metrics,align){
   if(align==='right')return{left:anchorX-metrics.w-metrics.left,right:anchorX-metrics.w+metrics.right};
   return{left:anchorX-metrics.left,right:anchorX+metrics.right};
 }
+function scanTextInkBounds(text,fontPx,fontFamily,align){
+  const value=String(text||' ');
+  const m=measureText(value,fontPx,fontFamily,W,H);
+  const margin=Math.ceil(fontPx*1.25+32);
+  const cw=Math.ceil(Math.max(80,m.w+margin*2));
+  const ch=Math.ceil(Math.max(80,fontPx*4+margin*2));
+  const oc=document.createElement('canvas');oc.width=cw;oc.height=ch;
+  const ctx=oc.getContext('2d');
+  ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
+  ctx.textBaseline='alphabetic';
+  setTextAlign(ctx,align);
+  ctx.fillStyle='#000';
+  const x=align==='center'?cw/2:align==='right'?cw-margin:margin;
+  const y=Math.round(ch/2);
+  ctx.fillText(value,x,y);
+  const data=ctx.getImageData(0,0,cw,ch).data;
+  let minX=cw,minY=ch,maxX=-1,maxY=-1;
+  for(let yy=0;yy<ch;yy++){
+    const row=yy*cw*4;
+    for(let xx=0;xx<cw;xx++){
+      if(data[row+xx*4+3]>8){
+        if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;
+        if(yy<minY)minY=yy;if(yy>maxY)maxY=yy;
+      }
+    }
+  }
+  if(maxX<0){
+    const hb=horizontalTextBounds(0,m,align);
+    return{left:hb.left,top:-m.ascent,right:hb.right,bottom:m.descent};
+  }
+  return{left:minX-x,top:minY-y,right:maxX+1-x,bottom:maxY+1-y};
+}
 function textBoxPad(fontPx,axis){
   const extra=axis==='x'?(S.textBoxPadX||0):(S.textBoxPadY||0);
   return Math.max(-fontPx*.35,fontPx*.035+extra);
 }
 function textLinesBounds(anchorX,anchorY,lines,fontPx,fontFamily,align,vAlign){
-  const metrics=lines.map(line=>measureText(line||' ',fontPx,fontFamily,W,H));
-  const gap=fontPx*1.05;
   if(!lines.length)return{left:anchorX,top:anchorY,right:anchorX+1,bottom:anchorY+1};
-  const blockH=lines.length===1?metrics[0].ascent+metrics[0].descent:
-    (lines.length-1)*gap+metrics[0].ascent+metrics[metrics.length-1].descent;
-  let yFirst=anchorY;
-  if(vAlign==='middle')yFirst=anchorY-blockH/2+metrics[0].ascent;
-  else if(vAlign==='bottom')yFirst=anchorY-blockH+metrics[0].ascent;
+  const baselines=nameLinePlateYs(anchorY,fontPx,lines,fontFamily,vAlign);
   let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
-  metrics.forEach((m,i)=>{
-    const hb=horizontalTextBounds(anchorX,m,align);
-    const y=yFirst+i*gap;
-    left=Math.min(left,hb.left);right=Math.max(right,hb.right);
-    top=Math.min(top,y-m.ascent);bottom=Math.max(bottom,y+m.descent);
+  lines.forEach((line,i)=>{
+    const b=scanTextInkBounds(line||' ',fontPx,fontFamily,align);
+    const y=baselines[i];
+    left=Math.min(left,anchorX+b.left);right=Math.max(right,anchorX+b.right);
+    top=Math.min(top,y+b.top);bottom=Math.max(bottom,y+b.bottom);
   });
   const padX=textBoxPad(fontPx,'x'),padY=textBoxPad(fontPx,'y');
   return{left:left-padX,top:top-padY,right:right+padX,bottom:bottom+padY};
@@ -2330,10 +2356,9 @@ function getElementPlateBounds(key,anchor,opts){
   if(key==='nr'){
     const text=String(p.nr||'');
     const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
-    const m=measureText(text,nrSz,numberFont,W,H);
-    const hb=horizontalTextBounds(platePos.x,m,textAlign);
+    const b=scanTextInkBounds(text,nrSz,numberFont,textAlign);
     const padX=textBoxPad(nrSz,'x'),padY=textBoxPad(nrSz,'y');
-    return{left:hb.left-padX,top:baseline-m.ascent-padY,right:hb.right+padX,bottom:baseline+m.descent+padY};
+    return{left:platePos.x+b.left-padX,top:baseline+b.top-padY,right:platePos.x+b.right+padX,bottom:baseline+b.bottom+padY};
   }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
@@ -2391,13 +2416,12 @@ function buildDragHandles(opts){
       }else{
         const text=String(p.nr||'');
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
-        const m=measureText(text,item.fontSize,numberFont,W,H);
-        const hb=horizontalTextBounds(platePos.x,m,textAlign);
+        const b=scanTextInkBounds(text,item.fontSize,numberFont,textAlign);
         const padX=textBoxPad(item.fontSize,'x'),padY=textBoxPad(item.fontSize,'y');
-        px=(hb.left-padX)*sc;
-        py=(baseline-m.ascent-padY)*sc;
-        pw=Math.max((hb.right-hb.left+padX*2)*sc,8);
-        ph=Math.max((m.ascent+m.descent+padY*2)*sc,8);
+        px=(platePos.x+b.left-padX)*sc;
+        py=(baseline+b.top-padY)*sc;
+        pw=Math.max((b.right-b.left+padX*2)*sc,8);
+        ph=Math.max((b.bottom-b.top+padY*2)*sc,8);
       }
     }else{
       const maxSide=item.fontSize;
