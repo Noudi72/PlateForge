@@ -2232,11 +2232,41 @@ function measureText(text,fontPx,fontFamily,canvas_w,canvas_h){
   const ctx=oc.getContext('2d');
   ctx.font=`${fontPx}px ${fontFamily},sans-serif`;
   const m=ctx.measureText(text);
+  const left=m.actualBoundingBoxLeft||0;
+  const right=m.actualBoundingBoxRight||m.width;
   return{
     w:m.width,
+    inkW:left+right,
+    left,
+    right,
     ascent:m.actualBoundingBoxAscent||fontPx*.75,
     descent:m.actualBoundingBoxDescent||fontPx*.25,
   };
+}
+function horizontalTextBounds(anchorX,metrics,align){
+  if(align==='center')return{left:anchorX-metrics.left,right:anchorX+metrics.right};
+  if(align==='right')return{left:anchorX-metrics.w-metrics.left,right:anchorX-metrics.w+metrics.right};
+  return{left:anchorX-metrics.left,right:anchorX+metrics.right};
+}
+function textBoxPad(fontPx){return Math.max(4,fontPx*.035)}
+function textLinesBounds(anchorX,anchorY,lines,fontPx,fontFamily,align,vAlign){
+  const metrics=lines.map(line=>measureText(line||' ',fontPx,fontFamily,W,H));
+  const gap=fontPx*1.05;
+  if(!lines.length)return{left:anchorX,top:anchorY,right:anchorX+1,bottom:anchorY+1};
+  const blockH=lines.length===1?metrics[0].ascent+metrics[0].descent:
+    (lines.length-1)*gap+metrics[0].ascent+metrics[metrics.length-1].descent;
+  let yFirst=anchorY;
+  if(vAlign==='middle')yFirst=anchorY-blockH/2+metrics[0].ascent;
+  else if(vAlign==='bottom')yFirst=anchorY-blockH+metrics[0].ascent;
+  let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
+  metrics.forEach((m,i)=>{
+    const hb=horizontalTextBounds(anchorX,m,align);
+    const y=yFirst+i*gap;
+    left=Math.min(left,hb.left);right=Math.max(right,hb.right);
+    top=Math.min(top,y-m.ascent);bottom=Math.max(bottom,y+m.descent);
+  });
+  const pad=textBoxPad(fontPx);
+  return{left:left-pad,top:top-pad,right:right+pad,bottom:bottom+pad};
 }
 
 // pointer coords – works for mouse AND touch events
@@ -2282,27 +2312,15 @@ function getElementPlateBounds(key,anchor,opts){
   }
   if(key==='name'){
     const lines=nameText.split('\n');
-    const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
-    const bm=nameBlockMetrics(nameSz,lines.length);
-    const oc=document.createElement('canvas').getContext('2d');
-    oc.font=`${nameSz}px ${font},sans-serif`;
-    let maxW=0;
-    lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
-    const top=lineYs[0]-bm.asc;
-    const bot=lineYs[lines.length-1]+bm.des;
-    let left=platePos.x;
-    if(textAlign==='center')left-=maxW/2;
-    else if(textAlign==='right')left-=maxW;
-    return{left,top,right:left+maxW,bottom:bot};
+    return textLinesBounds(platePos.x,platePos.y,lines,nameSz,font,textAlign,vA);
   }
   if(key==='nr'){
     const text=String(p.nr||'');
     const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
     const m=measureText(text,nrSz,numberFont,W,H);
-    let left=platePos.x;
-    if(textAlign==='center')left-=m.w/2;
-    else if(textAlign==='right')left-=m.w;
-    return{left,top:baseline-m.ascent,right:left+m.w,bottom:baseline+m.descent};
+    const hb=horizontalTextBounds(platePos.x,m,textAlign);
+    const pad=textBoxPad(nrSz);
+    return{left:hb.left-pad,top:baseline-m.ascent-pad,right:hb.right+pad,bottom:baseline+m.descent+pad};
   }
   const lsz=(platePos.sz!=null?platePos.sz:(key==='logo2'?(logo2Sz||S.logo2Sz||90):logoSz))||logoSz;
   const img=logoImageForKey(key,opts);
@@ -2353,31 +2371,20 @@ function buildDragHandles(opts){
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
       if(item.key==='name'){
-        const lines=nameText.split('\n');
-        const lineYs=nameLinePlateYs(platePos.y,nameSz,lines,font,vA);
-        const bm=nameBlockMetrics(nameSz,lines.length);
-        const oc=document.createElement('canvas').getContext('2d');
-        oc.font=`${nameSz}px ${font},sans-serif`;
-        let maxW=0;
-        lines.forEach(line=>{maxW=Math.max(maxW,oc.measureText(line||' ').width)});
-        const top=lineYs[0]-bm.asc;
-        const bot=lineYs[lines.length-1]+bm.des;
-        pw=maxW*sc;ph=Math.max((bot-top)*sc,8);
-        const baseX=platePos.x*sc;
-        if(textAlign==='left')px=baseX;
-        else if(textAlign==='center')px=baseX-pw/2;
-        else px=baseX-pw;
-        py=top*sc;
+        const b=textLinesBounds(platePos.x,platePos.y,nameText.split('\n'),nameSz,font,textAlign,vA);
+        px=b.left*sc;py=b.top*sc;
+        pw=Math.max((b.right-b.left)*sc,8);
+        ph=Math.max((b.bottom-b.top)*sc,8);
       }else{
         const text=String(p.nr||'');
         const baseline=nrBaselinePlateY(platePos.y,nrSz,text,numberFont,vA);
         const m=measureText(text,item.fontSize,numberFont,W,H);
-        pw=m.w*sc;ph=(m.ascent+m.descent)*sc;
-        const baseX=platePos.x*sc,baseY=baseline*sc;
-        if(textAlign==='left')px=baseX;
-        else if(textAlign==='center')px=baseX-pw/2;
-        else px=baseX-pw;
-        py=baseY-m.ascent*sc;
+        const hb=horizontalTextBounds(platePos.x,m,textAlign);
+        const pad=textBoxPad(item.fontSize);
+        px=(hb.left-pad)*sc;
+        py=(baseline-m.ascent-pad)*sc;
+        pw=Math.max((hb.right-hb.left+pad*2)*sc,8);
+        ph=Math.max((m.ascent+m.descent+pad*2)*sc,8);
       }
     }else{
       const maxSide=item.fontSize;

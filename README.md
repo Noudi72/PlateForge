@@ -61,6 +61,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Vorlagen bearbeiten:** Beim Auswählen einer Vorlage wird ihr Name automatisch ins Feld **Name** übernommen. Änderungen können direkt mit **💾 Speichern** wieder unter derselben Vorlage gesichert werden.
 
+**Text-Boxen:** Name und Nummer werden mit echten Canvas-Glyph-Metriken (`actualBoundingBox…`) gemessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen.
+
 ### Badge & Grössen (Design)
 
 Alle Grössen-Regler sind unter **Design → Badge & Grössen** gebündelt: Badge-Form/-Farbe/-%, Nummer, Name, Logo 1/2, Rahmen, Deckkraft. Bei aktivem Badge gibt es zusätzlich **Nummer im Badge X/Y**, um Ziffern je nach Font optisch in der Form zu zentrieren.
