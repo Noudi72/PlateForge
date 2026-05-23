@@ -228,10 +228,10 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
         <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 JSON</button>
         <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="syncTemplatesFromJsonFolder(true)" title="Vorlagen aus dem JSON-Ordner neu laden">🔄</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="syncTemplatesFromJsonFolder(true)" title="Ordner Vorlagen json neu laden">🔄 Ordner</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
-          📥 Import
-          <input type="file" accept=".json,application/json" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
+          📥 Dateien
+          <input type="file" accept=".json,application/json" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
         </label>
       </div>
       <label class="tog-row" style="margin-bottom:6px;cursor:pointer">
@@ -615,11 +615,18 @@ const STATIC_ASSETS=[
 ].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
 const STATIC_TEMPLATE_JSON=[
   'plateforge_EHCB_v1.json',
+  'plateforge_EHCB_v2.json',
+  'plateforge_EHCB_v3.json',
+  'plateforge_EHCB_v4.json',
+  'plateforge_EHCB_v5.json',
+  'plateforge_EHCB_v6.json',
+  'plateforge_EHCB_v7.json',
+  'plateforge_EHCB_v8.json',
+  'plateforge_EHCB_v9.json',
   'plateforge_Team_Spirit_v1.json',
   'plateforge_Team_Spirit_v2.json',
   'plateforge_Team_Spirit_v3.json',
   'plateforge_Team_Spirit_v4.json',
-  'plateforge_vorlagen_2026-05-21.json',
 ].map(name=>({name,path:'Vorlagen json/'+name}));
 const STATIC_FONTS=[
   '28 Days Later.ttf','AGRESSIVE.otf','All Star Resort.ttf','Allstar4.ttf','AtlantaCollegeRegular-1Gva2.ttf','BaseballClubSolid-E4X69.ttf','Calvier.ttf','ChicagoAthleticSlabSerif2-8OjMn.ttf','Ethnocentric-Regular.otf','Freshman.ttf','HeadCapitalBoldGrunge-KV9RA.otf','Horizon Italic.otf','JackportRegularNcv-BeY3.ttf','JerseyM54-aLX9.ttf','OldSport02AthleticNcv-E0gj.ttf','Race Sport Free.ttf','SpaceX.ttf','SportingOutline-x3e85.ttf','SupportSports-E4Xvl.ttf','UniversidadPersonalUseBold-X3D6a.ttf','VarsityTeam-Bold.otf','Vtks Escape.ttf','ZingRustDemo-Base.otf','ZingRustLH1Demo-Fill.otf','beantown.regular.ttf','heroesassemble2.ttf','heroesassemble3d.ttf','heroesassemble3dital.ttf','heroesassembleexpandital2.ttf','heroesassemblegrad.ttf','heroesassemblegradital.ttf','nasalization-rg.ttf','soviet-program.regular.ttf','swera-demo.bold.otf','thunderstrike.ttf','thunderstrikehalf.ttf',
@@ -1927,26 +1934,25 @@ async function autoImportStaticTemplates(){
   return r;
 }
 function importTemplatesJson(inp){
-  const file=inp.files[0];if(!file)return;
-  const rd=new FileReader();
-  rd.onload=async()=>{
+  const files=Array.from(inp.files||[]);if(!files.length)return;
+  (async()=>{
     try{
-      const raw=JSON.parse(rd.result);
-      const incoming=normalizeImportedTemplates(raw);
-      if(!incoming||!incoming.length){showErr('Ungültige Vorlagen-Datei.');return}
-      const valid=incoming.filter(t=>t&&t.snap&&(t.name||t.snap.club));
-      if(!valid.length){showErr('Keine gültigen Vorlagen in der Datei.');return}
+      const valid=[];
+      for(const file of files){
+        const raw=JSON.parse(await file.text());
+        const incoming=normalizeImportedTemplates(raw)||[];
+        incoming.forEach(t=>{if(t&&t.snap&&(t.name||t.snap.club))valid.push(t)});
+      }
+      if(!valid.length){showErr('Keine gültigen Vorlagen in den Dateien.');return}
       const mode=confirm(
-        `${valid.length} Vorlage(n) gefunden.\n\nOK = hinzufügen / gleiche Namen überschreiben\nAbbrechen = Import abbrechen`
+        `${valid.length} Vorlage(n) in ${files.length} Datei(en) gefunden.\n\nOK = hinzufügen / gleiche Namen überschreiben\nAbbrechen = Import abbrechen`
       );
       if(!mode)return;
       const r=await upsertImportedTemplates(valid,{label:'Import'});
-      if(r.ok)showOk(`Import: ${r.added} neu, ${r.over} aktualisiert.`);
-      buildTplGrid();renderUserTplList();
+      applyImportResult(r,'Import');
     }catch(e){showErr('JSON konnte nicht gelesen werden: '+e.message)}
-    inp.value='';
-  };
-  rd.readAsText(file);
+    finally{inp.value=''}
+  })();
 }
 
 // ══════════════════════════════════════════

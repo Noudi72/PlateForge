@@ -44,7 +44,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die JSON-Dateien direkt dorthin (Chrome/Edge). Beim Start werden JSON-Dateien aus diesem Ordner automatisch importiert/aktualisiert.
 
-**Vorlagen neu laden:** Mit **🔄** neben den JSON-Buttons wird der verbundene Ordner `Vorlagen json` sofort neu eingelesen. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
+**Vorlagen neu laden:** Mit **🔄 Ordner** wird der verbundene Ordner `Vorlagen json` sofort neu eingelesen (Ordner wählen, nicht einzelne Datei). Mit **📥 Dateien** können eine oder mehrere `.json`-Dateien direkt ausgewählt werden. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
 
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Deshalb werden Bilddaten nicht mehr dauerhaft in der Vorlagenliste gehalten, sondern in IndexedDB/JSON ausgelagert — dadurch sind deutlich mehr Vorlagen möglich.
 

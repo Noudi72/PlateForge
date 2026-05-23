@@ -1,12 +1,12 @@
 {
   "plateforge": 1,
-  "exported": 1779353320086,
+  "exported": 1779360707374,
   "app": "PlateForge",
   "templates": [
     {
       "id": "ut_1779344160377_7qw9",
       "name": "Team Spirit v1",
-      "updated": 1779353320086,
+      "updated": 1779360707374,
       "snap": {
         "tpl": 0,
         "c": {
@@ -17,6 +17,7 @@
           "nrc": "#ffb43f"
         },
         "font": "'Russo One'",
+        "nrFont": "",
         "layout": "L",
         "textAlign": "center",
         "textVAlign": "middle",

@@ -1,12 +1,12 @@
 {
   "plateforge": 1,
-  "exported": 1779353332176,
+  "exported": 1779530777270,
   "app": "PlateForge",
   "templates": [
     {
       "id": "ut_1779344160377_ti0o",
       "name": "Team Spirit v2",
-      "updated": 1779353332176,
+      "updated": 1779530777270,
       "snap": {
         "tpl": 0,
         "c": {
@@ -17,6 +17,7 @@
           "nrc": "#8B0000"
         },
         "font": "'Saira Condensed'",
+        "nrFont": "",
         "layout": "L",
         "textAlign": "center",
         "textVAlign": "middle",
@@ -25,14 +26,16 @@
         "badgeFillOp": 1,
         "badgeBorderColor": "#8B0000",
         "badgeScale": 108,
-        "badgeNrDx": 0,
-        "badgeNrDy": 0,
+        "badgeNrDx": 1,
+        "badgeNrDy": 29,
         "nameMode": "last",
         "userTplId": "ut_1779344160377_ti0o",
         "logoSz": 322,
         "logo2Sz": 208,
         "nameSz": 216,
         "nrSz": 226,
+        "textBoxPadX": 0,
+        "textBoxPadY": 0,
         "frameW": 0,
         "bgOp": 0.6,
         "logoOp": 1,

@@ -1,12 +1,12 @@
 {
   "plateforge": 1,
-  "exported": 1779353341299,
+  "exported": 1779361453431,
   "app": "PlateForge",
   "templates": [
     {
       "id": "ut_1779344160377_p4tb",
       "name": "Team Spirit v3",
-      "updated": 1779353341299,
+      "updated": 1779361453431,
       "snap": {
         "tpl": 0,
         "c": {
@@ -16,7 +16,8 @@
           "nc": "#FFFFFF",
           "nrc": "#ffb43f"
         },
-        "font": "'Black Ops One'",
+        "font": "'PF_STATIC_SpaceX'",
+        "nrFont": "'Russo One'",
         "layout": "L",
         "textAlign": "center",
         "textVAlign": "middle",
@@ -29,16 +30,16 @@
         "badgeNrDy": 0,
         "nameMode": "last",
         "userTplId": "ut_1779344160377_p4tb",
-        "logoSz": 405,
+        "logoSz": 352,
         "logo2Sz": 298,
-        "nameSz": 148,
+        "nameSz": 146,
         "nrSz": 311,
         "frameW": 0,
         "bgOp": 0.6,
         "logoOp": 1,
         "frame": false,
         "screws": false,
-        "bar": true,
+        "bar": false,
         "logoBand": false,
         "showGuides": true,
         "showSafeMargin": true,
@@ -48,7 +49,7 @@
         "shadowOn": false,
         "glowOn": false,
         "glowColor": "#00BFFF",
-        "shBlur": 10,
+        "shBlur": 40,
         "shDist": 4,
         "glowSize": 26,
         "club": "EHC BIEL-BIENNE",
@@ -56,17 +57,17 @@
         "pos": {
           "name": {
             "x": 1000,
-            "y": 438.33333333333337
+            "y": 419.12565026010407
           },
           "logo2": {
-            "x": 1821,
-            "y": 275,
+            "x": 1800,
+            "y": 183.33333333333334,
             "sz": 298
           },
           "logo": {
-            "x": 197.4633431085044,
-            "y": 275,
-            "sz": 405
+            "x": 178.39135654261705,
+            "y": 208.4903961584634,
+            "sz": 352
           },
           "nr": {
             "x": 1000,
