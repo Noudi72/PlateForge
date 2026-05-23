@@ -1111,6 +1111,7 @@ function drawTemplatePreview(cv,opts,pos){
   S.logoSz=opts.logoSz??S.logoSz;
   S.logo2Sz=opts.logo2Sz??S.logo2Sz;
   try{drawPlate(cv,cv.width,cv.height,opts,false)}
+  catch(e){console.warn('Vorlagen-Vorschau konnte nicht gerendert werden',e)}
   finally{Object.assign(S,keep)}
 }
 function repoTplId(item){return 'repo:'+item.name}
@@ -1158,28 +1159,6 @@ function buildTplGrid(){
     const thumbOpts={...S,...player,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false};
     drawTemplatePreview(cv,thumbOpts,{});
   });
-  loadUserTemplates().forEach(ut=>{
-    const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
-    wrap.dataset.user=ut.id;
-    wrap.onclick=()=>loadUserTemplate(ut.id);
-    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
-    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
-    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const s=ut.snap;
-    const baseOpts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo:null,logo2:null,bgImg:null,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
-    drawTemplatePreview(cv,baseOpts,s.pos);
-    (async()=>{
-      const enriched=await enrichSnapFromAssetIdb(s,ut.id);
-      const [logo,logo2,bgImg]=await Promise.all([
-        loadThumbImage(enriched.logoData),
-        loadThumbImage(enriched.logo2Data),
-        loadThumbImage(enriched.bgData),
-      ]);
-      if(run!==_tplGridRenderRun||!cv.isConnected)return;
-      const imgOpts={...baseOpts,logo,logo2,bgImg,logoIsSvg:!!enriched.logoIsSvg,logo2IsSvg:!!enriched.logo2IsSvg,bgOp:enriched.bgOp??baseOpts.bgOp};
-      drawTemplatePreview(cv,imgOpts,enriched.pos||s.pos);
-    })();
-  });
   STATIC_TEMPLATE_JSON.forEach(item=>{
     const id=repoTplId(item);
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===id?' on':'');
@@ -1190,6 +1169,31 @@ function buildTplGrid(){
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
     drawRepoTemplateCard(item,cv,lbl,run,player);
+  });
+  loadUserTemplates().forEach(ut=>{
+    if(!ut||!ut.snap)return;
+    const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
+    wrap.dataset.user=ut.id;
+    wrap.onclick=()=>loadUserTemplate(ut.id);
+    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
+    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
+    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    const s=ut.snap;
+    let baseOpts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo:null,logo2:null,bgImg:null,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
+    drawTemplatePreview(cv,baseOpts,s.pos);
+    (async()=>{
+      try{
+        const enriched=await enrichSnapFromAssetIdb(s,ut.id);
+        const [logo,logo2,bgImg]=await Promise.all([
+          loadThumbImage(enriched.logoData),
+          loadThumbImage(enriched.logo2Data),
+          loadThumbImage(enriched.bgData),
+        ]);
+        if(run!==_tplGridRenderRun||!cv.isConnected)return;
+        const imgOpts={...baseOpts,logo,logo2,bgImg,logoIsSvg:!!enriched.logoIsSvg,logo2IsSvg:!!enriched.logo2IsSvg,bgOp:enriched.bgOp??baseOpts.bgOp};
+        drawTemplatePreview(cv,imgOpts,enriched.pos||s.pos);
+      }catch(e){console.warn('Gespeicherte Vorlage konnte nicht als Vorschau geladen werden',ut&&ut.name,e)}
+    })();
   });
 }
 async function loadRepoTemplateByItem(item){
