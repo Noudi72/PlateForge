@@ -1085,6 +1085,7 @@ function removeSavedFont(i,e){
 // TEMPLATES
 // ══════════════════════════════════════════
 let _tplGridRenderRun=0;
+const _repoTplCache=new Map();
 function loadThumbImage(src){
   return new Promise(resolve=>{
     if(!src){resolve(null);return}
@@ -1107,6 +1108,37 @@ function drawTemplatePreview(cv,opts,pos){
   S.logo2Sz=opts.logo2Sz??S.logo2Sz;
   try{drawPlate(cv,cv.width,cv.height,opts,false)}
   finally{Object.assign(S,keep)}
+}
+function repoTplId(item){return 'repo:'+item.name}
+async function loadRepoTemplate(item){
+  const id=repoTplId(item);
+  if(_repoTplCache.has(id))return _repoTplCache.get(id);
+  const res=await fetch(encodeURI(item.path),{cache:'no-store'});
+  if(!res.ok)throw new Error(item.name+' nicht gefunden');
+  const incoming=normalizeImportedTemplates(await res.json())||[];
+  const t=incoming.find(x=>x&&x.snap&&(x.name||x.snap.club));
+  if(!t)throw new Error(item.name+' enthält keine Vorlage');
+  const tpl={id,name:String(t.name||item.name.replace(/\.json$/,'')),updated:t.updated||0,snap:t.snap};
+  _repoTplCache.set(id,tpl);
+  return tpl;
+}
+async function drawRepoTemplateCard(item,cv,lbl,run,player){
+  try{
+    const t=await loadRepoTemplate(item);
+    if(run!==_tplGridRenderRun||!cv.isConnected)return;
+    lbl.textContent=t.name;
+    const s=t.snap||{};
+    const [logo,logo2,bgImg]=await Promise.all([
+      loadThumbImage(s.logoData),
+      loadThumbImage(s.logo2Data),
+      loadThumbImage(s.bgData),
+    ]);
+    if(run!==_tplGridRenderRun||!cv.isConnected)return;
+    const opts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo,logo2,bgImg,logoIsSvg:!!s.logoIsSvg,logo2IsSvg:!!s.logo2IsSvg,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
+    drawTemplatePreview(cv,opts,s.pos);
+  }catch(e){
+    lbl.textContent=item.name.replace(/\.json$/,'');
+  }
 }
 function buildTplGrid(){
   const run=++_tplGridRenderRun;
@@ -1144,6 +1176,28 @@ function buildTplGrid(){
       drawTemplatePreview(cv,imgOpts,enriched.pos||s.pos);
     })();
   });
+  STATIC_TEMPLATE_JSON.forEach(item=>{
+    const id=repoTplId(item);
+    const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===id?' on':'');
+    wrap.dataset.repo=id;
+    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
+    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=item.name.replace(/\.json$/,'');
+    wrap.onclick=()=>loadRepoTemplateByItem(item);
+    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
+    drawRepoTemplateCard(item,cv,lbl,run,player);
+  });
+}
+async function loadRepoTemplateByItem(item){
+  try{
+    const t=await loadRepoTemplate(item);
+    S.userTplId=repoTplId(item);
+    await applyDesignSnapshot(t.snap,{restoreImages:true});
+    document.getElementById('tplName').textContent=t.name.toUpperCase();
+    setTemplateNameInput(t.name);
+    document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.repo===S.userTplId));
+    persistSession();
+  }catch(e){showErr('Repo-Vorlage konnte nicht geladen werden: '+(e.message||e))}
 }
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
@@ -3299,7 +3353,6 @@ window.addEventListener('load',async()=>{
   restoreRoster();
   await restoreSession();
   await initJsonExportDir();
-  await autoImportStaticTemplates();
   await initLocalFolders();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
