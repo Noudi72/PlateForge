@@ -63,6 +63,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Echte Vorschau:** Die Vorlagen-Kacheln werden als kleine komplette Schilder gerendert, inklusive gespeicherter Logos, Hintergründe, Positionen, Badge und aktuellem Spielertext.
 
+**Scrollbare Design-Seite:** Die linke Design-Spalte scrollt unabhängig vom Editor, auch wenn viele grosse Vorschau-Kacheln vorhanden sind.
+
 **Text-Boxen:** Name und Nummer werden direkt aus dem tatsächlich gerenderten Canvas-Text pixelgenau vermessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen. Über **Textbox-Rand X/Y** kann der Rahmen je Vorlage zusätzlich vergrössert oder verkleinert werden.
 
 ### Badge & Grössen (Design)

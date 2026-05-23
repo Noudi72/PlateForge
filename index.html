@@ -30,11 +30,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Rajdhani',sans-serif;fon
 .app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px)}
 
 /* SIDEBAR */
-.sidebar{width:var(--sidebar-w,290px);min-width:260px;max-width:min(720px,65vw);background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;position:relative}
+.sidebar{width:var(--sidebar-w,290px);min-width:260px;max-width:min(720px,65vw);background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
 .sidebar-resizer{width:8px;align-self:stretch;flex:0 0 8px;cursor:col-resize;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(240,165,0,.08),rgba(255,255,255,.02));border-right:1px solid var(--bdr);position:relative;z-index:50}
 .sidebar-resizer:hover,.sidebar-resizer.drag{background:rgba(240,165,0,.22)}
 body.resizing-sidebar{cursor:col-resize;user-select:none}
-.sb-sec{border-bottom:1px solid var(--bdr);padding:11px 13px}
+.sb-sec{border-bottom:1px solid var(--bdr);padding:11px 13px;flex:0 0 auto}
 .sb-ttl{font-family:'Oswald',sans-serif;font-size:.64rem;letter-spacing:3px;color:var(--mut);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .sb-ttl::after{content:'';flex:1;height:1px;background:var(--bdr)}
 .fg{margin-bottom:8px}.fl{display:block;font-size:.68rem;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;margin-bottom:3px}
@@ -162,7 +162,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .side-tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .side-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--mut);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:.75rem;letter-spacing:1px;padding:8px 4px;cursor:pointer;transition:all .15s;text-align:center}
 .side-tab:hover{color:var(--txt)}.side-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
-.side-panel{display:none;flex-direction:column;overflow-y:auto;flex:1}.side-panel.on{display:flex}
+.side-panel{display:none;flex-direction:column;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}.side-panel.on{display:flex}
 
 /* BATCH */
 .batch-wrap{padding:20px;flex:1;overflow-y:auto}
