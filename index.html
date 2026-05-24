@@ -116,6 +116,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .tpl-card:hover{border-color:var(--gold)}.tpl-card.on{border-color:var(--gold);box-shadow:0 0 8px rgba(240,165,0,.3)}
 .tpl-card canvas{width:100%;height:100%;display:block}
 .tpl-lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.72);font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:#fff;padding:1px 3px;text-align:center}
+.tpl-del{position:absolute;top:3px;right:3px;width:17px;height:17px;border:0;border-radius:50%;background:rgba(0,0,0,.72);color:#fff;font-size:.72rem;line-height:17px;cursor:pointer;opacity:0;transition:opacity .12s}
+.tpl-card:hover .tpl-del{opacity:1}.tpl-del:hover{background:var(--acc)}
 
 /* MAIN */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -230,7 +232,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 JSON</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 Master-JSON</button>
         <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁</button>
         <button class="btn btn-g btn-sm" type="button" onclick="syncTemplatesFromJsonFolder(true)" title="Ordner Vorlagen json neu laden">🔄 Ordner</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
@@ -244,7 +246,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </label>
       <div id="jsonExportDirInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        <strong>3-fach für Bilder:</strong> IndexedDB (automatisch) · Vorlage 💾 · JSON in <strong>Vorlagen json</strong> (📁 einmal wählen). Session = Layout/Positionen.
+        <strong>Backup:</strong> 💾 aktualisiert die Vorlage und schreibt ein Master-JSON <strong>plateforge_vorlagen_master.json</strong> mit allen Vorlagen/Bildern (📁 einmal wählen).
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut);max-height:210px;overflow-y:auto">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -560,7 +562,13 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     <div class="batch-wrap">
       <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:4px;color:var(--gold)">Team-Export</div>
       <div style="color:var(--mut);font-size:.8rem;margin-bottom:10px">Alle Schilder mit aktueller Vorlage</div>
-      <div style="display:flex;gap:7px">
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+        <select class="fi" id="selBatchFilter" style="width:auto;min-width:170px" onchange="renderBatch();persistSession()">
+          <option value="all">Alle Spieler</option>
+          <option value="goalies">Nur Goalies</option>
+          <option value="defenders">Nur Verteidiger</option>
+          <option value="forwards">Nur Stürmer</option>
+        </select>
         <button class="btn btn-y btn-sm" onclick="renderBatch()">🔄 Rendern</button>
         <button class="btn btn-r btn-sm" onclick="exportAll()" id="btnBatchExportAll">📦 Alle exportieren</button>
       </div>
@@ -658,7 +666,7 @@ const S={
   badge:'none',badgeColor:'#C8102E',badgeFillOp:1,badgeBorderColor:'#FFFFFF',badgeScale:72,badgeNrDx:0,badgeNrDy:0,
   userTplId:null,
   // export
-  exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,
+  exportScale:1,exportFormat:'png',pdfSheet:'a4',pdfCutMarks:true,pdfIncludeSingle:true,batchFilter:'all',
   // currently selected drag element (for keyboard nudging)
   sel:null,
   club:'EHC BIEL-BIENNE',leagueTxt:'NATIONAL LEAGUE',
@@ -1178,6 +1186,10 @@ function buildTplGrid(){
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    const del=document.createElement('button');
+    del.type='button';del.className='tpl-del';del.title='Vorlage löschen';del.textContent='×';
+    del.onclick=e=>deleteUserTemplate(ut.id,e);
+    wrap.appendChild(del);
     const s=ut.snap;
     let baseOpts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo:null,logo2:null,bgImg:null,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
     drawTemplatePreview(cv,baseOpts,s.pos);
@@ -1282,7 +1294,7 @@ function getDesignSnapshotBase(){
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
     club:getVal('iClub'),leagueTxt:getVal('iLeague'),
     pos:JSON.parse(JSON.stringify(S.pos||{})),
-    exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,pdfIncludeSingle:S.pdfIncludeSingle!==false,
+    exportScale:S.exportScale,exportFormat:S.exportFormat,pdfSheet:S.pdfSheet||'a4',pdfCutMarks:S.pdfCutMarks!==false,pdfIncludeSingle:S.pdfIncludeSingle!==false,batchFilter:S.batchFilter||'all',
   };
 }
 async function buildDesignSnapshot(includeImages){
@@ -1440,6 +1452,7 @@ function applyStateToUI(){
   document.getElementById('selExpScale').value=S.exportScale;
   document.getElementById('selExpFormat').value=S.exportFormat;
   const ps=document.getElementById('selPdfSheet');if(ps)ps.value=S.pdfSheet||'a4';
+  const bf=document.getElementById('selBatchFilter');if(bf)bf.value=S.batchFilter||'all';
   const cm=document.getElementById('togPdfCutMarks');if(cm)cm.classList.toggle('on',S.pdfCutMarks!==false);
   const ps1=document.getElementById('togPdfSingle');if(ps1)ps1.classList.toggle('on',S.pdfIncludeSingle!==false);
   syncExportUi();
@@ -1489,6 +1502,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
   S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';
   S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;S.pdfIncludeSingle=snap.pdfIncludeSingle!==false;
+  S.batchFilter=snap.batchFilter||S.batchFilter||'all';
   persistActiveFont();
   applyStateToUI();
   setBadge(S.badge);
@@ -1533,7 +1547,8 @@ async function applyDesignSnapshot(snap,opts={}){
 async function saveUserTemplate(){
   const name=(getVal('userTplName')||'').trim();
   if(!name){alert('Bitte einen Namen für die Vorlage eingeben.');return}
-  const include=document.getElementById('userTplIncImg').checked;
+  const include=true;
+  const inc=document.getElementById('userTplIncImg');if(inc)inc.checked=true;
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
   if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
@@ -1556,8 +1571,8 @@ async function saveUserTemplate(){
   showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder in IndexedDB + JSON)':'')+jsonNote);
 }
 async function autoBackupTemplateJson(entry){
-  const fname='plateforge_'+safeName(entry.name)+'.json';
-  const payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[entry]};
+  const fname='plateforge_vorlagen_master.json';
+  const payload=await buildMasterTemplatesPayload(entry);
   if(await writeJsonToExportDir(fname,JSON.stringify(payload,null,2)))return' → auch in Vorlagen json/';
   return'';
 }
@@ -1578,13 +1593,16 @@ async function loadUserTemplate(id){
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
   persistSession();
 }
-function deleteUserTemplate(id,e){
+async function deleteUserTemplate(id,e){
   e.stopPropagation();
   if(!confirm('Vorlage löschen?'))return;
   const list=loadUserTemplates().filter(t=>t.id!==id);
   persistUserTemplates(list);
+  const k=assetKeySet(id);
+  await idbAssetDel(k.logo);await idbAssetDel(k.logo2);await idbAssetDel(k.bg);
   if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
   buildTplGrid();renderUserTplList();render();
+  await writeJsonToExportDir('plateforge_vorlagen_master.json',JSON.stringify(await buildMasterTemplatesPayload(),null,2));
 }
 function setTemplateNameInput(name){
   const inp=document.getElementById('userTplName');
@@ -1753,6 +1771,20 @@ function buildTemplatesExportPayload(onlyId){
   if(onlyId)list=list.filter(t=>t.id===onlyId);
   return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:list};
 }
+async function buildMasterTemplatesPayload(extraEntry){
+  const byId=new Map();
+  loadUserTemplates().forEach(t=>byId.set(t.id,t));
+  if(extraEntry)byId.set(extraEntry.id,extraEntry);
+  const templates=[];
+  for(const t of byId.values()){
+    let snap=t.snap?await enrichSnapFromAssetIdb(t.snap,t.id):getDesignSnapshotBase();
+    if(extraEntry&&extraEntry.id===t.id&&extraEntry.snap)snap=extraEntry.snap;
+    snap=await compressSnapForStorage(snap);
+    templates.push({...t,snap});
+  }
+  templates.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',backupType:'master',templates};
+}
 async function exportTemplatesJson(onlyId){
   try{
     const list=loadUserTemplates();
@@ -1766,16 +1798,22 @@ async function exportTemplatesJson(onlyId){
       if(!await saveJsonExport({plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:[{id:'ut_export',name,updated:Date.now(),snap}]},fname))return;
       return;
     }
-    let templates=onlyId?list.filter(t=>t.id===onlyId):[...list];
-    templates=await Promise.all(templates.map(async t=>{
-      let snap=t.snap?await enrichSnapFromAssetIdb(t.snap,t.id):getDesignSnapshotBase();
-      if(includeImg&&(snap.logoData||snap.logo2Data||snap.bgData))snap=await compressSnapForStorage(snap);
-      else if(!includeImg)snap=stripSnapImages(snap);
-      return{...t,snap};
-    }));
-    const payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates};
-    const one=templates[0];
-    const fname=onlyId&&one?'plateforge_'+safeName(one.name)+'.json':'plateforge_vorlagen_'+new Date().toISOString().slice(0,10)+'.json';
+    let payload,fname;
+    if(onlyId){
+      let templates=list.filter(t=>t.id===onlyId);
+      templates=await Promise.all(templates.map(async t=>{
+        let snap=t.snap?await enrichSnapFromAssetIdb(t.snap,t.id):getDesignSnapshotBase();
+        if(includeImg&&(snap.logoData||snap.logo2Data||snap.bgData))snap=await compressSnapForStorage(snap);
+        else if(!includeImg)snap=stripSnapImages(snap);
+        return{...t,snap};
+      }));
+      const one=templates[0];
+      payload={plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates};
+      fname=one?'plateforge_'+safeName(one.name)+'.json':'plateforge_vorlage.json';
+    }else{
+      payload=await buildMasterTemplatesPayload();
+      fname='plateforge_vorlagen_master.json';
+    }
     if(!await saveJsonExport(payload,fname))return;
   }catch(e){showErr('JSON-Export: '+(e.message||e))}
 }
@@ -3256,13 +3294,37 @@ async function exportPrintPdfCurrent(){
     showOk(`PDF ${(S.pdfSheet||'a4').toUpperCase()} gespeichert.`);
   }catch(e){showErr('PDF-Export: '+(e.message||e))}
 }
+function playerCategory(p){
+  const pos=String((p&&((p.playerPos!=null?p.playerPos:p.pos)||''))||'').trim().toUpperCase();
+  if(/^(G|GK|GOALIE|GOAL|TOR|TORHÜTER|TORHUETER)$/.test(pos))return'goalies';
+  if(/^(D|LD|RD|DEF|DEFENSE|DEFENCE|VERTEIDIGER|VERTEIDIGUNG)$/.test(pos))return'defenders';
+  return'forwards';
+}
+function getBatchFilter(){
+  const el=document.getElementById('selBatchFilter');
+  const v=el?el.value:(S.batchFilter||'all');
+  S.batchFilter=v||'all';
+  return S.batchFilter;
+}
+function filteredRoster(){
+  const f=getBatchFilter();
+  if(f==='all')return S.roster;
+  return S.roster.filter(p=>playerCategory(p)===f);
+}
+function batchFilterLabel(){
+  return{all:'alle Spieler',goalies:'Goalies',defenders:'Verteidiger',forwards:'Stürmer'}[getBatchFilter()]||'Spieler';
+}
 async function exportAllPdf(){
-  const layout=await buildPdfFromPlayers(S.roster,safeName(S.club||'team')+'_nameplates.pdf');
+  const players=filteredRoster();
+  if(!players.length){showWarn('Keine Spieler für Filter: '+batchFilterLabel());return}
+  const layout=await buildPdfFromPlayers(players,safeName(S.club||'team')+'_'+safeName(batchFilterLabel())+'_nameplates.pdf');
   const canva=layout.singleCount?` + ${layout.singleCount} Einzelseiten (Canva)`:'';
-  showOk(`${S.roster.length} Schilder: ${layout.tiledPages} ${layout.sheet.toUpperCase()}-Bogen${canva}.`);
+  showOk(`${players.length} Schilder (${batchFilterLabel()}): ${layout.tiledPages} ${layout.sheet.toUpperCase()}-Bogen${canva}.`);
 }
 async function exportAll(){
   if(!S.roster.length){alert('Kein Roster!');return}
+  const players=filteredRoster();
+  if(!players.length){showWarn('Keine Spieler für Filter: '+batchFilterLabel());return}
   const fmt=S.exportFormat;
   if(fmt==='pdf'){
     try{await exportAllPdf()}
@@ -3272,18 +3334,18 @@ async function exportAll(){
   const mime=fmt==='jpg'?'image/jpeg':'image/png';
   if(typeof JSZip!=='undefined'){
     const zip=new JSZip();
-    S.roster.forEach((p,i)=>{
+    players.forEach((p,i)=>{
       const data=renderExportCanvas(p).toDataURL(mime,.95).split(',')[1];
       zip.file(exportFileName(p,String(i+1).padStart(2,'0')+'_')+'.'+fmt,data,{base64:true});
     });
     zip.generateAsync({type:'blob'}).then(blob=>{
       const a=document.createElement('a');
       a.href=URL.createObjectURL(blob);
-      a.download=safeName(S.club||'team')+'_nameplates.zip';
+      a.download=safeName(S.club||'team')+'_'+safeName(batchFilterLabel())+'_nameplates.zip';
       a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
     }).catch(()=>alert('ZIP-Export fehlgeschlagen.'));
   }else{
-    S.roster.forEach((p,i)=>setTimeout(()=>{
+    players.forEach((p,i)=>setTimeout(()=>{
       dlCv(renderExportCanvas(p),exportFileName(p,String(i+1).padStart(2,'0')+'_')+'.'+fmt);
     },i*250));
   }
@@ -3330,8 +3392,10 @@ function initSidebarResize(){
 function renderBatch(){
   const g=document.getElementById('batchGrid');g.innerHTML='';
   if(!S.roster.length){g.innerHTML='<p style="color:var(--mut);padding:14px">Kein Roster.</p>';return}
+  const players=filteredRoster();
+  if(!players.length){g.innerHTML='<p style="color:var(--mut);padding:14px">Keine Spieler für Filter: '+batchFilterLabel()+'.</p>';return}
   const opts=readSizeOpts();
-  S.roster.forEach(p=>{
+  players.forEach(p=>{
     const bw=560,bh=Math.round(H*(bw/W));
     const wrap=document.createElement('div');wrap.className='batch-item';
     const cv=document.createElement('canvas');cv.width=bw;cv.height=bh;

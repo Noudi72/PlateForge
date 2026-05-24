@@ -42,9 +42,11 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die JSON-Dateien direkt dorthin (Chrome/Edge). Beim Start werden JSON-Dateien aus diesem Ordner automatisch importiert/aktualisiert.
+**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
 **Vorlagen neu laden:** Mit **🔄 Ordner** wird der verbundene Ordner `Vorlagen json` sofort neu eingelesen (Ordner wählen, nicht einzelne Datei). Mit **📥 Dateien** können eine oder mehrere `.json`-Dateien direkt ausgewählt werden. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
+
+**Vorlagen löschen:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Das Master-JSON wird danach aktualisiert.
 
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Deshalb werden Bilddaten nicht mehr dauerhaft in der Vorlagenliste gehalten, sondern in IndexedDB/JSON ausgelagert — dadurch sind deutlich mehr Vorlagen möglich.
 
@@ -62,6 +64,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 **Sidebar:** Die linke Seitenleiste ist am rechten Rand ziehbar; die Breite wird im Browser gespeichert. Praktisch für lange Font-Namen im Schrift-Kachelraster.
 
 **Vorlagen bearbeiten:** Beim Auswählen einer Vorlage wird ihr Name automatisch ins Feld **Name** übernommen. Änderungen können direkt mit **💾 Speichern** wieder unter derselben Vorlage gesichert werden.
+
+**Batch-Filter:** Im Batch-Bereich kann der Export auf **alle Spieler**, **Goalies**, **Verteidiger** oder **Stürmer** begrenzt werden.
 
 **Echte Vorschau:** Die Vorlagen-Kacheln werden als kleine komplette Schilder gerendert, inklusive gespeicherter Logos, Hintergründe, Positionen, Badge und aktuellem Spielertext.
 
