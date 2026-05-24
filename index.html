@@ -651,21 +651,7 @@ const STATIC_ASSETS=[
   'background 1.png','background 2.png','background 3.png','background 6.png','background 7.png','background 8.png','background 9.png','background 10.png','background 11.png','background 12.png','background 13.png','background 14.png','background 15.png','background 16.png','background 17.png','background 18.png','background 19.png','background 20.png','background 21.png','background 22.png','background 23.png','background 24.png','background 25.png','background 26.png','background 27.svg','background 28.webp','background 29.png','background 72.png',
   'EHCB Logo.png','EHCB Logo.svg','EHCB Logo.webp','EHCB_Spirit Viking.PNG','Logo Spirit.png','Logo VK.png','Logo VK 1.png','Logo VK.svg','Logo_EHCB.png','Spirit Viking.PNG','Spirit Viking 3x.webp',
 ].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
-const STATIC_TEMPLATE_JSON=[
-  'plateforge_EHCB_v1.json',
-  'plateforge_EHCB_v2.json',
-  'plateforge_EHCB_v3.json',
-  'plateforge_EHCB_v4.json',
-  'plateforge_EHCB_v5.json',
-  'plateforge_EHCB_v6.json',
-  'plateforge_EHCB_v7.json',
-  'plateforge_EHCB_v8.json',
-  'plateforge_EHCB_v9.json',
-  'plateforge_Team_Spirit_v1.json',
-  'plateforge_Team_Spirit_v2.json',
-  'plateforge_Team_Spirit_v3.json',
-  'plateforge_Team_Spirit_v4.json',
-].map(name=>({name,path:'Vorlagen json/'+name}));
+const STATIC_MASTER_TEMPLATES='Vorlagen json/plateforge_vorlagen_master.json';
 const STATIC_FONTS=[
   '28 Days Later.ttf','AGRESSIVE.otf','All Star Resort.ttf','Allstar4.ttf','AtlantaCollegeRegular-1Gva2.ttf','BaseballClubSolid-E4X69.ttf','Calvier.ttf','ChicagoAthleticSlabSerif2-8OjMn.ttf','Ethnocentric-Regular.otf','Freshman.ttf','HeadCapitalBoldGrunge-KV9RA.otf','Horizon Italic.otf','JackportRegularNcv-BeY3.ttf','JerseyM54-aLX9.ttf','OldSport02AthleticNcv-E0gj.ttf','Race Sport Free.ttf','SpaceX.ttf','SportingOutline-x3e85.ttf','SupportSports-E4Xvl.ttf','UniversidadPersonalUseBold-X3D6a.ttf','VarsityTeam-Bold.otf','Vtks Escape.ttf','ZingRustDemo-Base.otf','ZingRustLH1Demo-Fill.otf','beantown.regular.ttf','heroesassemble2.ttf','heroesassemble3d.ttf','heroesassemble3dital.ttf','heroesassembleexpandital2.ttf','heroesassemblegrad.ttf','heroesassemblegradital.ttf','nasalization-rg.ttf','soviet-program.regular.ttf','swera-demo.bold.otf','thunderstrike.ttf','thunderstrikehalf.ttf',
 ].map(name=>({name:name.replace(/\.[^.]+$/,''),path:'Fonts/'+name}));
@@ -1329,9 +1315,7 @@ function buildTplGrid(){
   const run=++_tplGridRenderRun;
   const g=document.getElementById('tplGrid');g.innerHTML='';
   const player=thumbPlayer();
-  const hiddenRepo=loadHiddenRepoTemplates();
   const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
-  const userNames=new Set(userTemplates.map(t=>String(t.name||'').trim().toLowerCase()));
   TMPL.map((t,i)=>({t,i})).sort((a,b)=>compareTemplateNames(a.t.name,b.t.name)).forEach(({t,i})=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
@@ -1341,23 +1325,6 @@ function buildTplGrid(){
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     const thumbOpts=previewOptsFromSnap({tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},badge:'none'},player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,thumbOpts,{});
-  });
-  [...STATIC_TEMPLATE_JSON].sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(item=>{
-    const id=repoTplId(item);
-    if(userNames.has(repoTplDisplayName(item).toLowerCase()))return;
-    if(hiddenRepo.has(id))return;
-    const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===id?' on':'');
-    wrap.dataset.repo=id;
-    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
-    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=repoTplDisplayName(item);
-    wrap.onclick=()=>loadRepoTemplateByItem(item);
-    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const del=document.createElement('button');
-    del.type='button';del.className='tpl-del';del.title='Repo-Vorlage ausblenden';del.textContent='×';
-    del.onclick=e=>hideRepoTemplate(id,e);
-    wrap.appendChild(del);
-    drawTemplatePreview(cv,previewOptsFromSnap({badge:'none'},player,{logo:null,logo2:null,bgImg:null}),{});
-    drawRepoTemplateCard(item,cv,lbl,run,player);
   });
   userTemplates.sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(ut=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
@@ -2359,19 +2326,16 @@ async function syncTemplatesFromJsonFolder(forcePicker,dir){
   return r;
 }
 async function autoImportStaticTemplates(){
-  const valid=[];
-  for(const item of STATIC_TEMPLATE_JSON){
-    try{
-      const res=await fetch(encodeURI(item.path),{cache:'no-store'});
-      if(!res.ok)continue;
-      const incoming=normalizeImportedTemplates(await res.json())||[];
-      incoming.forEach(t=>{if(t&&t.snap&&(t.name||t.snap.club))valid.push(t)});
-    }catch(e){}
-  }
-  if(!valid.length)return null;
-  const r=await upsertImportedTemplates(valid,{label:'Repo-Vorlagen',skipOlder:true});
-  applyImportResult(r,'Repo-Vorlagen');
-  return r;
+  try{
+    const res=await fetch(encodeURI(STATIC_MASTER_TEMPLATES),{cache:'no-store'});
+    if(!res.ok)return null;
+    const incoming=normalizeImportedTemplates(await res.json())||[];
+    const valid=incoming.filter(t=>t&&t.snap&&(t.name||t.snap.club));
+    if(!valid.length)return null;
+    const r=await upsertImportedTemplates(valid,{label:'Master-Vorlagen',skipOlder:true});
+    applyImportResult(r,'Master-Vorlagen',{reloadActive:false});
+    return r;
+  }catch(e){return null}
 }
 function importTemplatesJson(inp){
   const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -3792,6 +3756,7 @@ window.addEventListener('load',async()=>{
   await restoreSession();
   await initJsonExportDir();
   await initLocalFolders();
+  await autoImportStaticTemplates();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);

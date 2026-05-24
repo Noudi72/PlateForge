@@ -44,7 +44,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
-**Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
+**Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Beim Start wird zusätzlich `plateforge_vorlagen_master.json` aus dem Repository importiert (Fallback, ohne neuere lokale Vorlagen zu überschreiben).
 
 **Vorlagen löschen / ausblenden:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Repo-Vorlagen werden mit **×** nur in diesem Browser ausgeblendet. Das Master-JSON wird beim Löschen eigener Vorlagen aktualisiert.
 
