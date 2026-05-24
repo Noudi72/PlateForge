@@ -234,7 +234,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
         <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 Master-JSON</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true,true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁 Zielordner</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
           📥 Wiederherstellen
           <input type="file" accept=".json,application/json" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
@@ -246,7 +246,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
       </label>
       <div id="jsonExportDirInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        <strong>Backup:</strong> 💾 aktualisiert die Vorlage und schreibt ein Master-JSON <strong>plateforge_vorlagen_master.json</strong> mit allen Vorlagen/Bildern (📁 einmal wählen).
+        <strong>Backup:</strong> 💾 aktualisiert die Vorlage und schreibt ein Master-JSON <strong>plateforge_vorlagen_master.json</strong> mit allen Vorlagen/Bildern (📁 Zielordner einmal wählen).
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut);max-height:210px;overflow-y:auto">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -879,6 +879,29 @@ function setNrAlign(a){
   syncNrAlignUi();
   render();
 }
+function relativeNameBoundsY(vAlign){
+  const lines=getDisplayName(activeP()).split('\n');
+  const b=textLinesBounds(0,0,lines,getInt('slName'),S.font,S.textAlign,vAlign);
+  return{top:b.top,bottom:b.bottom};
+}
+function relativeNrBoundsY(vAlign){
+  const text=String(activeP().nr||'');
+  const font=getNrFont();
+  const align=S.nrAlign||S.textAlign||'left';
+  const size=getInt('slNrSz');
+  const baseline=nrBaselinePlateY(0,size,text,font,vAlign,align);
+  const b=scanTextInkBounds(text,size,font,align);
+  const padY=textBoxPad(size,'y');
+  return{top:baseline+b.top-padY,bottom:baseline+b.bottom+padY};
+}
+function shiftTextAnchorY(key,oldVAlign,newVAlign){
+  const bounds=key==='nr'?relativeNrBoundsY:relativeNameBoundsY;
+  const oldB=bounds(oldVAlign);
+  const newB=bounds(newVAlign);
+  const base=getPos(key);
+  const merged={...base,...S.pos[key]};
+  S.pos[key]={...merged,y:merged.y+oldB.top-newB.top};
+}
 function syncVAlignUi(){
   const m={alphabetic:'vBase',middle:'vMid',bottom:'vBot'};
   ['vBase','vMid','vBot'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',id===m[S.textVAlign||'alphabetic'])});
@@ -888,11 +911,16 @@ function syncNrVAlignUi(){
   ['nvBase','nvMid','nvBot'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',id===m[S.nrVAlign||S.textVAlign||'alphabetic'])});
 }
 function setVAlign(v){
+  if(v===S.textVAlign)return;
+  shiftTextAnchorY('name',S.textVAlign||'alphabetic',v);
   S.textVAlign=v;
   syncVAlignUi();
   render();
 }
 function setNrVAlign(v){
+  const old=S.nrVAlign||S.textVAlign||'alphabetic';
+  if(v===old)return;
+  if(!(S.badge&&S.badge!=='none'))shiftTextAnchorY('nr',old,v);
   S.nrVAlign=v;
   syncNrVAlignUi();
   render();
@@ -1772,7 +1800,7 @@ function updateJsonExportDirLabel(name){
   const el=document.getElementById('jsonExportDirInfo');
   if(!el)return;
   if(name)el.textContent='JSON-Export → '+name+'/';
-  else if(fsExportSupported())el.textContent='JSON-Export → beim ersten 📤 JSON Ordner „'+PREFERRED_EXPORT_FOLDER+'“ wählen';
+  else if(fsExportSupported())el.textContent='JSON-Export → bitte 📁 Zielordner „'+PREFERRED_EXPORT_FOLDER+'“ wählen';
   else el.textContent='JSON-Export → Download (Ordner-API nicht verfügbar, z. B. Safari)';
 }
 async function pickJsonExportFolder(showTip,skipImport){
@@ -1784,7 +1812,7 @@ async function pickJsonExportFolder(showTip,skipImport){
     if(showTip)alert(
       'Bitte den Ordner „'+PREFERRED_EXPORT_FOLDER+'“ wählen\n'+
       '(im Plate-Forge-Projekt neben index.html).\n\n'+
-      'Danach speichert 📤 JSON automatisch dort — ohne Download-Dialog.'
+      'Danach speichert Master-JSON automatisch dort — ohne Download-Dialog.'
     );
     const handle=await window.showDirectoryPicker({
       mode:'readwrite',
@@ -1804,8 +1832,12 @@ async function pickJsonExportFolder(showTip,skipImport){
 async function writeJsonToExportDir(filename,jsonText){
   if(!fsExportSupported())return false;
   let dir=await loadExportDirHandle();
-  if(!dir)dir=await pickJsonExportFolder(true);
-  if(!dir||!(await ensureDirPermission(dir,true)))return false;
+  if(!dir)dir=await pickJsonExportFolder(true,true);
+  if(!dir)return false;
+  if(!(await ensureDirPermission(dir,true))){
+    dir=await pickJsonExportFolder(true,true);
+    if(!dir||!(await ensureDirPermission(dir,true)))return false;
+  }
   try{
     const fh=await dir.getFileHandle(filename,{create:true});
     const w=await fh.createWritable();

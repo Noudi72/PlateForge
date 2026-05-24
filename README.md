@@ -42,7 +42,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
+**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
 **Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
 
@@ -56,7 +56,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Bilder zuverlässig halten (empfohlen):**
 1. Nach Logo/Hintergrund-Upload einmal **💾 Speichern** (Checkbox „Logo & Hintergrund“ an).
-2. Ordner **📁 `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
+2. Ordner **📁 Zielordner → `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
 3. Bilder liegen parallel in **IndexedDB** (Browser, großzügiger als `localStorage`) und werden beim Laden aus Vorlage + IDB zusammengeführt.
 
 **Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Für **Name** und **Nummer/Badge** kann je eine eigene Schrift und Ausrichtung gewählt werden. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
