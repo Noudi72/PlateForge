@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PlateForge – Eishockey Garderoben-Schilder</title>
-<link rel="icon" type="image/png" href="Plate%20Forge%20Appicon.png">
-<link rel="apple-touch-icon" href="Plate%20Forge%20Appicon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="app-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0d0f14">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Russo+One&family=Teko:wght@500;600;700&family=Anton&family=Black+Ops+One&family=Saira+Condensed:wght@700;900&family=Graduate&family=Orbitron:wght@700;800;900&family=Exo+2:wght@700;800;900&family=Saira+Stencil+One&display=swap" rel="stylesheet">
@@ -234,9 +235,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
         <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 Master-JSON</button>
         <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="syncTemplatesFromJsonFolder(true)" title="Ordner Vorlagen json neu laden">🔄 Ordner</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
-          📥 Dateien
+          📥 Wiederherstellen
           <input type="file" accept=".json,application/json" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
         </label>
       </div>
@@ -1130,6 +1130,9 @@ function drawTemplatePreview(cv,opts,pos){
   finally{Object.assign(S,keep)}
 }
 function repoTplId(item){return 'repo:'+item.name}
+function repoTplDisplayName(item){
+  return item.name.replace(/^plateforge_/,'').replace(/\.json$/,'').replace(/_/g,' ');
+}
 async function loadRepoTemplate(item){
   const id=repoTplId(item);
   if(_repoTplCache.has(id))return _repoTplCache.get(id);
@@ -1157,7 +1160,7 @@ async function drawRepoTemplateCard(item,cv,lbl,run,player){
     const opts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo,logo2,bgImg,logoIsSvg:!!s.logoIsSvg,logo2IsSvg:!!s.logo2IsSvg,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
     drawTemplatePreview(cv,opts,s.pos);
   }catch(e){
-    lbl.textContent=item.name.replace(/\.json$/,'');
+    lbl.textContent=repoTplDisplayName(item);
   }
 }
 function buildTplGrid(){
@@ -1165,6 +1168,8 @@ function buildTplGrid(){
   const g=document.getElementById('tplGrid');g.innerHTML='';
   const player=thumbPlayer();
   const hiddenRepo=loadHiddenRepoTemplates();
+  const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
+  const userNames=new Set(userTemplates.map(t=>String(t.name||'').trim().toLowerCase()));
   TMPL.map((t,i)=>({t,i})).sort((a,b)=>a.t.name.localeCompare(b.t.name,'de')).forEach(({t,i})=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
@@ -1177,11 +1182,12 @@ function buildTplGrid(){
   });
   [...STATIC_TEMPLATE_JSON].sort((a,b)=>a.name.localeCompare(b.name,'de')).forEach(item=>{
     const id=repoTplId(item);
+    if(userNames.has(repoTplDisplayName(item).toLowerCase()))return;
     if(hiddenRepo.has(id))return;
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===id?' on':'');
     wrap.dataset.repo=id;
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
-    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=item.name.replace(/\.json$/,'');
+    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=repoTplDisplayName(item);
     wrap.onclick=()=>loadRepoTemplateByItem(item);
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     const del=document.createElement('button');
@@ -1191,8 +1197,7 @@ function buildTplGrid(){
     drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
     drawRepoTemplateCard(item,cv,lbl,run,player);
   });
-  [...loadUserTemplates()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).forEach(ut=>{
-    if(!ut||!ut.snap)return;
+  userTemplates.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).forEach(ut=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
     wrap.dataset.user=ut.id;
     wrap.onclick=()=>loadUserTemplate(ut.id);
