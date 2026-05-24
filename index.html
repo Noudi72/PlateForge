@@ -1130,8 +1130,15 @@ function drawTemplatePreview(cv,opts,pos){
   finally{Object.assign(S,keep)}
 }
 function repoTplId(item){return 'repo:'+item.name}
+const TPL_SORT_COLLATOR=new Intl.Collator('de',{numeric:true,sensitivity:'base'});
+function templateSortName(value){
+  return String(value||'').replace(/^plateforge_/i,'').replace(/\.json$/i,'').replace(/_/g,' ').trim();
+}
+function compareTemplateNames(a,b){
+  return TPL_SORT_COLLATOR.compare(templateSortName(a),templateSortName(b));
+}
 function repoTplDisplayName(item){
-  return item.name.replace(/^plateforge_/,'').replace(/\.json$/,'').replace(/_/g,' ');
+  return templateSortName(item.name);
 }
 async function loadRepoTemplate(item){
   const id=repoTplId(item);
@@ -1170,7 +1177,7 @@ function buildTplGrid(){
   const hiddenRepo=loadHiddenRepoTemplates();
   const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
   const userNames=new Set(userTemplates.map(t=>String(t.name||'').trim().toLowerCase()));
-  TMPL.map((t,i)=>({t,i})).sort((a,b)=>a.t.name.localeCompare(b.t.name,'de')).forEach(({t,i})=>{
+  TMPL.map((t,i)=>({t,i})).sort((a,b)=>compareTemplateNames(a.t.name,b.t.name)).forEach(({t,i})=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
     wrap.onclick=()=>selectTpl(i);
@@ -1180,7 +1187,7 @@ function buildTplGrid(){
     const thumbOpts={...S,...player,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false};
     drawTemplatePreview(cv,thumbOpts,{});
   });
-  [...STATIC_TEMPLATE_JSON].sort((a,b)=>a.name.localeCompare(b.name,'de')).forEach(item=>{
+  [...STATIC_TEMPLATE_JSON].sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(item=>{
     const id=repoTplId(item);
     if(userNames.has(repoTplDisplayName(item).toLowerCase()))return;
     if(hiddenRepo.has(id))return;
@@ -1197,7 +1204,7 @@ function buildTplGrid(){
     drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
     drawRepoTemplateCard(item,cv,lbl,run,player);
   });
-  userTemplates.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).forEach(ut=>{
+  userTemplates.sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(ut=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
     wrap.dataset.user=ut.id;
     wrap.onclick=()=>loadUserTemplate(ut.id);
