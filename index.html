@@ -1200,6 +1200,32 @@ function drawTemplatePreview(cv,opts,pos){
   catch(e){console.warn('Vorlagen-Vorschau konnte nicht gerendert werden',e)}
   finally{Object.assign(S,keep)}
 }
+function templatePreviewDefaults(){
+  return{
+    tpl:0,c:{...TMPL[0]},font:"'Bebas Neue'",nrFont:'',layout:'L',
+    textAlign:'left',textVAlign:'alphabetic',nrAlign:'left',nrVAlign:'alphabetic',
+    nameMode:'last',logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
+    bgOp:.4,logoOp:1,frame:true,screws:true,bar:true,logoBand:true,
+    showPos:true,showNat:false,showLeague:true,shadowOn:true,glowOn:false,glowSize:26,shBlur:10,shDist:4,
+    badge:'none',badgeScale:72,badgeNrDx:0,badgeNrDy:0,badgeFillOp:1,badgeColor:'#C8102E',badgeBorderColor:'#FFFFFF',
+  };
+}
+function previewOptsFromSnap(s,player,extra={}){
+  const snap=s||{};
+  return{
+    ...templatePreviewDefaults(),
+    ...snap,
+    ...player,
+    tpl:snap.tpl??0,
+    c:snap.c||templatePreviewDefaults().c,
+    nrAlign:snap.nrAlign||snap.textAlign||'left',
+    nrVAlign:snap.nrVAlign||snap.textVAlign||'alphabetic',
+    badgeScale:snap.badgeScale??72,
+    showGuides:false,
+    showSafeMargin:false,
+    ...extra,
+  };
+}
 function repoTplId(item){return 'repo:'+item.name}
 const TPL_SORT_COLLATOR=new Intl.Collator('de',{numeric:true,sensitivity:'base'});
 function templateSortName(value){
@@ -1235,7 +1261,7 @@ async function drawRepoTemplateCard(item,cv,lbl,run,player){
       loadThumbImage(s.bgData),
     ]);
     if(run!==_tplGridRenderRun||!cv.isConnected)return;
-    const opts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo,logo2,bgImg,logoIsSvg:!!s.logoIsSvg,logo2IsSvg:!!s.logo2IsSvg,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
+    const opts=previewOptsFromSnap(s,player,{logo,logo2,bgImg,logoIsSvg:!!s.logoIsSvg,logo2IsSvg:!!s.logo2IsSvg});
     drawTemplatePreview(cv,opts,s.pos);
   }catch(e){
     lbl.textContent=repoTplDisplayName(item);
@@ -1255,7 +1281,7 @@ function buildTplGrid(){
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const thumbOpts={...S,...player,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false};
+    const thumbOpts=previewOptsFromSnap({tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},badge:'none'},player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,thumbOpts,{});
   });
   [...STATIC_TEMPLATE_JSON].sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(item=>{
@@ -1272,7 +1298,7 @@ function buildTplGrid(){
     del.type='button';del.className='tpl-del';del.title='Repo-Vorlage ausblenden';del.textContent='×';
     del.onclick=e=>hideRepoTemplate(id,e);
     wrap.appendChild(del);
-    drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
+    drawTemplatePreview(cv,previewOptsFromSnap({badge:'none'},player,{logo:null,logo2:null,bgImg:null}),{});
     drawRepoTemplateCard(item,cv,lbl,run,player);
   });
   userTemplates.sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(ut=>{
@@ -1287,7 +1313,7 @@ function buildTplGrid(){
     del.onclick=e=>deleteUserTemplate(ut.id,e);
     wrap.appendChild(del);
     const s=ut.snap;
-    let baseOpts={...S,...s,...player,tpl:s.tpl??0,c:s.c||S.c,logo:null,logo2:null,bgImg:null,badgeScale:s.badgeScale??72,showGuides:false,showSafeMargin:false};
+    let baseOpts=previewOptsFromSnap(s,player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,baseOpts,s.pos);
     (async()=>{
       try{
