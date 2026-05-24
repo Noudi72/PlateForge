@@ -60,7 +60,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .upzone-ico{font-size:1.1rem;margin-bottom:2px}.upzone-txt{font-size:.7rem;color:var(--mut);line-height:1.3}
 .up-prev{width:100%;max-height:56px;object-fit:contain;border-radius:3px;margin-top:5px;display:none}
-.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;max-height:170px;overflow-y:auto}
+.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;max-height:280px;overflow-y:auto}
 .asset-card{background:var(--p2);border:1px solid var(--bdr);border-radius:5px;padding:3px;min-width:0}
 .asset-card img{width:100%;height:42px;object-fit:contain;background:rgba(255,255,255,.04);border-radius:3px;display:block}
 .asset-actions{display:flex;gap:2px;margin-top:3px}.asset-actions button{flex:1;border:0;border-radius:3px;background:#111722;color:var(--mut);font-size:.58rem;font-family:'Rajdhani',sans-serif;font-weight:700;padding:2px;cursor:pointer}.asset-actions button:hover{color:var(--gold)}
@@ -219,8 +219,18 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
     <div class="sb-sec">
       <div class="sb-ttl">Asset-Bibliothek</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
-        <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder(true)">📁 Vorlagen-Bilder</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder(true)">🔤 Fonts</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder()">📁 Vorlagen-Bilder</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder()">🔤 Fonts</button>
+        <input type="file" id="assetFolderInp" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" webkitdirectory multiple style="display:none" onchange="importAssetFolder(this)">
+        <input type="file" id="fontsFolderInp" accept=".ttf,.otf,.woff,.woff2" webkitdirectory multiple style="display:none" onchange="importFontsFolder(this)">
+        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative">
+          📤 Bilder
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetImages(this)">
+        </label>
+        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative">
+          📤 Fonts
+          <input type="file" accept=".ttf,.otf,.woff,.woff2" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetFonts(this)">
+        </label>
       </div>
       <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div id="assetGrid" class="asset-grid"></div>
@@ -638,7 +648,7 @@ const BUILTIN_FONTS=[
 ];
 const STATIC_ASSETS=[
   '1.png','2.png','3.png','4.png','5.png','6.png','7.png','8.png',
-  'background 1.png','background 2.png','background 3.png','background 6.png','background 7.png','background 8.png','background 9.png','background 10.png','background 11.png','background 12.png','background 13.png','background 14.png','background 15.png','background 16.png','background 17.png','background 18.png','background 19.png','background 20.png','background 21.png','background 22.png','background 23.png','background 24.png','background 25.png','background 26.png','background 27.svg','background 28.webp','background 72.png',
+  'background 1.png','background 2.png','background 3.png','background 6.png','background 7.png','background 8.png','background 9.png','background 10.png','background 11.png','background 12.png','background 13.png','background 14.png','background 15.png','background 16.png','background 17.png','background 18.png','background 19.png','background 20.png','background 21.png','background 22.png','background 23.png','background 24.png','background 25.png','background 26.png','background 27.svg','background 28.webp','background 29.png','background 72.png',
   'EHCB Logo.png','EHCB Logo.svg','EHCB Logo.webp','EHCB_Spirit Viking.PNG','Logo Spirit.png','Logo VK.png','Logo VK 1.png','Logo VK.svg','Logo_EHCB.png','Spirit Viking.PNG','Spirit Viking 3x.webp',
 ].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
 const STATIC_TEMPLATE_JSON=[
@@ -791,8 +801,9 @@ async function restoreSession(){
         S.userTplId=tplId;
         document.getElementById('tplName').textContent=t.name.toUpperCase();
         setTemplateNameInput(t.name);
-        if(sessSnap.pos&&Object.keys(sessSnap.pos).length&&d.ts>(t.updated||0)){
+        if(sessSnap.pos&&Object.keys(sessSnap.pos).length){
           S.pos=JSON.parse(JSON.stringify(sessSnap.pos));
+          persistSession();
         }
         render();
         return;
@@ -802,6 +813,11 @@ async function restoreSession(){
     const hasImg=!!(enriched.logoData||enriched.logo2Data||enriched.bgData);
     await applyDesignSnapshot(enriched,{restoreImages:hasImg});
     if(sessSnap.userTplId)S.userTplId=sessSnap.userTplId;
+    if(sessSnap.pos&&Object.keys(sessSnap.pos).length){
+      S.pos=JSON.parse(JSON.stringify(sessSnap.pos));
+      persistSession();
+      render();
+    }
   }catch(e){}
 }
 
@@ -1131,9 +1147,9 @@ async function loadStaticFonts(){
     }catch(e){}
   }
 }
-async function loadFont(inp){
-  const file=inp.files[0];if(!file)return;
-  if(file.size>3*1024*1024){alert('Font-Datei zu gross (max. 3 MB).');inp.value='';return}
+async function registerUploadedFont(file,{setActive=false}={}){
+  if(!file)return{ok:false,err:'Keine Datei.'};
+  if(file.size>3*1024*1024)return{ok:false,err:'Font-Datei zu gross (max. 3 MB).'};
   try{
     const dataUrl=await readFileAsDataUrl(file);
     const b64=dataUrl.split(',')[1]||'';
@@ -1141,19 +1157,40 @@ async function loadFont(inp){
     const fname=file.name.replace(/\.[^.]+$/,'');
     const key=fontNormName(fname);
     S.savedFonts=S.savedFonts.filter(f=>fontNormName(f.name)!==key||f.static);
-    const ffName='PF_'+Date.now();
+    const ffName='PF_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
     const f=await new FontFace(ffName,`url(${dataUrl})`).load();
     document.fonts.add(f);
     const fontVal=`'${ffName}'`;
     S.savedFonts.push({name:fname,fontFamily:fontVal,ffName,b64,mime,url:dataUrl});
-    S.font=fontVal;
-    persistCustomFonts();
-    buildFontGrid();
-    renderSavedFonts();
-    render();
-    showOk(`Font „${fname}" gespeichert.`);
-  }catch(e){alert('Font konnte nicht geladen werden.')}
+    if(setActive)S.font=fontVal;
+    return{ok:true,name:fname};
+  }catch(e){return{ok:false,err:'Font konnte nicht geladen werden.'}}
+}
+async function loadFont(inp){
+  const file=inp.files[0];if(!file)return;
+  const r=await registerUploadedFont(file,{setActive:true});
   inp.value='';
+  if(!r.ok){alert(r.err||'Font konnte nicht geladen werden.');return}
+  persistCustomFonts();
+  buildFontGrid();
+  renderSavedFonts();
+  render();
+  showOk(`Font „${r.name}" gespeichert.`);
+}
+async function importAssetFonts(inp){
+  const files=Array.from(inp.files||[]);
+  inp.value='';
+  if(!files.length)return;
+  let added=0;
+  for(const file of files){
+    const r=await registerUploadedFont(file);
+    if(r.ok)added++;
+  }
+  if(!added){showWarn('Keine gültigen Font-Dateien gewählt.');return}
+  persistCustomFonts();
+  buildFontGrid();
+  renderSavedFonts();
+  showOk(`${added} Font(s) in Bibliothek geladen.`);
 }
 
 function renderSavedFonts(){
@@ -2012,75 +2049,188 @@ async function* walkDir(dir,prefix=''){
     else yield{path,handle};
   }
 }
+const USER_ASSETS_META_KEY='plateforge_user_assets';
+let userAssets=[];
+let scannedAssetItems=[];
+
+function userLibIdbKey(id){return'userlib:'+id}
+function persistUserAssetsMeta(){
+  try{
+    localStorage.setItem(USER_ASSETS_META_KEY,JSON.stringify(userAssets.map(({id,name})=>({id,name}))));
+  }catch(e){showWarn('Bild-Bibliothek konnte nicht gespeichert werden.')}
+}
+async function restoreUserAssets(){
+  userAssets=[];
+  let meta=[];
+  try{meta=JSON.parse(localStorage.getItem(USER_ASSETS_META_KEY)||'[]')}catch(e){meta=[]}
+  for(const m of meta){
+    if(!m.id)continue;
+    const dataUrl=await idbAssetGet(userLibIdbKey(m.id));
+    if(dataUrl)userAssets.push({id:m.id,name:m.name,url:dataUrl});
+  }
+}
+async function importAssetImages(inp){
+  const files=Array.from(inp.files||[]);
+  inp.value='';
+  if(!files.length)return;
+  let added=0;
+  for(const file of files){
+    if(!/\.(png|jpe?g|webp|svg)$/i.test(file.name))continue;
+    if(file.size>8*1024*1024){showWarn(file.name+' zu gross (max. 8 MB).');continue}
+    try{
+      const dataUrl=await readFileAsDataUrl(file);
+      const prev=userAssets.find(a=>a.name.toLowerCase()===file.name.toLowerCase());
+      if(prev)await idbAssetDel(userLibIdbKey(prev.id));
+      const id='ua_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      await idbAssetPut(userLibIdbKey(id),dataUrl);
+      userAssets=userAssets.filter(a=>a.name.toLowerCase()!==file.name.toLowerCase());
+      userAssets.push({id,name:file.name,url:dataUrl});
+      added++;
+    }catch(e){}
+  }
+  persistUserAssetsMeta();
+  renderAssetGrid();
+  if(added)showOk(`${added} Bild(er) in Bibliothek geladen.`);
+  else showWarn('Keine gültigen Bilddateien gewählt.');
+}
 function updateAssetFolderLabel(assetName,fontName){
   const el=document.getElementById('assetFolderInfo');
   if(!el)return;
   const parts=[];
-  parts.push(assetName?'Bilder → '+assetName+'/':'Bilder → 📁 '+PREFERRED_ASSET_FOLDER+' wählen');
-  parts.push(fontName?'Fonts → '+fontName+'/':'Fonts → 🔤 '+PREFERRED_FONTS_FOLDER+' wählen');
+  if(fsExportSupported()){
+    parts.push(assetName?'Bilder → '+assetName+'/':'Bilder → 📁 '+PREFERRED_ASSET_FOLDER+' wählen');
+    parts.push(fontName?'Fonts → '+fontName+'/':'Fonts → 🔤 '+PREFERRED_FONTS_FOLDER+' wählen');
+  }else{
+    parts.push('Ordnerwahl nur Chrome/Edge · Safari: 📤 Bilder/Fonts hochladen');
+  }
   el.textContent=parts.join(' · ');
 }
-async function pickAssetFolder(showTip){
-  if(!fsExportSupported()){showWarn('Ordner-Bibliothek braucht Chrome/Edge.');return null}
+async function pickAssetFolder(){
+  if(!fsExportSupported()){
+    const inp=document.getElementById('assetFolderInp');
+    if(inp){inp.click();return null}
+    showWarn('Ordnerwahl nicht verfügbar – bitte 📤 Bilder hochladen.');
+    return null;
+  }
   try{
-    if(showTip)alert('Bitte den Ordner „'+PREFERRED_ASSET_FOLDER+'“ wählen.');
     const h=await window.showDirectoryPicker({mode:'read',id:'plateforge-assets',startIn:'documents'});
     await storeMetaHandle(ASSET_DIR_KEY,h);
     await scanAssetFolder(h);
     return h;
   }catch(e){if(e&&e.name!=='AbortError')showErr('Asset-Ordner: '+(e.message||e));return null}
 }
-async function pickFontsFolder(showTip){
-  if(!fsExportSupported()){showWarn('Font-Ordner braucht Chrome/Edge.');return null}
+async function pickFontsFolder(){
+  if(!fsExportSupported()){
+    const inp=document.getElementById('fontsFolderInp');
+    if(inp){inp.click();return null}
+    showWarn('Font-Ordner nicht verfügbar – bitte 📤 Fonts hochladen.');
+    return null;
+  }
   try{
-    if(showTip)alert('Bitte den Ordner „'+PREFERRED_FONTS_FOLDER+'“ wählen.');
     const h=await window.showDirectoryPicker({mode:'read',id:'plateforge-fonts',startIn:'documents'});
     await storeMetaHandle(FONTS_DIR_KEY,h);
     await scanFontsFolder(h);
     return h;
   }catch(e){if(e&&e.name!=='AbortError')showErr('Fonts-Ordner: '+(e.message||e));return null}
 }
+async function importAssetFolder(inp){
+  const files=Array.from(inp.files||[]);
+  inp.value='';
+  scannedAssetItems=[];
+  for(const file of files){
+    if(!/\.(png|jpe?g|webp|svg)$/i.test(file.name))continue;
+    scannedAssetItems.push({url:URL.createObjectURL(file),name:file.name});
+  }
+  const label=scannedAssetItems.length?scannedAssetItems.length+' Bild(er)':'Ordner leer';
+  updateAssetFolderLabel(label,(await loadMetaHandle(FONTS_DIR_KEY))?.name||null);
+  renderAssetGrid();
+  if(scannedAssetItems.length)showOk(`${scannedAssetItems.length} Bild(er) aus Ordner geladen.`);
+  else showWarn('Im gewählten Ordner wurden keine Bilder gefunden.');
+}
+async function importFontsFolder(inp){
+  const files=Array.from(inp.files||[]);
+  inp.value='';
+  let added=0;
+  for(const file of files){
+    if(!/\.(ttf|otf|woff2?)$/i.test(file.name))continue;
+    const r=await registerUploadedFont(file);
+    if(r.ok)added++;
+  }
+  renderSavedFonts();buildFontGrid();
+  updateAssetFolderLabel((await loadMetaHandle(ASSET_DIR_KEY))?.name||null,added?added+' Font(s)':'Ordner');
+  if(added)showOk(`${added} Font(s) aus Ordner geladen.`);
+  else showWarn('Im gewählten Ordner wurden keine Fonts gefunden.');
+}
 async function initLocalFolders(){
-  if(!fsExportSupported()){updateAssetFolderLabel(null,null);renderStaticAssets();return}
+  await restoreUserAssets();
+  if(!fsExportSupported()){
+    updateAssetFolderLabel(null,null);
+    renderAssetGrid();
+    return;
+  }
   const ah=await loadMetaHandle(ASSET_DIR_KEY);
   const fh=await loadMetaHandle(FONTS_DIR_KEY);
   const an=ah&&await ensureDirPermission(ah,false)?ah.name:null;
   const fn=fh&&await ensureDirPermission(fh,false)?fh.name:null;
   updateAssetFolderLabel(an,fn);
   if(ah&&an)await scanAssetFolder(ah);
-  else renderStaticAssets();
+  else renderAssetGrid();
   if(fh&&fn)await scanFontsFolder(fh);
 }
 function addAssetCard(grid,src,name){
   const card=document.createElement('div');
   card.className='asset-card';
-  card.innerHTML=`<img src="${src}" alt=""><div class="asset-name" title="${name}">${name}</div><div class="asset-actions"><button type="button">L1</button><button type="button">L2</button><button type="button">BG</button></div>`;
-  const [b1,b2,bg]=card.querySelectorAll('button');
+  const img=document.createElement('img');
+  img.src=src;
+  img.alt='';
+  const nm=document.createElement('div');
+  nm.className='asset-name';
+  nm.title=name;
+  nm.textContent=name;
+  const actions=document.createElement('div');
+  actions.className='asset-actions';
+  const b1=document.createElement('button');b1.type='button';b1.textContent='L1';
+  const b2=document.createElement('button');b2.type='button';b2.textContent='L2';
+  const bg=document.createElement('button');bg.type='button';bg.textContent='BG';
   b1.onclick=()=>applyImageAsset('logo',src,name);
   b2.onclick=()=>applyImageAsset('logo2',src,name);
   bg.onclick=()=>applyImageAsset('bg',src,name);
+  actions.append(b1,b2,bg);
+  card.append(img,nm,actions);
   grid.appendChild(card);
 }
-function renderStaticAssets(){
+function renderAssetGrid(){
   const grid=document.getElementById('assetGrid');
   if(!grid)return;
   grid.innerHTML='';
-  STATIC_ASSETS.forEach(a=>addAssetCard(grid,encodeURI(a.path),a.name));
+  const byName=new Map();
+  const put=(src,name)=>{
+    if(!name)return;
+    byName.set(name.toLowerCase(),{src,name});
+  };
+  STATIC_ASSETS.forEach(a=>put(encodeURI(a.path),a.name));
+  userAssets.forEach(a=>put(a.url,a.name));
+  scannedAssetItems.forEach(a=>put(a.url,a.name));
+  if(!byName.size){
+    grid.innerHTML='<div style="font-size:.65rem;color:var(--mut);grid-column:1/-1">Keine Bilder. 📤 Bilder hochladen oder 📁 Ordner wählen.</div>';
+    return;
+  }
+  [...byName.values()]
+    .sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}))
+    .forEach(({src,name})=>addAssetCard(grid,src,name));
 }
+function renderStaticAssets(){renderAssetGrid()}
 async function scanAssetFolder(dir){
-  const grid=document.getElementById('assetGrid');
-  if(!grid)return;
-  grid.innerHTML='';
-  let count=0;
+  scannedAssetItems=[];
   for await(const item of walkDir(dir)){
     if(!/\.(png|jpe?g|webp|svg)$/i.test(item.path))continue;
     const file=await item.handle.getFile();
     const url=URL.createObjectURL(file);
-    addAssetCard(grid,url,item.path);
-    count++;
+    const name=item.path.replace(/^.*\//,'');
+    scannedAssetItems.push({url,name});
   }
   updateAssetFolderLabel(dir.name,(await loadMetaHandle(FONTS_DIR_KEY))?.name||null);
-  if(!count)grid.innerHTML='<div style="font-size:.65rem;color:var(--mut)">Keine Bilder gefunden.</div>';
+  renderAssetGrid();
 }
 async function applyImageAsset(kind,src,name){
   const img=new Image();
@@ -2154,10 +2304,10 @@ async function upsertImportedTemplates(valid,opts={}){
   }
   return{added,over,ok:true};
 }
-function applyImportResult(r,label){
+function applyImportResult(r,label,{reloadActive=false}={}){
   if(!r||!r.ok)return;
   buildTplGrid();renderUserTplList();
-  (async()=>{
+  if(reloadActive)(async()=>{
     let id=S.userTplId;
     if(!id){
       const name=(getVal('userTplName')||'').trim();
@@ -2204,7 +2354,7 @@ async function syncTemplatesFromJsonFolder(forcePicker,dir){
   }
   updateJsonExportDirLabel(h.name);
   const r=await autoImportTemplatesFromDir(h,true);
-  applyImportResult(r,'JSON-Ordner');
+  applyImportResult(r,'JSON-Ordner',{reloadActive:!!forcePicker});
   if(forcePicker&&r&&r.ok&&!r.added&&!r.over)showWarn('Im JSON-Ordner wurden keine neuen Vorlagen gefunden.');
   return r;
 }
@@ -2239,7 +2389,7 @@ function importTemplatesJson(inp){
       );
       if(!mode)return;
       const r=await upsertImportedTemplates(valid,{label:'Import'});
-      applyImportResult(r,'Import');
+      applyImportResult(r,'Import',{reloadActive:true});
     }catch(e){showErr('JSON konnte nicht gelesen werden: '+e.message)}
     finally{inp.value=''}
   })();
