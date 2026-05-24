@@ -59,7 +59,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 2. Ordner **📁 `Vorlagen json`** wählen — bei jedem Speichern wird zusätzlich eine JSON-Datei dort abgelegt.
 3. Bilder liegen parallel in **IndexedDB** (Browser, großzügiger als `localStorage`) und werden beim Laden aus Vorlage + IDB zusammengeführt.
 
-**Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Für **Name** und **Nummer/Badge** kann je eine eigene Schrift gewählt werden. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
+**Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Für **Name** und **Nummer/Badge** kann je eine eigene Schrift und Ausrichtung gewählt werden. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
 
 **Zusätzliche Webfonts:** Neben den lokalen Fonts sind auch **Graduate**, **Orbitron**, **Exo 2** und **Saira Stencil One** direkt integriert.
 
@@ -74,6 +74,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 **Scrollbare Design-Seite:** Die linke Design-Spalte scrollt unabhängig vom Editor, auch wenn viele grosse Vorschau-Kacheln vorhanden sind.
 
 **Text-Boxen:** Name und Nummer werden direkt aus dem tatsächlich gerenderten Canvas-Text pixelgenau vermessen, damit auch breite/stencilartige Sport-Fonts sauberere Auswahlrahmen bekommen. Über **Textbox-Rand X/Y** kann der Rahmen je Vorlage zusätzlich vergrössert oder verkleinert werden.
+
+**Vertikale Mitte:** Die mittige Ausrichtung nutzt die echte Schriftform statt grober Standardwerte. Dadurch sitzen Name und Nummer bei Spezial-Fonts optisch sauberer.
 
 ### Badge & Grössen (Design)
 
