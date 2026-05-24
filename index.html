@@ -1380,8 +1380,16 @@ function persistUserTemplates(list){
     return true;
   }catch(e){return false}
 }
+function snapAssetFlags(snap){
+  return{logo:!!snap.logoData,logo2:!!snap.logo2Data,bg:!!snap.bgData};
+}
+function withAssetFlags(snap){
+  return{...snap,_assets:snapAssetFlags(snap)};
+}
 function stripSnapImages(snap){
-  const s={...snap};delete s.logoData;delete s.logo2Data;delete s.bgData;delete s.logoIsSvg;delete s.logo2IsSvg;return s;
+  const s=withAssetFlags(snap);
+  delete s.logoData;delete s.logo2Data;delete s.bgData;delete s.logoIsSvg;delete s.logo2IsSvg;
+  return s;
 }
 function imageLikelyHasAlpha(src){
   return/png|svg/i.test(String(src||''));
@@ -1532,17 +1540,23 @@ async function storeSnapAssetsInIdb(snap,tplId){
 }
 async function enrichSnapFromAssetIdb(snap,tplId){
   const s={...snap};
+  const a=snap._assets||{};
   const k=assetKeySet(tplId);
   const cur=assetKeySet(null);
-  if(!s.logoData){
-    s.logoData=await idbAssetGet(k.logo)||await idbAssetGet(cur.logo);
+  if(!s.logoData&&a.logo!==false){
+    s.logoData=await idbAssetGet(k.logo);
+    if(!s.logoData&&!tplId)s.logoData=await idbAssetGet(cur.logo);
     if(s.logoData&&!s.logoIsSvg)s.logoIsSvg=false;
   }
-  if(!s.logo2Data){
-    s.logo2Data=await idbAssetGet(k.logo2)||await idbAssetGet(cur.logo2);
+  if(!s.logo2Data&&a.logo2!==false){
+    s.logo2Data=await idbAssetGet(k.logo2);
+    if(!s.logo2Data&&!tplId)s.logo2Data=await idbAssetGet(cur.logo2);
     if(s.logo2Data&&!s.logo2IsSvg)s.logo2IsSvg=false;
   }
-  if(!s.bgData)s.bgData=await idbAssetGet(k.bg)||await idbAssetGet(cur.bg);
+  if(!s.bgData&&a.bg!==false){
+    s.bgData=await idbAssetGet(k.bg);
+    if(!s.bgData&&!tplId)s.bgData=await idbAssetGet(cur.bg);
+  }
   return s;
 }
 function scheduleAssetIdbSync(){
@@ -1551,8 +1565,7 @@ function scheduleAssetIdbSync(){
 }
 async function syncCanvasAssetsToIdb(){
   try{
-    let snap=await buildDesignSnapshot(true);
-    snap=await compressSnapForStorage(snap);
+    let snap=withAssetFlags(await compressSnapForStorage(await buildDesignSnapshot(true)));
     await storeSnapAssetsInIdb(snap,null);
     if(S.userTplId)await storeSnapAssetsInIdb(snap,S.userTplId);
   }catch(e){}
@@ -1691,6 +1704,7 @@ async function saveUserTemplate(){
   const id=existing?existing.id:'ut_'+Date.now();
   let fullSnap=await buildDesignSnapshot(include);
   if(include)fullSnap=await compressSnapForStorage(fullSnap);
+  fullSnap=withAssetFlags(fullSnap);
   await storeSnapAssetsInIdb(fullSnap,id);
   await storeSnapAssetsInIdb(fullSnap,null);
   // Im Browser bleibt die Vorlage schlank; Bilder liegen in IndexedDB und im JSON-Backup.
@@ -2101,10 +2115,9 @@ async function upsertImportedTemplates(valid,opts={}){
     if(opts.skipOlder&&existing&&existing.updated&&(t.updated||0)<existing.updated)continue;
     const id=existing?existing.id:(t.id&&String(t.id).startsWith('ut_')?t.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
     let snap=t.snap||{};
-    if(snap.logoData||snap.logo2Data||snap.bgData){
-      snap=await compressSnapForStorage(snap);
-      await storeSnapAssetsInIdb(snap,id);
-    }
+    if(snap.logoData||snap.logo2Data||snap.bgData)snap=await compressSnapForStorage(snap);
+    snap=withAssetFlags(snap);
+    await storeSnapAssetsInIdb(snap,id);
     const entry={id,name,updated:t.updated||Date.now(),snap:stripSnapImages(snap)};
     if(existing){list[list.indexOf(existing)]=entry;over++}
     else{list.push(entry);added++}
@@ -2456,7 +2469,11 @@ function loadLogo(inp){
   inp.value='';
 }
 function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';scheduleAssetIdbSync();persistSession();render()});inp.value=''}
-function clearLogo(){clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;document.getElementById('logoPrev').style.display='none';idbAssetDel(assetKeySet(null).logo);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).logo);persistSession();render()}
+function clearLogo(){
+  clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;
+  const p=document.getElementById('logoPrev');if(p){p.style.display='none';p.removeAttribute('src')}
+  syncCanvasAssetsToIdb();persistSession();render();
+}
 function loadLogo2(inp){
   const file=inp.files[0];if(!file)return;
   loadImgFile(file,(img,src)=>{
@@ -2468,8 +2485,16 @@ function loadLogo2(inp){
   });
   inp.value='';
 }
-function clearLogo2(){clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;document.getElementById('logo2Prev').style.display='none';idbAssetDel(assetKeySet(null).logo2);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).logo2);persistSession();render()}
-function clearBg(){S.bgImg=null;document.getElementById('bgPrev').style.display='none';idbAssetDel(assetKeySet(null).bg);if(S.userTplId)idbAssetDel(assetKeySet(S.userTplId).bg);persistSession();render()}
+function clearLogo2(){
+  clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;
+  const p2=document.getElementById('logo2Prev');if(p2){p2.style.display='none';p2.removeAttribute('src')}
+  syncCanvasAssetsToIdb();persistSession();render();
+}
+function clearBg(){
+  S.bgImg=null;
+  const p=document.getElementById('bgPrev');if(p){p.style.display='none';p.removeAttribute('src')}
+  syncCanvasAssetsToIdb();persistSession();render();
+}
 
 function useEHCLogo(){
   const oc=document.createElement('canvas');oc.width=400;oc.height=400;
