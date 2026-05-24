@@ -46,7 +46,9 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Vorlagen neu laden:** Mit **🔄 Ordner** wird der verbundene Ordner `Vorlagen json` sofort neu eingelesen (Ordner wählen, nicht einzelne Datei). Mit **📥 Dateien** können eine oder mehrere `.json`-Dateien direkt ausgewählt werden. Zusätzlich werden im Repository vorhandene JSON-Vorlagen beim Start als Fallback importiert.
 
-**Vorlagen löschen:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Das Master-JSON wird danach aktualisiert.
+**Vorlagen löschen / ausblenden:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Repo-Vorlagen werden mit **×** nur in diesem Browser ausgeblendet. Das Master-JSON wird beim Löschen eigener Vorlagen aktualisiert.
+
+**Sortierung:** Vorlagen werden alphabetisch sortiert, damit grössere Sammlungen übersichtlich bleiben.
 
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Deshalb werden Bilddaten nicht mehr dauerhaft in der Vorlagenliste gehalten, sondern in IndexedDB/JSON ausgelagert — dadurch sind deutlich mehr Vorlagen möglich.
 

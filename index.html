@@ -1098,6 +1098,13 @@ function removeSavedFont(i,e){
 // ══════════════════════════════════════════
 let _tplGridRenderRun=0;
 const _repoTplCache=new Map();
+const HIDDEN_REPO_TPL_KEY='plateforge_hidden_repo_templates';
+function loadHiddenRepoTemplates(){
+  try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_REPO_TPL_KEY)||'[]'))}catch(e){return new Set()}
+}
+function persistHiddenRepoTemplates(set){
+  localStorage.setItem(HIDDEN_REPO_TPL_KEY,JSON.stringify([...set]));
+}
 function loadThumbImage(src){
   return new Promise(resolve=>{
     if(!src){resolve(null);return}
@@ -1157,7 +1164,8 @@ function buildTplGrid(){
   const run=++_tplGridRenderRun;
   const g=document.getElementById('tplGrid');g.innerHTML='';
   const player=thumbPlayer();
-  TMPL.forEach((t,i)=>{
+  const hiddenRepo=loadHiddenRepoTemplates();
+  TMPL.map((t,i)=>({t,i})).sort((a,b)=>a.t.name.localeCompare(b.t.name,'de')).forEach(({t,i})=>{
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
     wrap.onclick=()=>selectTpl(i);
@@ -1167,18 +1175,23 @@ function buildTplGrid(){
     const thumbOpts={...S,...player,tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false};
     drawTemplatePreview(cv,thumbOpts,{});
   });
-  STATIC_TEMPLATE_JSON.forEach(item=>{
+  [...STATIC_TEMPLATE_JSON].sort((a,b)=>a.name.localeCompare(b.name,'de')).forEach(item=>{
     const id=repoTplId(item);
+    if(hiddenRepo.has(id))return;
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===id?' on':'');
     wrap.dataset.repo=id;
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=item.name.replace(/\.json$/,'');
     wrap.onclick=()=>loadRepoTemplateByItem(item);
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    const del=document.createElement('button');
+    del.type='button';del.className='tpl-del';del.title='Repo-Vorlage ausblenden';del.textContent='×';
+    del.onclick=e=>hideRepoTemplate(id,e);
+    wrap.appendChild(del);
     drawTemplatePreview(cv,{...S,...player,logo:null,logo2:null,bgImg:null,badge:'none',showGuides:false,showSafeMargin:false},{});
     drawRepoTemplateCard(item,cv,lbl,run,player);
   });
-  loadUserTemplates().forEach(ut=>{
+  [...loadUserTemplates()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).forEach(ut=>{
     if(!ut||!ut.snap)return;
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
     wrap.dataset.user=ut.id;
@@ -1207,6 +1220,15 @@ function buildTplGrid(){
       }catch(e){console.warn('Gespeicherte Vorlage konnte nicht als Vorschau geladen werden',ut&&ut.name,e)}
     })();
   });
+}
+function hideRepoTemplate(id,e){
+  e.stopPropagation();
+  if(!confirm('Diese Repo-Vorlage in diesem Browser ausblenden?'))return;
+  const hidden=loadHiddenRepoTemplates();
+  hidden.add(id);
+  persistHiddenRepoTemplates(hidden);
+  if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
+  buildTplGrid();render();
 }
 async function loadRepoTemplateByItem(item){
   try{
