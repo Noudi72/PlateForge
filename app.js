@@ -687,10 +687,44 @@ function templateGroupKey(name){
   if(/spirit|vosseler|team spirit/.test(n))return'spirit';
   return'custom';
 }
-function matchesTplFilter(name,{builtin=false}={}){
+const TPL_FAV_KEY='plateforge_tpl_favorites';
+function loadTplFavorites(){
+  try{return new Set(JSON.parse(localStorage.getItem(TPL_FAV_KEY)||'[]'))}catch(e){return new Set()}
+}
+function persistTplFavorites(set){
+  try{localStorage.setItem(TPL_FAV_KEY,JSON.stringify([...set]))}catch(e){}
+}
+function tplFavKey(kind,id){return kind+':'+id}
+function isTplFavorite(key){return loadTplFavorites().has(key)}
+function toggleTplFavorite(key,e){
+  if(e)e.stopPropagation();
+  const fav=loadTplFavorites();
+  if(fav.has(key))fav.delete(key);else fav.add(key);
+  persistTplFavorites(fav);
+  buildTplGrid();renderUserTplList();
+}
+function appendTplStar(wrap,favKey){
+  const star=document.createElement('button');
+  star.type='button';
+  const on=isTplFavorite(favKey);
+  star.className='tpl-star'+(on?' on':'');
+  star.title=on?'Aus Favoriten entfernen':'Als Favorit markieren';
+  star.textContent='★';
+  star.onclick=e=>toggleTplFavorite(favKey,e);
+  wrap.appendChild(star);
+}
+function compareTplEntries(a,b){
+  const fav=loadTplFavorites();
+  const af=fav.has(a.favKey),bf=fav.has(b.favKey);
+  if(af&&!bf)return-1;
+  if(!af&&bf)return 1;
+  return compareTemplateNames(a.name,b.name);
+}
+function matchesTplFilter(name,{builtin=false,favKey=null}={}){
   const q=(getVal('tplSearch')||'').trim().toLowerCase();
   const g=getVal('tplFilterGroup')||'all';
   if(q&&!String(name||'').toLowerCase().includes(q))return false;
+  if(g==='favorites')return!!favKey&&loadTplFavorites().has(favKey);
   if(g==='all')return true;
   if(g==='builtin')return builtin;
   if(g==='ehcb')return templateGroupKey(name)==='ehcb';
@@ -704,24 +738,31 @@ function buildTplGrid(){
   const player=thumbPlayer();
   const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
   let shown=0;
-  TMPL.map((t,i)=>({t,i})).sort((a,b)=>compareTemplateNames(a.t.name,b.t.name)).forEach(({t,i})=>{
-    if(!matchesTplFilter(t.name,{builtin:true}))return;
+  const onlyFav=(getVal('tplFilterGroup')||'all')==='favorites';
+  const builtinEntries=TMPL.map((t,i)=>({t,i,name:t.name,favKey:tplFavKey('b',i),builtin:true}))
+    .filter(({name,favKey,builtin})=>matchesTplFilter(name,{builtin,favKey}))
+    .sort(compareTplEntries);
+  builtinEntries.forEach(({t,i,name,favKey})=>{
     shown++;
     const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
     wrap.dataset.builtin=String(i);
     wrap.onclick=()=>selectTpl(i);
+    appendTplStar(wrap,favKey);
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
     const thumbOpts=previewOptsFromSnap({tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},badge:'none'},player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,thumbOpts,{});
   });
-  userTemplates.sort((a,b)=>compareTemplateNames(a.name,b.name)).forEach(ut=>{
-    if(!matchesTplFilter(ut.name,{builtin:false}))return;
+  userTemplates.map(ut=>({ut,name:ut.name,favKey:tplFavKey('u',ut.id),builtin:false}))
+    .filter(({name,favKey,builtin})=>matchesTplFilter(name,{builtin,favKey}))
+    .sort(compareTplEntries)
+    .forEach(({ut,favKey})=>{
     shown++;
     const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
     wrap.dataset.user=ut.id;
     wrap.onclick=()=>loadUserTemplate(ut.id);
+    appendTplStar(wrap,favKey);
     const cv=document.createElement('canvas');cv.width=320;cv.height=88;
     const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
     wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
@@ -746,7 +787,7 @@ function buildTplGrid(){
       }catch(e){console.warn('Gespeicherte Vorlage konnte nicht als Vorschau geladen werden',ut&&ut.name,e)}
     })();
   });
-  if(!shown)g.innerHTML='<div style="font-size:.65rem;color:var(--mut);grid-column:1/-1;padding:4px">Keine Vorlagen für Filter/Suche.</div>';
+  if(!shown)g.innerHTML='<div style="font-size:.65rem;color:var(--mut);grid-column:1/-1;padding:4px">'+(onlyFav?'Keine Favoriten — mit ★ auf einer Kachel markieren.':'Keine Vorlagen für Filter/Suche.')+'</div>';
 }
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
@@ -1183,6 +1224,9 @@ async function deleteUserTemplate(id,e){
   if(!confirm('Vorlage löschen?'))return;
   const list=loadUserTemplates().filter(t=>t.id!==id);
   persistUserTemplates(list);
+  const fav=loadTplFavorites();
+  fav.delete(tplFavKey('u',id));
+  persistTplFavorites(fav);
   const k=assetKeySet(id);
   await idbAssetDel(k.logo);await idbAssetDel(k.logo2);await idbAssetDel(k.bg);
   if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
@@ -1203,10 +1247,13 @@ function renderUserTplList(){
     row.className='saved-font-item'+(S.userTplId===t.id?' on':'');
     row.style.marginBottom='4px';
     const dt=new Date(t.updated).toLocaleDateString('de-CH');
-    row.innerHTML=`<span class="saved-font-name">${t.name}</span><span style="font-size:.6rem;color:var(--mut)">${dt}</span>
+    const fKey=tplFavKey('u',t.id);
+    const fOn=isTplFavorite(fKey);
+    row.innerHTML=`<button type="button" class="saved-font-del tpl-list-star${fOn?' on':''}" title="${fOn?'Aus Favoriten':'Als Favorit'}">★</button><span class="saved-font-name">${t.name}</span><span style="font-size:.6rem;color:var(--mut)">${dt}</span>
       <button class="saved-font-del" type="button" title="Als JSON exportieren">↓</button>
       <button class="saved-font-del" type="button" title="Löschen">✕</button>`;
-    const btns=row.querySelectorAll('.saved-font-del');
+    row.querySelector('.tpl-list-star').onclick=e=>{e.stopPropagation();toggleTplFavorite(fKey,e)};
+    const btns=row.querySelectorAll('.saved-font-del:not(.tpl-list-star)');
     btns[0].onclick=e=>{e.stopPropagation();exportTemplatesJson(t.id)};
     btns[1].onclick=e=>deleteUserTemplate(t.id,e);
     row.onclick=e=>{if(e.target.classList.contains('saved-font-del'))return;loadUserTemplate(t.id)};

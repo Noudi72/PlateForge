@@ -77,6 +77,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .saved-font-item:hover{border-color:var(--bdr)}.saved-font-item.on{border-color:var(--gold)}
 .saved-font-name{flex:1;font-size:.8rem}.saved-font-del{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.7rem}
 .saved-font-del:hover{color:var(--acc)}
+.tpl-list-star{color:rgba(255,255,255,.35);font-size:.85rem;line-height:1}
+.tpl-list-star.on,.tpl-list-star:hover{color:var(--gold)}
 
 /* TOGGLE */
 .tog-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -101,6 +103,10 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .tpl-card canvas{width:100%;height:100%;display:block}
 .tpl-lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.72);font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:#fff;padding:1px 3px;text-align:center}
 .tpl-del{position:absolute;top:3px;right:3px;width:17px;height:17px;border:0;border-radius:50%;background:rgba(0,0,0,.72);color:#fff;font-size:.72rem;line-height:17px;cursor:pointer;opacity:0;transition:opacity .12s}
+.tpl-star{position:absolute;top:3px;left:3px;width:17px;height:17px;border:0;border-radius:50%;background:rgba(0,0,0,.72);color:rgba(255,255,255,.45);font-size:.72rem;line-height:17px;cursor:pointer;opacity:0;transition:opacity .12s,color .12s,background .12s;padding:0;z-index:2}
+.tpl-card:hover .tpl-star,.tpl-star.on{opacity:1}
+.tpl-star.on{color:var(--gold);background:rgba(0,0,0,.85)}
+.tpl-star:hover{color:var(--gold);background:rgba(0,0,0,.88)}
 .tpl-card:hover .tpl-del{opacity:1}.tpl-del:hover{background:var(--acc)}
 
 /* MAIN */
