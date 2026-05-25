@@ -58,6 +58,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Asset-Bibliothek:** Hochgeladene Bilder können mit **×** entfernt werden; fehlende Repo-Dateien werden als „fehlt“ markiert.
 
+**GitHub Push:** Unter **Optionen → GitHub Push** (oder **📤 GitHub** in der Asset-Bibliothek) können hochgeladene Bilder und das Master-JSON direkt ins Repo committet werden. Dafür braucht es einen [Personal Access Token](https://github.com/settings/tokens) mit **Contents: Read and write** auf `Noudi72/Plate-Forge`. Der Token wird nur in der Browser-Sitzung gespeichert, nie ins Repo geschrieben.
+
 **Sortierung:** Vorlagen werden alphabetisch sortiert, damit grössere Sammlungen übersichtlich bleiben.
 
 **Hinweis Speicher:** `localStorage` ist auf ~5 MB begrenzt. Deshalb werden Bilddaten nicht mehr dauerhaft in der Vorlagenliste gehalten, sondern in IndexedDB/JSON ausgelagert — dadurch sind deutlich mehr Vorlagen möglich.

@@ -73,6 +73,7 @@
           📤 Fonts
           <input type="file" accept=".ttf,.otf,.woff,.woff2" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetFonts(this)">
         </label>
+        <button class="btn btn-g btn-sm" type="button" onclick="pushToGithub()" title="Uploads + Master-JSON zu GitHub committen">📤 GitHub</button>
       </div>
       <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div id="assetGrid" class="asset-grid"></div>
@@ -361,6 +362,26 @@
         <div class="sl-row"><input type="range" min="2" max="60" value="26" id="slGlow" oninput="render();sv('slGlow','vlGlow')"><span class="sl-v" id="vlGlow">26</span></div></div>
       <div class="fg"><label class="fl">Glow-Farbe</label><div class="sw-row" id="swGlow"></div></div>
     </div>
+    <div class="sb-sec" id="githubSec">
+      <div class="sb-ttl">GitHub Push</div>
+      <div style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:6px">
+        Hochgeladene Bilder und Master-Vorlagen direkt ins Repo committen. Token nur in dieser Browser-Sitzung.
+      </div>
+      <div class="fg">
+        <label class="fl">Personal Access Token</label>
+        <input type="password" class="fi" id="githubToken" placeholder="ghp_…" autocomplete="off" onchange="saveGithubTokenFromUi()">
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Owner</label>
+          <input class="fi" id="githubOwner" placeholder="Noudi72" onchange="saveGithubCfgFromUi()"></div>
+        <div class="fg"><label class="fl">Repo</label>
+          <input class="fi" id="githubRepo" placeholder="Plate-Forge" onchange="saveGithubCfgFromUi()"></div>
+      </div>
+      <div class="fg"><label class="fl">Branch</label>
+        <input class="fi" id="githubBranch" placeholder="main" onchange="saveGithubCfgFromUi()"></div>
+      <div id="githubPushInfo" class="storage-panel">—</div>
+      <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="pushToGithub()" id="btnGithubPush">📤 Zu GitHub pushen</button>
+    </div>
     <div class="sb-sec">
       <div class="sb-ttl">Export</div>
       <div class="frow">
@@ -470,7 +491,7 @@
   </div>
 </div>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 
 </body>
 </html>

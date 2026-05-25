@@ -2965,6 +2965,203 @@ async function refreshStorageInfo(){
     }
   }catch(e){}
   el.innerHTML=`Vorlagen: <strong>${tplCount}</strong> · Eigene Fonts: <strong>${fontCount}</strong> · Hochgeladene Bilder: <strong>${userAssets.length}</strong> · Browser-Speicher: <strong>${idbMb}</strong>`;
+  refreshGithubPushInfo();
+}
+
+// ══════════════════════════════════════════
+// GITHUB PUSH
+// ══════════════════════════════════════════
+const GITHUB_DEFAULT_OWNER='Noudi72';
+const GITHUB_DEFAULT_REPO='Plate-Forge';
+const GITHUB_DEFAULT_BRANCH='main';
+const GITHUB_TOKEN_KEY='plateforge_github_token';
+const GITHUB_CFG_KEY='plateforge_github_cfg';
+const GITHUB_ASSET_PREFIX='Vorlagen Garderobenschilder/';
+
+function loadGithubCfg(){
+  try{
+    const c=JSON.parse(localStorage.getItem(GITHUB_CFG_KEY)||'{}');
+    return{
+      owner:(c.owner||GITHUB_DEFAULT_OWNER).trim(),
+      repo:(c.repo||GITHUB_DEFAULT_REPO).trim(),
+      branch:(c.branch||GITHUB_DEFAULT_BRANCH).trim(),
+    };
+  }catch(e){
+    return{owner:GITHUB_DEFAULT_OWNER,repo:GITHUB_DEFAULT_REPO,branch:GITHUB_DEFAULT_BRANCH};
+  }
+}
+function saveGithubCfg(cfg){
+  try{localStorage.setItem(GITHUB_CFG_KEY,JSON.stringify(cfg))}catch(e){}
+}
+function getGithubToken(){
+  try{return sessionStorage.getItem(GITHUB_TOKEN_KEY)||''}catch(e){return''}
+}
+function setGithubToken(tok){
+  try{
+    if(tok)sessionStorage.setItem(GITHUB_TOKEN_KEY,tok);
+    else sessionStorage.removeItem(GITHUB_TOKEN_KEY);
+  }catch(e){}
+}
+function saveGithubTokenFromUi(){
+  const inp=document.getElementById('githubToken');
+  if(!inp)return;
+  setGithubToken(inp.value.trim());
+  refreshGithubPushInfo();
+}
+function saveGithubCfgFromUi(){
+  saveGithubCfg({
+    owner:(document.getElementById('githubOwner')?.value||GITHUB_DEFAULT_OWNER).trim(),
+    repo:(document.getElementById('githubRepo')?.value||GITHUB_DEFAULT_REPO).trim(),
+    branch:(document.getElementById('githubBranch')?.value||GITHUB_DEFAULT_BRANCH).trim(),
+  });
+  refreshGithubPushInfo();
+}
+function initGithubUi(){
+  const cfg=loadGithubCfg();
+  const tokInp=document.getElementById('githubToken');
+  const ownInp=document.getElementById('githubOwner');
+  const repoInp=document.getElementById('githubRepo');
+  const brInp=document.getElementById('githubBranch');
+  if(ownInp)ownInp.value=cfg.owner;
+  if(repoInp)repoInp.value=cfg.repo;
+  if(brInp)brInp.value=cfg.branch;
+  if(tokInp){
+    const tok=getGithubToken();
+    if(tok)tokInp.placeholder='●●●● verbunden (neu eingeben zum Ändern)';
+  }
+  refreshGithubPushInfo();
+}
+function refreshGithubPushInfo(){
+  const el=document.getElementById('githubPushInfo');
+  if(!el)return;
+  const tok=getGithubToken();
+  const tpl=loadUserTemplates().length;
+  el.innerHTML=`Token: <strong>${tok?'verbunden':'fehlt'}</strong> · Upload-Bilder: <strong>${userAssets.length}</strong> · Vorlagen lokal: <strong>${tpl}</strong>`;
+}
+function dataUrlToBase64(dataUrl){
+  const i=String(dataUrl||'').indexOf(',');
+  return i>=0?dataUrl.slice(i+1):dataUrl;
+}
+async function githubFetch(path,{method='GET',body=null}={}){
+  const token=getGithubToken();
+  if(!token)throw new Error('Kein GitHub-Token — bitte PAT eingeben.');
+  const headers={
+    Accept:'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28',
+    Authorization:'Bearer '+token,
+  };
+  if(body)headers['Content-Type']='application/json';
+  const res=await fetch('https://api.github.com'+path,{
+    method,headers,
+    body:body?JSON.stringify(body):undefined,
+  });
+  if(!res.ok){
+    let msg=res.statusText;
+    try{const j=await res.json();msg=j.message||msg}catch(e){}
+    if(res.status===401)throw new Error('Token ungültig oder abgelaufen.');
+    if(res.status===403)throw new Error('Keine Schreibrechte — PAT braucht „Contents: Read and write“.');
+    throw new Error(`GitHub ${res.status}: ${msg}`);
+  }
+  if(res.status===204)return null;
+  return res.json();
+}
+function patchStaticAssetsJs(jsText,newFileNames){
+  if(!newFileNames.length)return null;
+  const existing=new Set(STATIC_ASSETS.map(a=>a.name.toLowerCase()));
+  const toAdd=[...new Set(newFileNames.map(n=>String(n||'').trim()).filter(n=>n&&!existing.has(n.toLowerCase())))];
+  if(!toAdd.length)return null;
+  const re=/const STATIC_ASSETS=\[([\s\S]*?)\]\.map\(name=>\(\{name,path:'Vorlagen Garderobenschilder\/'\+name\}\)\)/;
+  if(!re.test(jsText))return null;
+  const additions=toAdd.map(n=>`'${n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`).join(',\n  ');
+  return jsText.replace(re,(full,inner)=>{
+    const trimmed=inner.trimEnd();
+    const suffix=trimmed.endsWith(',')?'':',';
+    return `const STATIC_ASSETS=[${trimmed}${suffix}\n  ${additions}\n].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}))`;
+  });
+}
+async function collectGithubPushFiles(){
+  const files=[];
+  const assetNames=[];
+  for(const a of userAssets){
+    if(!a.name||!a.url)continue;
+    files.push({
+      path:GITHUB_ASSET_PREFIX+a.name,
+      base64:dataUrlToBase64(a.url),
+      binary:true,
+    });
+    assetNames.push(a.name);
+  }
+  const master=await buildMasterTemplatesPayload();
+  files.push({
+    path:STATIC_MASTER_TEMPLATES,
+    content:JSON.stringify(master,null,2)+'\n',
+    binary:false,
+  });
+  try{
+    const res=await fetch('./app.js?'+Date.now(),{cache:'no-store'});
+    if(res.ok){
+      const jsText=await res.text();
+      const patched=patchStaticAssetsJs(jsText,assetNames);
+      if(patched&&patched!==jsText){
+        files.push({path:'app.js',content:patched,binary:false});
+      }
+    }
+  }catch(e){}
+  return files;
+}
+async function githubCreateCommit({owner,repo,branch,message,files}){
+  const ref=await githubFetch(`/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
+  const baseSha=ref.object.sha;
+  const baseCommit=await githubFetch(`/repos/${owner}/${repo}/git/commits/${baseSha}`);
+  const treeItems=[];
+  for(const f of files){
+    const blob=await githubFetch(`/repos/${owner}/${repo}/git/blobs`,{
+      method:'POST',
+      body:{content:f.binary?f.base64:f.content,encoding:f.binary?'base64':'utf-8'},
+    });
+    treeItems.push({path:f.path,mode:'100644',type:'blob',sha:blob.sha});
+  }
+  const tree=await githubFetch(`/repos/${owner}/${repo}/git/trees`,{
+    method:'POST',
+    body:{base_tree:baseCommit.tree.sha,tree:treeItems},
+  });
+  const commit=await githubFetch(`/repos/${owner}/${repo}/git/commits`,{
+    method:'POST',
+    body:{message,tree:tree.sha,parents:[baseSha]},
+  });
+  await githubFetch(`/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,{
+    method:'PATCH',
+    body:{sha:commit.sha},
+  });
+  return commit;
+}
+async function pushToGithub(){
+  const btn=document.getElementById('btnGithubPush');
+  const info=document.getElementById('githubPushInfo');
+  const tokInp=document.getElementById('githubToken');
+  if(tokInp&&tokInp.value.trim())setGithubToken(tokInp.value.trim());
+  saveGithubCfgFromUi();
+  const token=getGithubToken();
+  if(!token){showErr('GitHub-Token fehlt — unter Optionen eingeben.');return}
+  const cfg=loadGithubCfg();
+  if(btn)btn.disabled=true;
+  if(info)info.textContent='Dateien werden vorbereitet…';
+  try{
+    const files=await collectGithubPushFiles();
+    if(!files.length){showWarn('Nichts zum Pushen.');return}
+    const assetCount=userAssets.length;
+    const msg=`Plate-Forge: ${assetCount?assetCount+' Asset(s) + ':''}Master-Vorlagen (${new Date().toISOString().slice(0,10)})`;
+    if(info)info.textContent=`Committe ${files.length} Datei(en)…`;
+    const commit=await githubCreateCommit({...cfg,message:msg,files});
+    if(info)info.innerHTML=`✓ Commit <strong>${(commit.sha||'').slice(0,7)}</strong> auf <strong>${cfg.branch}</strong> — GitHub Pages aktualisiert sich in 1–2 Min.`;
+    showOk(`GitHub Push erfolgreich (${files.length} Dateien).`);
+  }catch(e){
+    if(info)info.textContent='Push fehlgeschlagen.';
+    showErr('GitHub Push: '+(e.message||e));
+  }finally{
+    if(btn)btn.disabled=false;
+    refreshGithubPushInfo();
+  }
 }
 async function registerServiceWorker(){
   if(!('serviceWorker'in navigator))return;
@@ -3384,6 +3581,7 @@ window.addEventListener('load',async()=>{
   if(patSel)patSel.value=S.exportNamePattern||'last_nr';
   syncExportUi();
   await refreshStorageInfo();
+  initGithubUi();
   registerServiceWorker();
   // click empty canvas area → deselect the active drag element
   document.getElementById('plateCanvas').addEventListener('pointerdown',()=>{
