@@ -17,9 +17,7 @@ Solange alles in einem Editor bleibt und lokal im Browser läuft, ist **ein stat
 
 ### Optional ohne Framework
 
-Wenn die Datei unübersichtlich wird, könnt ihr später **ohne** SPA nur splitten:
-
-- `index.html` + `app.js` + `styles.css` — weiterhin **ohne Build**, gleiche GitHub-Pages-Story.
+Die App besteht aus **`index.html`**, **`styles.css`**, **`app.js`** und **`sw.js`** (Offline-Cache) — weiterhin **ohne Build**, gleiche GitHub-Pages-Story.
 
 ## GitHub Pages (eine Datei im Repo-Root)
 
@@ -46,7 +44,19 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Beim Start wird zusätzlich `plateforge_vorlagen_master.json` aus dem Repository importiert (Fallback, ohne neuere lokale Vorlagen zu überschreiben).
 
-**Vorlagen löschen / ausblenden:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Repo-Vorlagen werden mit **×** nur in diesem Browser ausgeblendet. Das Master-JSON wird beim Löschen eigener Vorlagen aktualisiert.
+**Vorlagen löschen / duplizieren:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Mit **📋 Duplizieren** wird die aktuelle Vorlage als Kopie gespeichert. **Suche & Filter** über der Vorlagenliste (Basis, EHCB, Team Spirit, Eigene).
+
+**Kader aus Repo:** Unter **Team → Roster** lädt **📥 Kader Repo** die Excel `kader_26-27.xlsx` direkt aus dem Repository (Button **U18** für Roster U18).
+
+**Positionen:** Ungespeicherte Positionsänderungen werden unter **Eigene Vorlagen** mit einem Hinweis angezeigt — mit **💾 Speichern** in der Vorlage sichern.
+
+**Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). Batch-Export zeigt einen Fortschrittsbalken.
+
+**Offline:** Service Worker (`sw.js`) cached App, Master-JSON und Kern-Assets für Nutzung ohne Netz.
+
+**Speicher-Übersicht:** Unter **Optionen → Export** — Anzahl Vorlagen, Fonts, hochgeladene Bilder und Browser-Speicher.
+
+**Asset-Bibliothek:** Hochgeladene Bilder können mit **×** entfernt werden; fehlende Repo-Dateien werden als „fehlt“ markiert.
 
 **Sortierung:** Vorlagen werden alphabetisch sortiert, damit grössere Sammlungen übersichtlich bleiben.
 
