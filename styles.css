@@ -176,7 +176,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .tpl-toolbar{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
 .tpl-toolbar .fi{flex:1;min-width:100px}
 .asset-missing{width:100%;height:42px;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:var(--acc);background:rgba(230,57,80,.08);border-radius:3px}
-.asset-del{position:absolute;top:2px;right:2px;width:15px;height:15px;border:0;border-radius:50%;background:rgba(0,0,0,.78);color:#fff;font-size:.68rem;cursor:pointer;line-height:15px;padding:0;z-index:2}
+.asset-del{position:absolute;top:2px;right:2px;width:15px;height:15px;border:0;border-radius:50%;background:rgba(0,0,0,.78);color:#fff;font-size:.68rem;cursor:pointer;line-height:15px;padding:0;z-index:2;opacity:0;transition:opacity .12s}
+.asset-card:hover .asset-del{opacity:1}
 .asset-del:hover{background:var(--acc)}
 .storage-panel{font-size:.65rem;color:var(--mut);line-height:1.45;margin-top:6px;padding:6px 8px;background:var(--p2);border-radius:5px;border:1px solid var(--bdr)}
 

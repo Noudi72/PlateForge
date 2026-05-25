@@ -1469,8 +1469,16 @@ async function* walkDir(dir,prefix=''){
   }
 }
 const USER_ASSETS_META_KEY='plateforge_user_assets';
+const HIDDEN_ASSETS_KEY='plateforge_hidden_assets';
 let userAssets=[];
 let scannedAssetItems=[];
+
+function loadHiddenAssets(){
+  try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_ASSETS_KEY)||'[]'))}catch(e){return new Set()}
+}
+function persistHiddenAssets(set){
+  try{localStorage.setItem(HIDDEN_ASSETS_KEY,JSON.stringify([...set]))}catch(e){}
+}
 
 function userLibIdbKey(id){return'userlib:'+id}
 function persistUserAssetsMeta(){
@@ -1596,7 +1604,7 @@ async function initLocalFolders(){
   else renderAssetGrid();
   if(fh&&fn)await scanFontsFolder(fh);
 }
-function addAssetCard(grid,{src,name,userId=null}){
+function addAssetCard(grid,{src,name,userId=null,source='static'}){
   const card=document.createElement('div');
   card.className='asset-card';
   const img=document.createElement('img');
@@ -1615,6 +1623,12 @@ function addAssetCard(grid,{src,name,userId=null}){
   nm.className='asset-name';
   nm.title=name;
   nm.textContent=name;
+  const del=document.createElement('button');
+  del.type='button';
+  del.className='asset-del';
+  del.title=source==='user'?'Hochgeladenes Bild entfernen':'Aus Bibliothek ausblenden';
+  del.textContent='×';
+  del.onclick=e=>{e.stopPropagation();removeAssetFromLibrary(name,source,userId)};
   const actions=document.createElement('div');
   actions.className='asset-actions';
   const b1=document.createElement('button');b1.type='button';b1.textContent='L1';
@@ -1624,44 +1638,55 @@ function addAssetCard(grid,{src,name,userId=null}){
   b2.onclick=()=>applyImageAsset('logo2',src,name);
   bg.onclick=()=>applyImageAsset('bg',src,name);
   actions.append(b1,b2,bg);
-  card.append(img,nm,actions);
-  if(userId){
-    const del=document.createElement('button');
-    del.type='button';del.className='asset-del';del.title='Aus Bibliothek entfernen';del.textContent='×';
-    del.onclick=e=>{e.stopPropagation();removeUserAsset(userId)};
-    card.appendChild(del);
-  }
+  card.append(del,img,nm,actions);
   grid.appendChild(card);
 }
 async function removeUserAsset(id){
   const item=userAssets.find(a=>a.id===id);
   if(!item)return;
-  if(!confirm(`„${item.name}" aus der hochgeladenen Bibliothek entfernen?`))return;
   await idbAssetDel(userLibIdbKey(id));
   userAssets=userAssets.filter(a=>a.id!==id);
   persistUserAssetsMeta();
+}
+async function removeAssetFromLibrary(name,source,userId){
+  const key=String(name||'').toLowerCase();
+  if(!key)return;
+  const msg=source==='user'
+    ? `„${name}" aus deinen Uploads löschen?`
+    : `„${name}" aus der Bibliothek ausblenden?`;
+  if(!confirm(msg))return;
+  if(source==='user'&&userId){
+    await removeUserAsset(userId);
+  }else{
+    if(source==='scanned')scannedAssetItems=scannedAssetItems.filter(a=>a.name.toLowerCase()!==key);
+    const hidden=loadHiddenAssets();
+    hidden.add(key);
+    persistHiddenAssets(hidden);
+  }
   renderAssetGrid();
+  refreshStorageInfo();
   showOk('Bild entfernt.');
 }
 function renderAssetGrid(){
   const grid=document.getElementById('assetGrid');
   if(!grid)return;
   grid.innerHTML='';
+  const hidden=loadHiddenAssets();
   const byName=new Map();
-  const put=(src,name,userId=null)=>{
-    if(!name)return;
-    byName.set(name.toLowerCase(),{src,name,userId});
+  const put=(src,name,userId=null,source='static')=>{
+    if(!name||hidden.has(name.toLowerCase()))return;
+    byName.set(name.toLowerCase(),{src,name,userId,source});
   };
-  STATIC_ASSETS.forEach(a=>put(encodeURI(a.path),a.name));
-  userAssets.forEach(a=>put(a.url,a.name,a.id));
-  scannedAssetItems.forEach(a=>put(a.url,a.name));
+  STATIC_ASSETS.forEach(a=>put(encodeURI(a.path),a.name,null,'static'));
+  userAssets.forEach(a=>put(a.url,a.name,a.id,'user'));
+  scannedAssetItems.forEach(a=>put(a.url,a.name,null,'scanned'));
   if(!byName.size){
     grid.innerHTML='<div style="font-size:.65rem;color:var(--mut);grid-column:1/-1">Keine Bilder. 📤 Bilder hochladen oder 📁 Ordner wählen.</div>';
     return;
   }
   [...byName.values()]
     .sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}))
-    .forEach(({src,name,userId})=>addAssetCard(grid,{src,name,userId}));
+    .forEach(item=>addAssetCard(grid,item));
 }
 function renderStaticAssets(){renderAssetGrid()}
 async function scanAssetFolder(dir){
@@ -2943,7 +2968,32 @@ async function refreshStorageInfo(){
 }
 async function registerServiceWorker(){
   if(!('serviceWorker'in navigator))return;
-  try{await navigator.serviceWorker.register('sw.js',{scope:'./'})}catch(e){}
+  try{
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshing)return;
+      refreshing=true;
+      location.reload();
+    });
+    const reg=await navigator.serviceWorker.register('sw.js?v=3',{scope:'./'});
+    const activateWaiting=()=>{
+      if(reg.waiting){
+        reg.waiting.postMessage({type:'SKIP_WAITING'});
+      }
+    };
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(!nw)return;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){
+          showOk('Update geladen — Seite wird aktualisiert.');
+          setTimeout(activateWaiting,500);
+        }
+      });
+    });
+    if(reg.waiting)activateWaiting();
+    reg.update();
+  }catch(e){}
 }
 
 // renders one plate at the chosen export resolution / format
