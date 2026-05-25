@@ -3059,7 +3059,7 @@ async function githubFetch(path,{method='GET',body=null}={}){
     let msg=res.statusText;
     try{const j=await res.json();msg=j.message||msg}catch(e){}
     if(res.status===401)throw new Error('Token ungültig oder abgelaufen.');
-    if(res.status===403)throw new Error('Keine Schreibrechte — PAT braucht „Contents: Read and write“.');
+    if(res.status===403)throw new Error('Keine Schreibrechte — Classic Token mit Haken bei „repo“ nötig.');
     throw new Error(`GitHub ${res.status}: ${msg}`);
   }
   if(res.status===204)return null;
