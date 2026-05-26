@@ -1,4 +1,4 @@
-const CACHE='plateforge-v3';
+const CACHE='plateforge-v4';
 const PRECACHE=[
   './',
   './index.html',
@@ -8,6 +8,11 @@ const PRECACHE=[
   './favicon-32.png',
   './app-icon-192.png',
   './app-icon-512.png',
+  './vendor/js/papaparse.min.js',
+  './vendor/js/xlsx.full.min.js',
+  './vendor/js/jszip.min.js',
+  './vendor/js/jspdf.umd.min.js',
+  './vendor/fonts/google-fonts.css',
 ];
 
 function isAppShell(url){

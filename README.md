@@ -52,7 +52,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). Batch-Export zeigt einen Fortschrittsbalken.
 
-**Offline:** Service Worker (`sw.js`) cached App, Master-JSON und Kern-Assets für Nutzung ohne Netz.
+**Offline:** Service Worker (`sw.js`) cached App, lokale Vendor-Bibliotheken, Webfont-CSS und nachgeladenen Assets für Nutzung ohne Netz. PapaParse, XLSX, JSZip, jsPDF und die Google-Webfonts liegen zusätzlich lokal unter `vendor/`, damit CSV/Excel/PDF auch ohne CDN erreichbar bleiben.
 
 **Speicher-Übersicht:** Unter **Optionen → Export** — Anzahl Vorlagen, Fonts, hochgeladene Bilder und Browser-Speicher.
 
@@ -74,6 +74,8 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 **Schneller Workflow mit Assets:** Bilder aus `Vorlagen Garderobenschilder/` sind auf GitHub Pages direkt in der **Asset-Bibliothek** verfügbar. Fonts aus `Fonts/` werden automatisch geladen und erscheinen direkt im Schrift-Kachelraster. Für **Name** und **Nummer/Badge** kann je eine eigene Schrift und Ausrichtung gewählt werden. Lokal kannst du zusätzlich eigene, nicht committete Ordner über **📁 Vorlagen-Bilder** und **🔤 Fonts** freigeben.
 
 **Zusätzliche Webfonts:** Neben den lokalen Fonts sind auch **Graduate**, **Orbitron**, **Exo 2** und **Saira Stencil One** direkt integriert.
+
+**Performance:** Repo-Fonts werden nicht mehr alle beim Start aktiv geladen, sondern als lokale `@font-face`-Regeln registriert und erst bei Nutzung/Vorschau vom Browser nachgeladen. Das Master-JSON wird bei vorhandenen lokalen Vorlagen nicht mehr bei jedem Reload erneut importiert, sondern nur periodisch.
 
 **Sidebar:** Die linke Seitenleiste ist am rechten Rand ziehbar; die Breite wird im Browser gespeichert. Praktisch für lange Font-Namen im Schrift-Kachelraster.
 

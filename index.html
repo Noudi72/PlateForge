@@ -9,12 +9,12 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0d0f14">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Russo+One&family=Teko:wght@500;600;700&family=Anton&family=Black+Ops+One&family=Saira+Condensed:wght@700;900&family=Graduate&family=Orbitron:wght@700;800;900&family=Exo+2:wght@700;800;900&family=Saira+Stencil+One&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=3">
+<link href="vendor/fonts/google-fonts.css" rel="stylesheet">
+<script src="vendor/js/papaparse.min.js"></script>
+<script src="vendor/js/xlsx.full.min.js"></script>
+<script src="vendor/js/jszip.min.js"></script>
+<script src="vendor/js/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css?v=4">
 
 </head>
 <body>
@@ -22,7 +22,7 @@
 <div class="topbar">
   <div class="logo-mark">PLATE<span>FORGE</span></div>
   <div class="vdiv"></div>
-  <span style="font-size:.72rem;color:var(--mut)">2000 × 550 px</span>
+  <span class="plate-size">2000 × 550 px</span>
   <div class="tbar-btns">
     <button class="btn btn-g btn-sm" onclick="switchMain('editor')" id="tabEditor">🎨 Editor</button>
     <button class="btn btn-g btn-sm" onclick="switchMain('batch')" id="tabBatch">📋 Batch</button>
@@ -169,7 +169,7 @@
         </div>
       </div>
       <button class="btn btn-g btn-sm" type="button" id="fontGridToggle" style="margin-bottom:7px" onclick="toggleFontGrid()">Kacheln anzeigen</button>
-      <div class="font-grid" id="fontGrid"></div>
+      <div class="font-grid collapsed" id="fontGrid"></div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Farben</div>
@@ -494,7 +494,7 @@
   </div>
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 
 </body>
 </html>
