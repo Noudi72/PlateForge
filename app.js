@@ -195,17 +195,24 @@ function playerOpts(p){
 function buildRenderOpts(){
   return{...S,...readSizeOpts(),...playerOpts(activeP())};
 }
-function persistRoster(){
+let rosterWorkspaceWriteTimer=0;
+let rosterLastPersistTs=0;
+let suppressRosterWorkspaceWrite=false;
+
+function persistRoster(ts=Date.now()){
+  rosterLastPersistTs=ts;
   try{
-    localStorage.setItem(ROSTER_KEY,JSON.stringify({roster:S.roster,active:S.active,ts:Date.now()}));
+    localStorage.setItem(ROSTER_KEY,JSON.stringify({roster:S.roster,active:S.active,ts}));
   }catch(e){}
+  if(!suppressRosterWorkspaceWrite)scheduleWorkspaceRosterWrite();
 }
 function restoreRoster(){
   try{
     const d=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null');
-    if(!d||!Array.isArray(d.roster)||!d.roster.length)return false;
+    if(!d||!Array.isArray(d.roster))return false;
     S.roster=d.roster.map(p=>({...p,playerPos:p.playerPos!=null?p.playerPos:(p.pos||'')}));
     S.active=Math.min(d.active||0,Math.max(0,S.roster.length-1));
+    rosterLastPersistTs=d.ts||Date.now();
     return true;
   }catch(e){return false}
 }
@@ -1399,7 +1406,9 @@ const PREFERRED_EXPORT_FOLDER='Vorlagen json';
 const PREFERRED_ASSET_FOLDER='Vorlagen Garderobenschilder';
 const PREFERRED_FONTS_FOLDER='Fonts';
 const WORKSPACE_BACKUP_FOLDER='backups';
-const WORKSPACE_ROSTER_NAMES=['rosters',PREFERRED_EXPORT_FOLDER,PREFERRED_ASSET_FOLDER];
+const WORKSPACE_ROSTER_FOLDER='rosters';
+const WORKSPACE_ROSTER_FILE='plateforge_roster.json';
+const WORKSPACE_ROSTER_NAMES=[WORKSPACE_ROSTER_FOLDER,'Roster','Kader',PREFERRED_EXPORT_FOLDER,PREFERRED_ASSET_FOLDER];
 
 function fsExportSupported(){return typeof window.showDirectoryPicker==='function'}
 function openMetaDb(){
@@ -1478,6 +1487,7 @@ function updateWorkspaceLabel(info={}){
   const rows=[
     `Workspace: <strong>${info.name}/</strong>`,
     workspaceStatusLine('Vorlagen',info.jsonDir),
+    workspaceStatusLine('Roster',info.rosterDir),
     workspaceStatusLine('Bilder',info.assetDir),
     workspaceStatusLine('Fonts',info.fontsDir),
     workspaceStatusLine('Backups',info.backupDir),
@@ -1493,6 +1503,7 @@ async function connectWorkspace(handle,{showStatus=false}={}){
   }
   await storeMetaHandle(WORKSPACE_DIR_KEY,handle);
   const jsonDir=await getChildDir(handle,[PREFERRED_EXPORT_FOLDER,'templates'],{create:true});
+  const rosterDir=await getChildDir(handle,WORKSPACE_ROSTER_NAMES,{create:true});
   const assetDir=await getChildDir(handle,[PREFERRED_ASSET_FOLDER,'assets'],{create:false});
   const fontsDir=await getChildDir(handle,[PREFERRED_FONTS_FOLDER,'fonts'],{create:false});
   const backupDir=await getChildDir(handle,[WORKSPACE_BACKUP_FOLDER,'Backups'],{create:true});
@@ -1501,18 +1512,20 @@ async function connectWorkspace(handle,{showStatus=false}={}){
   if(assetDir)await storeMetaHandle(ASSET_DIR_KEY,assetDir);
   if(fontsDir)await storeMetaHandle(FONTS_DIR_KEY,fontsDir);
 
-  updateWorkspaceLabel({name:handle.name,jsonDir,assetDir,fontsDir,backupDir});
+  updateWorkspaceLabel({name:handle.name,jsonDir,rosterDir,assetDir,fontsDir,backupDir});
   if(jsonDir){
     updateJsonExportDirLabel(jsonDir.name);
     const r=await autoImportTemplatesFromDir(jsonDir,true);
     applyImportResult(r,'Workspace',{reloadActive:false});
   }
+  if(rosterDir)await importWorkspaceRoster({dir:rosterDir,force:false,showStatus:false});
   if(assetDir)await scanAssetFolder(assetDir);
   else renderAssetGrid();
   if(fontsDir)await scanFontsFolder(fontsDir);
   if(showStatus){
     const missing=[];
     if(!jsonDir)missing.push(PREFERRED_EXPORT_FOLDER);
+    if(!rosterDir)missing.push(WORKSPACE_ROSTER_FOLDER);
     if(!assetDir)missing.push(PREFERRED_ASSET_FOLDER);
     if(!fontsDir)missing.push(PREFERRED_FONTS_FOLDER);
     if(missing.length)showWarn('Workspace verbunden. Nicht gefunden: '+missing.join(', '));
@@ -1582,6 +1595,95 @@ async function saveMasterTemplatesJson(payload,{backup=true}={}){
   const master=await writeJsonToExportDir('plateforge_vorlagen_master.json',json);
   const backupOk=master&&backup?await writeWorkspaceBackupJson(json):false;
   return{master,backup:backupOk};
+}
+function rosterPayload(ts=Date.now()){
+  return{
+    plateforge:TPL_JSON_VER,
+    exported:ts,
+    app:'PlateForge',
+    type:'roster',
+    roster:S.roster,
+    active:S.active,
+  };
+}
+function normalizeRosterRows(rows){
+  if(!Array.isArray(rows))return null;
+  return rows.map(p=>({
+    first:String(p.first||'').trim().toUpperCase(),
+    last:String(p.last||'').trim().toUpperCase(),
+    nr:String(p.nr||'').trim(),
+    pos:String(p.pos||p.playerPos||'').trim().toUpperCase(),
+    nat:String(p.nat||'').trim().toUpperCase(),
+    playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),
+  })).filter(p=>p.first||p.last||p.nr);
+}
+async function getWorkspaceRosterDir({create=false}={}){
+  const h=await loadWorkspaceHandle();
+  if(!h||!await ensureDirPermission(h,create))return null;
+  return getChildDir(h,WORKSPACE_ROSTER_NAMES,{create});
+}
+async function readWorkspaceRosterPayload(dir){
+  const rosterDir=dir||await getWorkspaceRosterDir({create:false});
+  if(!rosterDir)return null;
+  try{
+    const fh=await rosterDir.getFileHandle(WORKSPACE_ROSTER_FILE,{create:false});
+    const file=await fh.getFile();
+    const raw=JSON.parse(await file.text());
+    const rows=normalizeRosterRows(raw.roster||raw.players||[]);
+    if(!rows)return null;
+    return{...raw,roster:rows,exported:raw.exported||raw.ts||file.lastModified||0};
+  }catch(e){return null}
+}
+function applyWorkspaceRosterPayload(payload,{showStatus=false,label='Workspace-Roster'}={}){
+  const rows=normalizeRosterRows(payload&&payload.roster);
+  if(!rows)return false;
+  S.roster=rows;
+  S.active=Math.min(payload.active||0,Math.max(0,S.roster.length-1));
+  suppressRosterWorkspaceWrite=true;
+  persistRoster(payload.exported||Date.now());
+  suppressRosterWorkspaceWrite=false;
+  buildRoster();
+  if(S.roster.length){
+    const p=S.roster[S.active];
+    document.getElementById('iFirst').value=p.first||'';
+    document.getElementById('iLast').value=p.last||'';
+    document.getElementById('iNr').value=p.nr||'';
+    document.getElementById('iPos').value=p.pos||'';
+    document.getElementById('iNat').value=p.nat||'';
+  }
+  updatePlayerNav();render();refreshBatchIfVisible();
+  if(showStatus)showOk(`${label}: ${S.roster.length} Spieler übernommen.`);
+  return true;
+}
+async function importWorkspaceRoster({dir=null,force=false,showStatus=false}={}){
+  const payload=await readWorkspaceRosterPayload(dir);
+  if(!payload){
+    if(showStatus)showWarn('Kein '+WORKSPACE_ROSTER_FILE+' im Workspace gefunden.');
+    return false;
+  }
+  const localTs=rosterLastPersistTs||0;
+  if(!force&&localTs&&payload.exported&&payload.exported<localTs)return false;
+  return applyWorkspaceRosterPayload(payload,{showStatus,label:'Workspace-Roster'});
+}
+async function writeWorkspaceRosterNow(){
+  if(!fsExportSupported())return false;
+  const dir=await getWorkspaceRosterDir({create:true});
+  if(!dir)return false;
+  try{
+    const ts=rosterLastPersistTs||Date.now();
+    const fh=await dir.getFileHandle(WORKSPACE_ROSTER_FILE,{create:true});
+    const w=await fh.createWritable();
+    await w.write(JSON.stringify(rosterPayload(ts),null,2));
+    await w.close();
+    return true;
+  }catch(e){
+    console.warn('writeWorkspaceRosterNow',e);
+    return false;
+  }
+}
+function scheduleWorkspaceRosterWrite(){
+  clearTimeout(rosterWorkspaceWriteTimer);
+  rosterWorkspaceWriteTimer=setTimeout(()=>writeWorkspaceRosterNow(),650);
 }
 function updateJsonExportDirLabel(name){
   const el=document.getElementById('jsonExportDirInfo');
@@ -3277,6 +3379,14 @@ async function findWorkspaceRosterFile(){
 }
 async function loadWorkspaceRoster(){
   try{
+    if(!await loadWorkspaceHandle()){
+      showWarn('Bitte zuerst unter Optionen den PlateForge Workspace wählen.');
+      return;
+    }
+    if(await importWorkspaceRoster({force:true,showStatus:false})){
+      showOk(`Workspace-Roster: ${S.roster.length} Spieler übernommen.`);
+      return;
+    }
     const item=await findWorkspaceRosterFile();
     if(!item){
       showWarn('Kein CSV/XLSX-Kader im Workspace gefunden.');
@@ -3506,7 +3616,7 @@ async function registerServiceWorker(){
       refreshing=true;
       location.reload();
     });
-    const reg=await navigator.serviceWorker.register('sw.js?v=6',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('sw.js?v=7',{scope:'./'});
     const activateWaiting=()=>{
       if(reg.waiting){
         reg.waiting.postMessage({type:'SKIP_WAITING'});
@@ -3939,7 +4049,8 @@ window.addEventListener('load',async()=>{
   const bdx=document.getElementById('slBadgeNrDx');if(bdx){bdx.value=S.badgeNrDx||0;sv('slBadgeNrDx','vlBadgeNrDx')}
   const bdy=document.getElementById('slBadgeNrDy');if(bdy){bdy.value=S.badgeNrDy||0;sv('slBadgeNrDy','vlBadgeNrDy')}
   if(!S.logo)useEHCLogo();
-  pickP(S.active);
+  if(S.roster.length)pickP(S.active);
+  else render();
   updatePlayerNav();
   switchMain('editor');
   // sync export controls with state
