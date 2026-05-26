@@ -19,6 +19,24 @@ Solange alles in einem Editor bleibt und lokal im Browser läuft, ist **ein stat
 
 Die App besteht aus **`index.html`**, **`styles.css`**, **`app.js`** und **`sw.js`** (Offline-Cache) — weiterhin **ohne Build**, gleiche GitHub-Pages-Story.
 
+### Tauri-App für macOS
+
+Der erste Tauri-v2-Aufbau liegt unter `src-tauri/`. Die bestehende Web-App wird vor dem Build nach `dist/` kopiert und als native macOS-App gebündelt.
+
+```bash
+npm install
+npm run tauri:dev
+npm run tauri:build
+```
+
+Für schnelle lokale Prüfungen ohne Release-Signierung:
+
+```bash
+npm run tauri -- build --debug
+```
+
+Der aktuelle Tauri-Stand ist zunächst die native App-Hülle. Der nächste Schritt ist, den iCloud-Workspace über Tauri-Dateizugriff statt über die Browser-Ordner-API anzubinden.
+
 ## GitHub Pages (eine Datei im Repo-Root)
 
 1. Repo auf GitHub pushen (mit `index.html` im **Root** oder im Ordner **`docs/`**).

@@ -1,0 +1,44 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "PlateForge",
+  "version": "0.1.0",
+  "identifier": "ch.plateforge.desktop",
+  "build": {
+    "beforeDevCommand": "npm run serve:tauri",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build:tauri-static",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "PlateForge",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1050,
+        "minHeight": 680,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  }
+}
