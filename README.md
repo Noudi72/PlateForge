@@ -21,7 +21,7 @@ Die App besteht aus **`index.html`**, **`styles.css`**, **`app.js`** und **`sw.j
 
 ### Tauri-App für macOS
 
-Der erste Tauri-v2-Aufbau liegt unter `src-tauri/`. Die bestehende Web-App wird vor dem Build nach `dist/` kopiert und als native macOS-App gebündelt.
+Der Tauri-v2-Aufbau liegt unter `src-tauri/`. Die bestehende Web-App wird vor dem Build nach `dist/` kopiert und als native macOS-App gebündelt. In der Tauri-App wird der iCloud-Workspace über native macOS-Dateipfade gelesen und geschrieben.
 
 ```bash
 npm install
@@ -35,7 +35,7 @@ Für schnelle lokale Prüfungen ohne Release-Signierung:
 npm run tauri -- build --debug
 ```
 
-Der aktuelle Tauri-Stand ist zunächst die native App-Hülle. Der nächste Schritt ist, den iCloud-Workspace über Tauri-Dateizugriff statt über die Browser-Ordner-API anzubinden.
+Der Debug-Build legt die App und DMG unter `src-tauri/target/debug/bundle/` ab. Für Release-Verteilung kommen später Signierung/Notarisierung dazu.
 
 ## GitHub Pages (eine Datei im Repo-Root)
 
@@ -58,9 +58,9 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
-**Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
+**Export nach `Vorlagen json/`:** In der Tauri-App wird automatisch in den verbundenen Workspace geschrieben. Im Browser beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt Chrome/Edge die Datei `plateforge_vorlagen_master.json` direkt dorthin. In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
-**iCloud Workspace:** Unter **Optionen → iCloud Workspace** den Ordner `iCloud Drive/PlateForge` wählen. Die App verbindet automatisch `Vorlagen json/`, `rosters/`, `Vorlagen Garderobenschilder/`, `Fonts/` und `backups/`. Beim Speichern wird das Master-JSON aktualisiert und zusätzlich eine datierte Backup-Datei in `backups/` geschrieben. Der Roster wird als `rosters/plateforge_roster.json` synchronisiert. Auf einem zweiten Mac muss derselbe iCloud-Ordner einmal gewählt werden. Automatischer Ordner-Sync benötigt Chrome/Edge; Safari bleibt bei Import/Download.
+**iCloud Workspace:** Unter **Optionen → iCloud Workspace** den Ordner `iCloud Drive/PlateForge` wählen. Die App verbindet automatisch `Vorlagen json/`, `rosters/`, `Vorlagen Garderobenschilder/`, `Fonts/` und `backups/`. Beim Speichern wird das Master-JSON aktualisiert und zusätzlich eine datierte Backup-Datei in `backups/` geschrieben. Der Roster wird als `rosters/plateforge_roster.json` synchronisiert. Auf einem zweiten Mac muss derselbe iCloud-Ordner einmal gewählt werden. In der Tauri-App funktioniert das nativ über macOS-Dateizugriff; im Browser benötigt automatischer Ordner-Sync Chrome/Edge. Safari bleibt bei Import/Download.
 
 **Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Beim Start wird zusätzlich `plateforge_vorlagen_master.json` aus dem Repository importiert (Fallback, ohne neuere lokale Vorlagen zu überschreiben).
 
