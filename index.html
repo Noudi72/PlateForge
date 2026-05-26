@@ -302,6 +302,7 @@
           📂 CSV/Excel
           <input type="file" accept=".csv,.xlsx,.xls" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importFile(this)">
         </label>
+        <button class="btn btn-g btn-sm" type="button" onclick="loadWorkspaceRoster()" title="Roster/Kader aus dem verbundenen PlateForge Workspace">☁️ Kader Workspace</button>
         <button class="btn btn-y btn-sm" type="button" onclick="loadRepoRoster(0)" title="kader_26-27.xlsx aus Repo">📥 Kader Repo</button>
         <button class="btn btn-g btn-sm" type="button" onclick="loadRepoRoster(1)" title="Roster U18 26-27">U18</button>
         <button class="btn btn-g btn-sm" onclick="clearRoster()">🗑️</button>
@@ -319,6 +320,17 @@
 
   <!-- ── SETTINGS PANEL ── -->
   <div class="side-panel" id="panelSettings">
+    <div class="sb-sec">
+      <div class="sb-ttl">iCloud Workspace</div>
+      <div style="font-size:.65rem;color:var(--mut);line-height:1.45;margin-bottom:7px">
+        Wähle deinen Ordner <strong style="color:var(--txt)">iCloud Drive/PlateForge</strong>. PlateForge nutzt daraus Vorlagen, Bilder, Fonts, Kader und Backups.
+      </div>
+      <div class="frow">
+        <button class="btn btn-y btn-sm" type="button" onclick="pickWorkspaceFolder()">📁 Workspace wählen</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="syncWorkspaceNow(true)">🔄 Sync</button>
+      </div>
+      <div id="workspaceInfo" class="storage-panel">Workspace nicht verbunden.</div>
+    </div>
     <div class="sb-sec">
       <div class="sb-ttl">Namensformat</div>
       <div class="fg"><label class="fl">Anzeige</label>
@@ -498,7 +510,7 @@
   </div>
 </div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 
 </body>
 </html>

@@ -1293,9 +1293,9 @@ async function saveUserTemplate(){
   showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder in IndexedDB + JSON)':'')+jsonNote);
 }
 async function autoBackupTemplateJson(entry){
-  const fname='plateforge_vorlagen_master.json';
   const payload=await buildMasterTemplatesPayload(entry);
-  if(await writeJsonToExportDir(fname,JSON.stringify(payload,null,2)))return' → auch in Vorlagen json/';
+  const saved=await saveMasterTemplatesJson(payload,{backup:true});
+  if(saved.master)return saved.backup?' → Workspace + Backup':' → auch in Vorlagen json/';
   return'';
 }
 function finishSaveUserTemplate(entry,name){
@@ -1357,7 +1357,7 @@ async function deleteUserTemplate(id,e){
   await idbAssetDel(k.logo);await idbAssetDel(k.logo2);await idbAssetDel(k.bg);
   if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
   buildTplGrid();renderUserTplList();render();
-  await writeJsonToExportDir('plateforge_vorlagen_master.json',JSON.stringify(await buildMasterTemplatesPayload(),null,2));
+  await saveMasterTemplatesJson(await buildMasterTemplatesPayload(),{backup:true});
 }
 function setTemplateNameInput(name){
   const inp=document.getElementById('userTplName');
@@ -1391,12 +1391,15 @@ function renderUserTplList(){
 const TPL_JSON_VER=1;
 const META_IDB='plateforge_meta';
 const META_STORE='kv';
+const WORKSPACE_DIR_KEY='workspaceDir';
 const EXPORT_DIR_KEY='exportDir';
 const ASSET_DIR_KEY='assetDir';
 const FONTS_DIR_KEY='fontsDir';
 const PREFERRED_EXPORT_FOLDER='Vorlagen json';
 const PREFERRED_ASSET_FOLDER='Vorlagen Garderobenschilder';
 const PREFERRED_FONTS_FOLDER='Fonts';
+const WORKSPACE_BACKUP_FOLDER='backups';
+const WORKSPACE_ROSTER_NAMES=['rosters',PREFERRED_EXPORT_FOLDER,PREFERRED_ASSET_FOLDER];
 
 function fsExportSupported(){return typeof window.showDirectoryPicker==='function'}
 function openMetaDb(){
@@ -1436,6 +1439,9 @@ async function loadMetaHandle(key){
     });
   }catch(e){return null}
 }
+async function loadWorkspaceHandle(){
+  return loadMetaHandle(WORKSPACE_DIR_KEY);
+}
 async function ensureDirPermission(handle,write){
   if(!handle)return false;
   const opts={mode:write?'readwrite':'read'};
@@ -1443,6 +1449,139 @@ async function ensureDirPermission(handle,write){
     if((await handle.queryPermission(opts))==='granted')return true;
     return(await handle.requestPermission(opts))==='granted';
   }catch(e){return false}
+}
+async function getChildDir(parent,names,{create=false}={}){
+  const list=Array.isArray(names)?names:[names];
+  for(const name of list){
+    try{return await parent.getDirectoryHandle(name,{create:false})}catch(e){}
+  }
+  if(create){
+    try{return await parent.getDirectoryHandle(list[0],{create:true})}catch(e){}
+  }
+  return null;
+}
+function workspaceStatusLine(label,handle){
+  return `${label}: <strong>${handle?'ok':'fehlt'}</strong>`;
+}
+function updateWorkspaceLabel(info={}){
+  info=info||{};
+  const el=document.getElementById('workspaceInfo');
+  if(!el)return;
+  if(!fsExportSupported()){
+    el.innerHTML='Workspace-Sync benötigt Chrome/Edge. Safari kann lokale Ordner nicht dauerhaft verbinden.';
+    return;
+  }
+  if(!info.name){
+    el.innerHTML='Workspace nicht verbunden. Wähle auf jedem Mac einmal deinen iCloud-Ordner <strong>PlateForge</strong>.';
+    return;
+  }
+  const rows=[
+    `Workspace: <strong>${info.name}/</strong>`,
+    workspaceStatusLine('Vorlagen',info.jsonDir),
+    workspaceStatusLine('Bilder',info.assetDir),
+    workspaceStatusLine('Fonts',info.fontsDir),
+    workspaceStatusLine('Backups',info.backupDir),
+  ];
+  el.innerHTML=rows.join(' · ');
+}
+async function connectWorkspace(handle,{showStatus=false}={}){
+  if(!handle)return null;
+  if(!await ensureDirPermission(handle,true)){
+    updateWorkspaceLabel(null);
+    if(showStatus)showWarn('Kein Zugriff auf den Workspace. Bitte Ordner erneut wählen.');
+    return null;
+  }
+  await storeMetaHandle(WORKSPACE_DIR_KEY,handle);
+  const jsonDir=await getChildDir(handle,[PREFERRED_EXPORT_FOLDER,'templates'],{create:true});
+  const assetDir=await getChildDir(handle,[PREFERRED_ASSET_FOLDER,'assets'],{create:false});
+  const fontsDir=await getChildDir(handle,[PREFERRED_FONTS_FOLDER,'fonts'],{create:false});
+  const backupDir=await getChildDir(handle,[WORKSPACE_BACKUP_FOLDER,'Backups'],{create:true});
+
+  if(jsonDir)await storeMetaHandle(EXPORT_DIR_KEY,jsonDir);
+  if(assetDir)await storeMetaHandle(ASSET_DIR_KEY,assetDir);
+  if(fontsDir)await storeMetaHandle(FONTS_DIR_KEY,fontsDir);
+
+  updateWorkspaceLabel({name:handle.name,jsonDir,assetDir,fontsDir,backupDir});
+  if(jsonDir){
+    updateJsonExportDirLabel(jsonDir.name);
+    const r=await autoImportTemplatesFromDir(jsonDir,true);
+    applyImportResult(r,'Workspace',{reloadActive:false});
+  }
+  if(assetDir)await scanAssetFolder(assetDir);
+  else renderAssetGrid();
+  if(fontsDir)await scanFontsFolder(fontsDir);
+  if(showStatus){
+    const missing=[];
+    if(!jsonDir)missing.push(PREFERRED_EXPORT_FOLDER);
+    if(!assetDir)missing.push(PREFERRED_ASSET_FOLDER);
+    if(!fontsDir)missing.push(PREFERRED_FONTS_FOLDER);
+    if(missing.length)showWarn('Workspace verbunden. Nicht gefunden: '+missing.join(', '));
+    else showOk('Workspace verbunden: '+handle.name);
+  }
+  return{handle,jsonDir,assetDir,fontsDir,backupDir};
+}
+async function pickWorkspaceFolder(){
+  if(!fsExportSupported()){
+    showWarn('Workspace-Sync benötigt Chrome/Edge. Safari unterstützt die Ordner-API nicht.');
+    return null;
+  }
+  try{
+    const h=await window.showDirectoryPicker({
+      mode:'readwrite',
+      id:'plateforge-workspace',
+      startIn:'documents',
+    });
+    return await connectWorkspace(h,{showStatus:true});
+  }catch(e){
+    if(e&&e.name!=='AbortError')showErr('Workspace: '+(e.message||e));
+    return null;
+  }
+}
+async function syncWorkspaceNow(showStatus=false){
+  if(!fsExportSupported()){
+    updateWorkspaceLabel(null);
+    if(showStatus)showWarn('Workspace-Sync benötigt Chrome/Edge.');
+    return null;
+  }
+  const h=await loadWorkspaceHandle();
+  if(!h){
+    updateWorkspaceLabel(null);
+    if(showStatus)showWarn('Bitte zuerst den PlateForge Workspace wählen.');
+    return null;
+  }
+  return connectWorkspace(h,{showStatus});
+}
+async function initWorkspace(){
+  if(!fsExportSupported()){updateWorkspaceLabel(null);return null}
+  const h=await loadWorkspaceHandle();
+  if(!h){updateWorkspaceLabel(null);return null}
+  return connectWorkspace(h,{showStatus:false});
+}
+function backupTimestamp(){
+  return new Date().toISOString().replace(/[:.]/g,'-').replace('T','_').slice(0,19);
+}
+async function writeWorkspaceBackupJson(jsonText,base='plateforge_vorlagen_master'){
+  if(!fsExportSupported())return false;
+  const h=await loadWorkspaceHandle();
+  if(!h||!await ensureDirPermission(h,true))return false;
+  const backupDir=await getChildDir(h,[WORKSPACE_BACKUP_FOLDER,'Backups'],{create:true});
+  if(!backupDir)return false;
+  try{
+    const fh=await backupDir.getFileHandle(`${base}_${backupTimestamp()}.json`,{create:true});
+    const w=await fh.createWritable();
+    await w.write(jsonText);
+    await w.close();
+    return true;
+  }catch(e){
+    console.warn('writeWorkspaceBackupJson',e);
+    return false;
+  }
+}
+async function saveMasterTemplatesJson(payload,{backup=true}={}){
+  const json=JSON.stringify(payload,null,2);
+  const master=await writeJsonToExportDir('plateforge_vorlagen_master.json',json);
+  const backupOk=master&&backup?await writeWorkspaceBackupJson(json):false;
+  return{master,backup:backupOk};
 }
 function updateJsonExportDirLabel(name){
   const el=document.getElementById('jsonExportDirInfo');
@@ -3100,6 +3239,53 @@ async function loadRepoRoster(index){
     processRows(data,file.label+'.xlsx');
   }catch(e){showErr('Kader-Import: '+(e.message||e))}
 }
+async function parseRosterFile(file,label){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='csv'){
+    const text=await file.text();
+    const parsed=Papa.parse(text,{header:true,skipEmptyLines:'greedy',encoding:'UTF-8',transformHeader:h=>h.trim()});
+    if(parsed.errors&&parsed.errors.length&&!parsed.data.length)throw new Error(parsed.errors[0].message);
+    if(!parsed.data.length)throw new Error('Keine Datenzeilen gefunden.');
+    processRows(parsed.data,label||file.name);
+    return;
+  }
+  if(['xlsx','xls'].includes(ext)){
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    if(!wb.SheetNames.length)throw new Error('Excel ohne Tabellenblatt.');
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const data=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+    if(!data.length)throw new Error('Keine Datenzeilen gefunden.');
+    processRows(data,label||file.name);
+    return;
+  }
+  throw new Error('Format nicht unterstützt: .'+ext);
+}
+async function findWorkspaceRosterFile(){
+  const h=await loadWorkspaceHandle();
+  if(!h||!await ensureDirPermission(h,false))return null;
+  const matches=[];
+  for await(const item of walkDir(h)){
+    if(!/\.(csv|xlsx|xls)$/i.test(item.path))continue;
+    const file=await item.handle.getFile();
+    const name=item.path.toLowerCase();
+    const priority=/kader/.test(name)?0:/roster/.test(name)?1:2;
+    matches.push({path:item.path,file,priority});
+  }
+  matches.sort((a,b)=>a.priority-b.priority||(b.file.lastModified||0)-(a.file.lastModified||0)||a.path.localeCompare(b.path,undefined,{numeric:true,sensitivity:'base'}));
+  return matches[0]||null;
+}
+async function loadWorkspaceRoster(){
+  try{
+    const item=await findWorkspaceRosterFile();
+    if(!item){
+      showWarn('Kein CSV/XLSX-Kader im Workspace gefunden.');
+      return;
+    }
+    showOk('Lade Workspace-Kader: '+item.path);
+    await parseRosterFile(item.file,item.path);
+  }catch(e){showErr('Workspace-Kader: '+(e.message||e))}
+}
 async function refreshStorageInfo(){
   const el=document.getElementById('storageInfo');
   if(!el)return;
@@ -3320,7 +3506,7 @@ async function registerServiceWorker(){
       refreshing=true;
       location.reload();
     });
-    const reg=await navigator.serviceWorker.register('sw.js?v=5',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('sw.js?v=6',{scope:'./'});
     const activateWaiting=()=>{
       if(reg.waiting){
         reg.waiting.postMessage({type:'SKIP_WAITING'});
@@ -3742,6 +3928,7 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
+  await initWorkspace();
   await initJsonExportDir();
   await initLocalFolders();
   await autoImportStaticTemplates();
@@ -3764,6 +3951,11 @@ window.addEventListener('load',async()=>{
   await refreshStorageInfo();
   initGithubUi();
   registerServiceWorker();
+  let workspaceFocusTimer=0;
+  window.addEventListener('focus',()=>{
+    clearTimeout(workspaceFocusTimer);
+    workspaceFocusTimer=setTimeout(()=>syncWorkspaceNow(false),600);
+  });
   // click empty canvas area → deselect the active drag element
   document.getElementById('plateCanvas').addEventListener('pointerdown',()=>{
     if(S.sel){S.sel=null;render()}

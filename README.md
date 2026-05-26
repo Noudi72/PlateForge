@@ -42,11 +42,13 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Export nach `Vorlagen json/`:** Beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt der Browser die Datei `plateforge_vorlagen_master.json` direkt dorthin (Chrome/Edge). In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
+**iCloud Workspace:** Unter **Optionen → iCloud Workspace** den Ordner `iCloud Drive/PlateForge` wählen. Die App verbindet automatisch `Vorlagen json/`, `Vorlagen Garderobenschilder/`, `Fonts/` und `backups/`. Beim Speichern wird das Master-JSON aktualisiert und zusätzlich eine datierte Backup-Datei in `backups/` geschrieben. Auf einem zweiten Mac muss derselbe iCloud-Ordner einmal gewählt werden.
+
 **Vorlagen wiederherstellen:** Mit **📥 Wiederherstellen** kann das Master-JSON oder eine ältere `.json`-Datei importiert werden. Beim Start wird zusätzlich `plateforge_vorlagen_master.json` aus dem Repository importiert (Fallback, ohne neuere lokale Vorlagen zu überschreiben).
 
 **Vorlagen löschen / duplizieren:** Eigene Vorlagen können in der Liste oder direkt über das **×** auf der Vorlagen-Kachel entfernt werden. Mit **📋 Duplizieren** wird die aktuelle Vorlage als Kopie gespeichert. **Suche & Filter** über der Vorlagenliste (Basis, EHCB, Team Spirit, Eigene).
 
-**Kader aus Repo:** Unter **Team → Roster** lädt **📥 Kader Repo** die Excel `kader_26-27.xlsx` direkt aus dem Repository (Button **U18** für Roster U18).
+**Kader aus Workspace/Repo:** Unter **Team → Roster** lädt **☁️ Kader Workspace** die bevorzugte CSV/XLS/XLSX-Datei aus dem verbundenen iCloud-Workspace. **📥 Kader Repo** lädt die Excel `kader_26-27.xlsx` direkt aus dem Repository (Button **U18** für Roster U18).
 
 **Positionen:** Ungespeicherte Positionsänderungen werden unter **Eigene Vorlagen** mit einem Hinweis angezeigt — mit **💾 Speichern** in der Vorlage sichern.
 
