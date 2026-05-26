@@ -291,6 +291,9 @@ function switchMain(view){
   if(view==='batch')renderBatch();
   syncAriaControls();
 }
+function initRuntimeModeUi(){
+  document.body.classList.toggle('is-tauri',isTauriApp());
+}
 
 // ══════════════════════════════════════════
 // TEXT ALIGN
@@ -941,6 +944,70 @@ function selectTpl(i){
 // EIGENE VORLAGEN (localStorage)
 // ══════════════════════════════════════════
 const USER_TPL_KEY='plateforge_user_templates';
+const CREATIVE_TEMPLATE_SEEDS=[
+  {
+    id:'ut_seed_20260526_arctic_bolt',
+    name:'EHCB Arctic Bolt',
+    updated:1779793200000,
+    c:{bg1:'#06111F',bg2:'#DCE7F2',acc:'#B5161E',nc:'#08274D',nrc:'#B5161E'},
+    font:"'PF_STATIC_ZingRustDemo-Base'",
+    nrFont:"'PF_STATIC_thunderstrikehalf'",
+    layout:'F',textAlign:'center',textVAlign:'middle',nrAlign:'center',nrVAlign:'middle',
+    nameSz:226,nrSz:284,logoSz:274,logo2Sz:326,frameW:12,bgOp:.88,logoOp:1,
+    frame:true,screws:true,bar:false,logoBand:false,showPos:false,showNat:false,showLeague:false,shadowOn:false,glowOn:false,
+    logoPath:'Vorlagen Garderobenschilder/EHCB_Spirit Viking.PNG',
+    logo2Path:'Vorlagen Garderobenschilder/EHCB Logo.png',
+    bgPath:'Vorlagen Garderobenschilder/background 29.png',
+    pos:{logo:{x:210,y:276,sz:274},logo2:{x:1782,y:276,sz:326},name:{x:1000,y:375},nr:{x:1000,y:170}},
+  },
+  {
+    id:'ut_seed_20260526_spirit_neon',
+    name:'Spirit Neon Rush',
+    updated:1779793201000,
+    c:{bg1:'#020816',bg2:'#0E1D3A',acc:'#00BFFF',nc:'#FFFFFF',nrc:'#FFB43F'},
+    font:"'PF_STATIC_SpaceX'",
+    nrFont:"'Russo One'",
+    layout:'L',textAlign:'center',textVAlign:'middle',nrAlign:'center',nrVAlign:'middle',
+    nameSz:145,nrSz:244,logoSz:285,logo2Sz:245,frameW:8,bgOp:.92,logoOp:1,
+    frame:true,screws:false,bar:true,logoBand:true,showPos:false,showNat:false,showLeague:false,shadowOn:true,glowOn:true,glowColor:'#00BFFF',glowSize:38,shBlur:12,shDist:5,
+    badge:'circle',badgeColor:'#FFFFFF',badgeFillOp:.92,badgeBorderColor:'#C8102E',badgeScale:82,badgeNrDx:0,badgeNrDy:8,
+    logoPath:'Vorlagen Garderobenschilder/Logo Spirit.png',
+    logo2Path:'Vorlagen Garderobenschilder/EHCB Logo.png',
+    bgPath:'Vorlagen Garderobenschilder/background 31.png',
+    pos:{logo:{x:185,y:292,sz:285},logo2:{x:1788,y:276,sz:245},name:{x:1040,y:350},nr:{x:560,y:246}},
+  },
+  {
+    id:'ut_seed_20260526_redline_viking',
+    name:'Redline Viking',
+    updated:1779793202000,
+    c:{bg1:'#180304',bg2:'#050608',acc:'#C8102E',nc:'#111111',nrc:'#FF9C00'},
+    font:"'PF_STATIC_soviet-program_regular'",
+    nrFont:"'PF_STATIC_ZingRustDemo-Base'",
+    layout:'F',textAlign:'center',textVAlign:'middle',nrAlign:'center',nrVAlign:'middle',
+    nameSz:210,nrSz:292,logoSz:308,logo2Sz:245,frameW:9,bgOp:.9,logoOp:1,
+    frame:true,screws:true,bar:false,logoBand:false,showPos:false,showNat:false,showLeague:false,shadowOn:true,glowOn:false,shBlur:14,shDist:5,
+    logoPath:'Vorlagen Garderobenschilder/Spirit Viking 3x.webp',
+    logo2Path:'Vorlagen Garderobenschilder/EHCB Logo.png',
+    bgPath:'Vorlagen Garderobenschilder/background 2.png',
+    pos:{logo:{x:210,y:276,sz:308},logo2:{x:1788,y:275,sz:245},name:{x:1020,y:365},nr:{x:1020,y:158}},
+  },
+  {
+    id:'ut_seed_20260526_gold_crest',
+    name:'Gold Crest Pro',
+    updated:1779793203000,
+    c:{bg1:'#120A02',bg2:'#1C1A12',acc:'#D4B96A',nc:'#F7E7A1',nrc:'#FFFFFF'},
+    font:"'PF_STATIC_swera-demo_bold'",
+    nrFont:"'PF_STATIC_Ethnocentric-Regular'",
+    layout:'R',textAlign:'center',textVAlign:'middle',nrAlign:'center',nrVAlign:'middle',
+    nameSz:176,nrSz:250,logoSz:255,logo2Sz:210,frameW:11,bgOp:.86,logoOp:.96,
+    frame:true,screws:true,bar:true,logoBand:true,showPos:false,showNat:false,showLeague:false,shadowOn:true,glowOn:true,glowColor:'#D4B96A',glowSize:22,shBlur:16,shDist:5,
+    badge:'hexagon',badgeColor:'#101010',badgeFillOp:.82,badgeBorderColor:'#D4B96A',badgeScale:70,badgeNrDx:0,badgeNrDy:4,
+    logoPath:'Vorlagen Garderobenschilder/EHCB Logo.png',
+    logo2Path:'Vorlagen Garderobenschilder/Logo_EHCB.png',
+    bgPath:'Vorlagen Garderobenschilder/background 13.png',
+    pos:{logo:{x:1815,y:275,sz:255},logo2:{x:210,y:276,sz:210},name:{x:960,y:342},nr:{x:470,y:276}},
+  },
+];
 
 function loadUserTemplates(){
   try{return JSON.parse(localStorage.getItem(USER_TPL_KEY)||'[]')}catch(e){return[]}
@@ -954,7 +1021,7 @@ function persistUserTemplates(list){
   }catch(e){return false}
 }
 function snapAssetFlags(snap){
-  return{logo:!!snap.logoData,logo2:!!snap.logo2Data,bg:!!snap.bgData};
+  return{logo:!!(snap.logoData||snap.logoPath),logo2:!!(snap.logo2Data||snap.logo2Path),bg:!!(snap.bgData||snap.bgPath)};
 }
 function withAssetFlags(snap){
   return{...snap,_assets:snapAssetFlags(snap)};
@@ -963,6 +1030,78 @@ function stripSnapImages(snap){
   const s=withAssetFlags(snap);
   delete s.logoData;delete s.logo2Data;delete s.bgData;delete s.logoIsSvg;delete s.logo2IsSvg;
   return s;
+}
+function creativeSeedSnapshot(seed){
+  const snap={
+    tpl:0,
+    c:normalizePalette(seed.c),
+    font:seed.font||"'Bebas Neue'",
+    nrFont:seed.nrFont||'',
+    layout:seed.layout||'F',
+    textAlign:seed.textAlign||'center',
+    textVAlign:seed.textVAlign||'middle',
+    nrAlign:seed.nrAlign||seed.textAlign||'center',
+    nrVAlign:seed.nrVAlign||seed.textVAlign||'middle',
+    badge:seed.badge||'none',
+    badgeColor:normalizeHexColor(seed.badgeColor,(seed.c||{}).acc||'#C8102E'),
+    badgeFillOp:seed.badgeFillOp??1,
+    badgeBorderColor:normalizeHexColor(seed.badgeBorderColor,'#FFFFFF'),
+    badgeScale:seed.badgeScale??72,
+    badgeNrDx:seed.badgeNrDx||0,
+    badgeNrDy:seed.badgeNrDy||0,
+    nameMode:'last',
+    userTplId:seed.id,
+    logoSz:seed.logoSz??220,
+    logo2Sz:seed.logo2Sz??120,
+    nameSz:seed.nameSz??190,
+    nrSz:seed.nrSz??260,
+    textBoxPadX:0,
+    textBoxPadY:0,
+    frameW:seed.frameW??10,
+    bgOp:seed.bgOp??.8,
+    logoOp:seed.logoOp??1,
+    frame:seed.frame!==false,
+    screws:seed.screws!==false,
+    bar:seed.bar!==false,
+    logoBand:seed.logoBand!==false,
+    showGuides:true,
+    showSafeMargin:true,
+    showPos:!!seed.showPos,
+    showNat:!!seed.showNat,
+    showLeague:!!seed.showLeague,
+    shadowOn:seed.shadowOn!==false,
+    glowOn:!!seed.glowOn,
+    glowColor:normalizeHexColor(seed.glowColor,'#00BFFF'),
+    shBlur:seed.shBlur??10,
+    shDist:seed.shDist??4,
+    glowSize:seed.glowSize??26,
+    club:'EHC BIEL-BIENNE',
+    leagueTxt:'NATIONAL LEAGUE',
+    pos:JSON.parse(JSON.stringify(seed.pos||{})),
+    exportScale:2,
+    exportFormat:'png',
+    exportNamePattern:'last_nr',
+    pdfSheet:'a4',
+    pdfCutMarks:true,
+    pdfIncludeSingle:true,
+    batchFilter:'all',
+    logoPath:seed.logoPath||'',
+    logo2Path:seed.logo2Path||'',
+    bgPath:seed.bgPath||'',
+  };
+  return withAssetFlags(snap);
+}
+function seedCreativeUserTemplates(){
+  const list=loadUserTemplates();
+  let changed=false;
+  CREATIVE_TEMPLATE_SEEDS.forEach(seed=>{
+    const exists=list.some(t=>t.id===seed.id||String(t.name||'').toLowerCase()===seed.name.toLowerCase());
+    if(exists)return;
+    list.push({id:seed.id,name:seed.name,updated:seed.updated,snap:stripSnapImages(creativeSeedSnapshot(seed))});
+    changed=true;
+  });
+  if(changed&&!persistUserTemplates(list))showWarn('Neue Design-Vorlagen konnten nicht lokal gespeichert werden.');
+  return changed;
 }
 function imageLikelyHasAlpha(src){
   return/png|svg/i.test(String(src||''));
@@ -1121,16 +1260,21 @@ async function enrichSnapFromAssetIdb(snap,tplId){
   if(!s.logoData&&a.logo!==false){
     s.logoData=await idbAssetGet(k.logo);
     if(!s.logoData&&!tplId)s.logoData=await idbAssetGet(cur.logo);
+    if(!s.logoData&&s.logoPath)s.logoData=encodeURI(s.logoPath);
     if(s.logoData&&!s.logoIsSvg)s.logoIsSvg=false;
+    if(s.logoPath&&/\.svg$/i.test(s.logoPath))s.logoIsSvg=true;
   }
   if(!s.logo2Data&&a.logo2!==false){
     s.logo2Data=await idbAssetGet(k.logo2);
     if(!s.logo2Data&&!tplId)s.logo2Data=await idbAssetGet(cur.logo2);
+    if(!s.logo2Data&&s.logo2Path)s.logo2Data=encodeURI(s.logo2Path);
     if(s.logo2Data&&!s.logo2IsSvg)s.logo2IsSvg=false;
+    if(s.logo2Path&&/\.svg$/i.test(s.logo2Path))s.logo2IsSvg=true;
   }
   if(!s.bgData&&a.bg!==false){
     s.bgData=await idbAssetGet(k.bg);
     if(!s.bgData&&!tplId)s.bgData=await idbAssetGet(cur.bg);
+    if(!s.bgData&&s.bgPath)s.bgData=encodeURI(s.bgPath);
   }
   return s;
 }
@@ -4393,6 +4537,7 @@ function initKeyboardAccess(){
 // INIT
 // ══════════════════════════════════════════
 window.addEventListener('load',async()=>{
+  initRuntimeModeUi();
   initSidebarResize();
   initKeyboardAccess();
   refreshSwatches();
@@ -4403,6 +4548,7 @@ window.addEventListener('load',async()=>{
   await initJsonExportDir();
   await initLocalFolders();
   await autoImportStaticTemplates();
+  seedCreativeUserTemplates();
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);

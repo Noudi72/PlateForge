@@ -69,15 +69,15 @@
         <button class="btn btn-g btn-sm" type="button" onclick="pickFontsFolder()">🔤 Fonts</button>
         <input type="file" id="assetFolderInp" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" webkitdirectory multiple style="display:none" onchange="importAssetFolder(this)">
         <input type="file" id="fontsFolderInp" accept=".ttf,.otf,.woff,.woff2" webkitdirectory multiple style="display:none" onchange="importFontsFolder(this)">
-        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative">
+        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative" data-web-only>
           📤 Bilder
           <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetImages(this)">
         </label>
-        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative">
+        <label class="btn btn-y btn-sm" style="cursor:pointer;position:relative" data-web-only>
           📤 Fonts
           <input type="file" accept=".ttf,.otf,.woff,.woff2" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetFonts(this)">
         </label>
-        <button class="btn btn-g btn-sm" type="button" onclick="pushToGithub()" title="Uploads + Master-JSON zu GitHub committen">📤 GitHub</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pushToGithub()" title="Uploads + Master-JSON zu GitHub committen" data-web-only>📤 GitHub</button>
       </div>
       <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div id="assetGrid" class="asset-grid"></div>
@@ -94,14 +94,14 @@
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()">💾 Speichern</button>
         <button class="btn btn-g btn-sm" type="button" onclick="duplicateUserTemplate()" title="Aktuelle Vorlage als Kopie speichern">📋 Duplizieren</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()">📤 Master-JSON</button>
-        <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true,true)" title="Export-Ordner wählen (z. B. Vorlagen json)">📁 Zielordner</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="exportTemplatesJson()" data-web-only>📤 Master-JSON</button>
+        <button class="btn btn-g btn-sm" type="button" onclick="pickJsonExportFolder(true,true)" title="Export-Ordner wählen (z. B. Vorlagen json)" data-web-only>📁 Zielordner</button>
         <label class="btn btn-g btn-sm" style="cursor:pointer;position:relative">
           📥 Wiederherstellen
           <input type="file" accept=".json,application/json" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importTemplatesJson(this)">
         </label>
       </div>
-      <label class="tog-row" style="margin-bottom:6px;cursor:pointer">
+      <label class="tog-row" style="margin-bottom:6px;cursor:pointer" data-web-only>
         <span class="tog-lbl" style="font-size:.7rem">Logo &amp; Hintergrund in Vorlage/JSON</span>
         <input type="checkbox" id="userTplIncImg" style="accent-color:var(--gold)" checked title="JPEG/PNG-komprimiert; für Browser-Speicher empfohlen">
       </label>
@@ -378,7 +378,7 @@
         <div class="sl-row"><input type="range" min="2" max="60" value="26" id="slGlow" oninput="render();sv('slGlow','vlGlow')"><span class="sl-v" id="vlGlow">26</span></div></div>
       <div class="fg"><label class="fl">Glow-Farbe</label><div class="sw-row" id="swGlow"></div></div>
     </div>
-    <div class="sb-sec" id="githubSec">
+    <div class="sb-sec" id="githubSec" data-web-only>
       <div class="sb-ttl">GitHub Push</div>
       <div style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:6px">
         Hochgeladene Bilder und Master-Vorlagen direkt ins Repo committen. Token nur in dieser Browser-Sitzung.<br>
