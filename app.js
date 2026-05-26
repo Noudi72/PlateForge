@@ -934,6 +934,7 @@ function selectTpl(i){
   refreshSwatches();
   markTemplatePosBaseline();
   persistSession();render();
+  refreshBatchIfVisible();
 }
 
 // ══════════════════════════════════════════
@@ -1311,6 +1312,7 @@ function finishSaveUserTemplate(entry,name){
   setTemplateNameInput(name);
   markTemplatePosBaseline();
   buildTplGrid();renderUserTplList();persistSession();render();
+  refreshBatchIfVisible();
 }
 async function loadUserTemplate(id){
   const t=loadUserTemplates().find(x=>x.id===id);
@@ -1323,6 +1325,7 @@ async function loadUserTemplate(id){
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
   markTemplatePosBaseline();
   persistSession();
+  refreshBatchIfVisible();
 }
 async function duplicateUserTemplate(){
   let baseName=(getVal('userTplName')||'').trim();

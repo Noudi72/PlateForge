@@ -56,7 +56,7 @@ Nur sinnvoll, wenn ihr später einen Build habt (z. B. Vite). Für die aktuell
 
 Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schrift, Badge, Positionen, Grössen, …). Die Vorlagenliste bleibt im **localStorage** bewusst schlank; Logos und Hintergründe werden zusätzlich in **IndexedDB** und im JSON-Backup gesichert.
 
-**Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
+**Team-Sharing:** **📤 JSON** exportiert alle (oder ohne gespeicherte Liste: das aktuelle Design). In der Tauri-App reicht für den täglichen iCloud-Workflow normalerweise **💾 Speichern**: dabei wird das Master-JSON im Workspace automatisch aktualisiert. **📥 Import** lädt eine `.json`-Datei (hinzufügen / gleiche Namen überschreiben). Pro Vorlage in der Liste: **↓** = einzeln exportieren.
 
 **Export nach `Vorlagen json/`:** In der Tauri-App wird automatisch in den verbundenen Workspace geschrieben. Im Browser beim ersten Export (oder über **📁 Zielordner**) den Projektordner `Vorlagen json` wählen — danach schreibt Chrome/Edge die Datei `plateforge_vorlagen_master.json` direkt dorthin. In Safari ist wegen fehlender Ordner-API nur der Download-Ordner möglich. Dieses Master-JSON enthält alle eigenen Vorlagen inklusive Bilder und kann auf einem anderen Gerät wieder importiert werden.
 
