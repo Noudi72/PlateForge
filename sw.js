@@ -1,4 +1,4 @@
-const CACHE='plateforge-v4';
+const CACHE='plateforge-v5';
 const PRECACHE=[
   './',
   './index.html',

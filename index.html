@@ -14,7 +14,7 @@
 <script src="vendor/js/xlsx.full.min.js"></script>
 <script src="vendor/js/jszip.min.js"></script>
 <script src="vendor/js/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 
 </head>
 <body>
@@ -46,8 +46,8 @@
     <div class="sb-sec">
       <div class="sb-ttl">Vorlage</div>
       <div class="tpl-toolbar">
-        <input class="fi" id="tplSearch" type="search" placeholder="Suchen…" oninput="buildTplGrid()" autocomplete="off">
-        <select class="fi" id="tplFilterGroup" onchange="buildTplGrid()" style="max-width:110px">
+        <input class="fi" id="tplSearch" type="search" placeholder="Suchen…" oninput="buildTplGrid()" autocomplete="off" aria-label="Vorlagen suchen">
+        <select class="fi" id="tplFilterGroup" onchange="buildTplGrid()" aria-label="Vorlagen filtern">
           <option value="all">Alle</option>
           <option value="builtin">Basis</option>
           <option value="ehcb">EHCB</option>
@@ -55,6 +55,10 @@
           <option value="custom">Eigene</option>
           <option value="favorites">★ Favoriten</option>
         </select>
+      </div>
+      <div class="tpl-browser-meta">
+        <span id="tplCount" class="tpl-count" aria-live="polite">Vorlagen werden geladen…</span>
+        <button class="tpl-reset" id="tplReset" type="button" onclick="resetTplBrowser()" hidden>Zurücksetzen</button>
       </div>
       <div class="tpl-grid" id="tplGrid"></div>
     </div>
@@ -494,7 +498,7 @@
   </div>
 </div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 
 </body>
 </html>

@@ -742,6 +742,13 @@ function templateGroupKey(name){
   if(/spirit|vosseler|team spirit/.test(n))return'spirit';
   return'custom';
 }
+function templateGroupLabel(name,{builtin=false}={}){
+  if(builtin)return'Basis';
+  const key=templateGroupKey(name);
+  if(key==='ehcb')return'EHCB';
+  if(key==='spirit')return'Spirit';
+  return'Eigene';
+}
 const TPL_FAV_KEY='plateforge_tpl_favorites';
 function loadTplFavorites(){
   try{return new Set(JSON.parse(localStorage.getItem(TPL_FAV_KEY)||'[]'))}catch(e){return new Set()}
@@ -764,9 +771,70 @@ function appendTplStar(wrap,favKey){
   const on=isTplFavorite(favKey);
   star.className='tpl-star'+(on?' on':'');
   star.title=on?'Aus Favoriten entfernen':'Als Favorit markieren';
+  star.setAttribute('aria-label',star.title);
   star.textContent='★';
   star.onclick=e=>toggleTplFavorite(favKey,e);
   wrap.appendChild(star);
+}
+function updateTplBrowserMeta(shown,total){
+  const count=document.getElementById('tplCount');
+  if(count){
+    count.textContent=shown===total?`${shown} Vorlagen`:`${shown} von ${total} Vorlagen`;
+  }
+  const q=(getVal('tplSearch')||'').trim();
+  const g=getVal('tplFilterGroup')||'all';
+  const reset=document.getElementById('tplReset');
+  if(reset)reset.hidden=!(q||g!=='all');
+}
+function resetTplBrowser(){
+  const search=document.getElementById('tplSearch');
+  const filter=document.getElementById('tplFilterGroup');
+  if(search)search.value='';
+  if(filter)filter.value='all';
+  buildTplGrid();
+  if(search)search.focus();
+}
+function createTemplateCard({name,favKey,builtin=false,id,selected=false,onSelect,onDelete}){
+  const wrap=document.createElement('div');
+  wrap.className='tpl-card'+(selected?' on':'');
+  wrap.tabIndex=0;
+  wrap.setAttribute('role','button');
+  wrap.setAttribute('aria-label','Vorlage '+name+' wählen');
+  wrap.dataset.group=builtin?'builtin':templateGroupKey(name);
+  if(builtin)wrap.dataset.builtin=String(id);else wrap.dataset.user=id;
+  wrap.onclick=onSelect;
+
+  const thumb=document.createElement('div');
+  thumb.className='tpl-thumb';
+  appendTplStar(thumb,favKey);
+  const cv=document.createElement('canvas');
+  cv.width=320;cv.height=88;
+  thumb.appendChild(cv);
+  if(onDelete){
+    const del=document.createElement('button');
+    del.type='button';
+    del.className='tpl-del';
+    del.title='Vorlage löschen';
+    del.setAttribute('aria-label','Vorlage '+name+' löschen');
+    del.textContent='×';
+    del.onclick=onDelete;
+    thumb.appendChild(del);
+  }
+
+  const info=document.createElement('div');
+  info.className='tpl-info';
+  const lbl=document.createElement('div');
+  lbl.className='tpl-lbl';
+  lbl.textContent=name;
+  const kind=document.createElement('span');
+  kind.className='tpl-kind';
+  kind.textContent=templateGroupLabel(name,{builtin});
+  info.appendChild(lbl);
+  info.appendChild(kind);
+
+  wrap.appendChild(thumb);
+  wrap.appendChild(info);
+  return{wrap,cv};
 }
 function compareTplEntries(a,b){
   const fav=loadTplFavorites();
@@ -792,6 +860,7 @@ function buildTplGrid(){
   const g=document.getElementById('tplGrid');g.innerHTML='';
   const player=thumbPlayer();
   const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
+  const total=TMPL.length+userTemplates.length;
   let shown=0;
   const onlyFav=(getVal('tplFilterGroup')||'all')==='favorites';
   const builtinEntries=TMPL.map((t,i)=>({t,i,name:t.name,favKey:tplFavKey('b',i),builtin:true}))
@@ -799,14 +868,15 @@ function buildTplGrid(){
     .sort(compareTplEntries);
   builtinEntries.forEach(({t,i,name,favKey})=>{
     shown++;
-    const wrap=document.createElement('div');wrap.className='tpl-card'+(i===S.tpl&&!S.userTplId?' on':'');
-    wrap.tabIndex=0;wrap.setAttribute('role','button');wrap.setAttribute('aria-label','Vorlage '+name+' wählen');
-    wrap.dataset.builtin=String(i);
-    wrap.onclick=()=>selectTpl(i);
-    appendTplStar(wrap,favKey);
-    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
-    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=t.name;
-    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
+    const {wrap,cv}=createTemplateCard({
+      name,
+      favKey,
+      builtin:true,
+      id:i,
+      selected:i===S.tpl&&!S.userTplId,
+      onSelect:()=>selectTpl(i),
+    });
+    g.appendChild(wrap);
     const thumbOpts=previewOptsFromSnap({tpl:i,c:{bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc},badge:'none'},player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,thumbOpts,{});
   });
@@ -815,18 +885,15 @@ function buildTplGrid(){
     .sort(compareTplEntries)
     .forEach(({ut,favKey})=>{
     shown++;
-    const wrap=document.createElement('div');wrap.className='tpl-card'+(S.userTplId===ut.id?' on':'');
-    wrap.tabIndex=0;wrap.setAttribute('role','button');wrap.setAttribute('aria-label','Vorlage '+ut.name+' wählen');
-    wrap.dataset.user=ut.id;
-    wrap.onclick=()=>loadUserTemplate(ut.id);
-    appendTplStar(wrap,favKey);
-    const cv=document.createElement('canvas');cv.width=320;cv.height=88;
-    const lbl=document.createElement('div');lbl.className='tpl-lbl';lbl.textContent=ut.name;
-    wrap.appendChild(cv);wrap.appendChild(lbl);g.appendChild(wrap);
-    const del=document.createElement('button');
-    del.type='button';del.className='tpl-del';del.title='Vorlage löschen';del.textContent='×';
-    del.onclick=e=>deleteUserTemplate(ut.id,e);
-    wrap.appendChild(del);
+    const {wrap,cv}=createTemplateCard({
+      name:ut.name,
+      favKey,
+      id:ut.id,
+      selected:S.userTplId===ut.id,
+      onSelect:()=>loadUserTemplate(ut.id),
+      onDelete:e=>deleteUserTemplate(ut.id,e),
+    });
+    g.appendChild(wrap);
     const s=ut.snap;
     let baseOpts=previewOptsFromSnap(s,player,{logo:null,logo2:null,bgImg:null});
     drawTemplatePreview(cv,baseOpts,s.pos);
@@ -844,7 +911,8 @@ function buildTplGrid(){
       }catch(e){console.warn('Gespeicherte Vorlage konnte nicht als Vorschau geladen werden',ut&&ut.name,e)}
     })();
   });
-  if(!shown)g.innerHTML='<div style="font-size:.65rem;color:var(--mut);grid-column:1/-1;padding:4px">'+(onlyFav?'Keine Favoriten — mit ★ auf einer Kachel markieren.':'Keine Vorlagen für Filter/Suche.')+'</div>';
+  updateTplBrowserMeta(shown,total);
+  if(!shown)g.innerHTML='<div class="tpl-empty">'+(onlyFav?'Keine Favoriten. Markiere passende Vorlagen mit dem Stern.':'Keine Vorlagen für Filter oder Suche.')+'</div>';
 }
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
@@ -3252,7 +3320,7 @@ async function registerServiceWorker(){
       refreshing=true;
       location.reload();
     });
-    const reg=await navigator.serviceWorker.register('sw.js?v=4',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('sw.js?v=5',{scope:'./'});
     const activateWaiting=()=>{
       if(reg.waiting){
         reg.waiting.postMessage({type:'SKIP_WAITING'});
