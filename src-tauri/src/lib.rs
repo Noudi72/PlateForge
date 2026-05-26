@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -149,6 +150,28 @@ fn pf_read_file_data_url(path: String) -> Result<String, String> {
     ))
 }
 
+#[tauri::command]
+fn pf_open_path(path: String) -> Result<(), String> {
+    let path = PathBuf::from(path);
+    if !path.exists() {
+        return Err("Pfad existiert nicht.".into());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(err_string)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("Finder-Öffnen ist nur auf macOS verfügbar.".into())
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -161,6 +184,7 @@ pub fn run() {
             pf_write_text_atomic,
             pf_read_dir_recursive,
             pf_read_file_data_url,
+            pf_open_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PlateForge");

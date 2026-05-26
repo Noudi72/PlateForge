@@ -325,9 +325,10 @@
       <div style="font-size:.65rem;color:var(--mut);line-height:1.45;margin-bottom:7px">
         Wähle deinen Ordner <strong style="color:var(--txt)">iCloud Drive/PlateForge</strong>. PlateForge nutzt daraus Vorlagen, Roster, Bilder, Fonts und Backups. In der Tauri-App läuft das direkt über macOS-Dateizugriff; im Browser bitte Chrome/Edge verwenden.
       </div>
-      <div class="frow">
+      <div class="workspace-actions">
         <button class="btn btn-y btn-sm" type="button" onclick="pickWorkspaceFolder()">📁 Workspace wählen</button>
         <button class="btn btn-g btn-sm" type="button" onclick="syncWorkspaceNow(true)">🔄 Sync</button>
+        <button class="btn btn-g btn-sm" id="workspaceFinderBtn" type="button" onclick="openWorkspaceInFinder()" data-tauri-only disabled>📂 Finder</button>
       </div>
       <div id="workspaceInfo" class="storage-panel">Workspace nicht verbunden.</div>
     </div>

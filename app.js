@@ -1676,32 +1676,155 @@ async function getChildDir(parent,names,{create=false}={}){
   }
   return null;
 }
-function workspaceStatusLine(label,handle){
-  return `${label}: <strong>${handle?'ok':'fehlt'}</strong>`;
+let workspaceHealthToken=0;
+function htmlEscape(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function formatFileSize(bytes){
+  const n=Number(bytes)||0;
+  if(n<1024)return n+' B';
+  if(n<1024*1024)return(n/1024).toFixed(n<10240?1:0)+' KB';
+  return(n/1024/1024).toFixed(n<10*1024*1024?1:0)+' MB';
+}
+function formatWorkspaceDate(ms){
+  const n=Number(ms)||0;
+  if(!n)return'';
+  try{return new Intl.DateTimeFormat('de-CH',{dateStyle:'short',timeStyle:'short'}).format(new Date(n))}
+  catch(e){return new Date(n).toLocaleString()}
+}
+function workspaceRow(label,state,detail){
+  return{label,state,detail};
+}
+function workspaceRowHtml(row){
+  return `<div class="workspace-row ${htmlEscape(row.state)}">
+    <span class="workspace-label">${htmlEscape(row.label)}</span>
+    <span class="workspace-dot"></span>
+    <span class="workspace-detail" title="${htmlEscape(row.detail)}">${htmlEscape(row.detail)}</span>
+  </div>`;
+}
+function syncWorkspaceControls(info={}){
+  const finder=document.getElementById('workspaceFinderBtn');
+  if(finder)finder.disabled=!(isTauriApp()&&info&&info.path);
+}
+function renderWorkspaceInfo(info={},rows=[]){
+  info=info||{};
+  rows=rows||[];
+  const el=document.getElementById('workspaceInfo');
+  if(!el)return;
+  if(!info.name){
+    const title=info.title||'Workspace nicht verbunden';
+    const msg=info.message||(isTauriApp()
+      ? 'Wähle einmal deinen iCloud-Ordner PlateForge.'
+      : 'Wähle auf jedem Mac einmal deinen iCloud-Ordner PlateForge.');
+    el.innerHTML=`<div class="workspace-top"><span class="workspace-dot warn"></span><strong>${htmlEscape(title)}</strong></div><div>${htmlEscape(msg)}</div>`;
+    return;
+  }
+  const hasErr=rows.some(r=>r.state==='err');
+  const hasWarn=rows.some(r=>r.state==='warn');
+  const dot=hasErr?'err':hasWarn?'warn':'ok';
+  const path=info.path||info.name;
+  el.innerHTML=`<div class="workspace-top"><span class="workspace-dot ${dot}"></span><strong>${htmlEscape(info.name)}/</strong></div>
+    <div class="workspace-path" title="${htmlEscape(path)}">${htmlEscape(path)}</div>
+    <div class="workspace-grid">${rows.map(workspaceRowHtml).join('')}</div>`;
+}
+function loadingWorkspaceRows(info){
+  return[
+    workspaceRow('Master',info.jsonDir?'warn':'err',info.jsonDir?'prüfe...':'Ordner fehlt'),
+    workspaceRow('Roster',info.rosterDir?'warn':'err',info.rosterDir?'prüfe...':'Ordner fehlt'),
+    workspaceRow('Bilder',info.assetDir?'warn':'err',info.assetDir?'prüfe...':'Ordner fehlt'),
+    workspaceRow('Fonts',info.fontsDir?'warn':'err',info.fontsDir?'prüfe...':'Ordner fehlt'),
+    workspaceRow('Backups',info.backupDir?'warn':'err',info.backupDir?'prüfe...':'Ordner fehlt'),
+  ];
+}
+function findWorkspaceFile(files,fileName){
+  const lower=String(fileName).toLowerCase();
+  return(files||[]).find(f=>String(f.name||nativeBasename(f.path)).toLowerCase()===lower)||null;
+}
+function countWorkspaceFiles(files,re){
+  return(files||[]).filter(f=>re.test(String(f.path||f.name||''))).length;
+}
+function latestWorkspaceFile(files){
+  return(files||[]).reduce((best,f)=>Number(f.modified||0)>Number(best&&best.modified||0)?f:best,null);
+}
+function fileDetail(file){
+  if(!file)return'fehlt';
+  const parts=[];
+  if(file.size!=null)parts.push(formatFileSize(file.size));
+  const d=formatWorkspaceDate(file.modified);
+  if(d)parts.push(d);
+  return parts.join(' · ')||'vorhanden';
+}
+function buildWorkspaceHealthRows(info,lists){
+  const master=findWorkspaceFile(lists.json,'plateforge_vorlagen_master.json');
+  const roster=findWorkspaceFile(lists.roster,WORKSPACE_ROSTER_FILE);
+  const assetCount=countWorkspaceFiles(lists.asset,/\.(png|jpe?g|webp|svg)$/i);
+  const fontCount=countWorkspaceFiles(lists.fonts,/\.(ttf|otf|woff2?)$/i);
+  const backups=(lists.backup||[]).filter(f=>/\.json$/i.test(String(f.path||f.name||'')));
+  const latestBackup=latestWorkspaceFile(backups);
+  const latestBackupDate=formatWorkspaceDate(latestBackup&&latestBackup.modified);
+  return[
+    workspaceRow('Master',master?'ok':info.jsonDir?'warn':'err',master?fileDetail(master):'fehlt'),
+    workspaceRow('Roster',roster?'ok':info.rosterDir?'warn':'err',roster?fileDetail(roster):'noch nicht gespeichert'),
+    workspaceRow('Bilder',assetCount?'ok':info.assetDir?'warn':'err',assetCount?`${assetCount} Datei(en)`:'Ordner leer/fehlt'),
+    workspaceRow('Fonts',fontCount?'ok':info.fontsDir?'warn':'err',fontCount?`${fontCount} Font(s)`:'Ordner leer/fehlt'),
+    workspaceRow('Backups',backups.length?'ok':info.backupDir?'warn':'err',backups.length?(latestBackupDate?`${backups.length} · ${latestBackupDate}`:`${backups.length} Datei(en)`):'noch kein Backup'),
+  ];
+}
+async function listNativeWorkspaceFiles(dirPath){
+  if(!dirPath)return[];
+  try{return await nativeInvoke('pf_read_dir_recursive',{path:dirPath})}catch(e){return[]}
+}
+async function listHandleWorkspaceFiles(dir){
+  if(!dir)return[];
+  const files=[];
+  try{
+    for await(const item of walkDir(dir)){
+      const file=await item.handle.getFile();
+      files.push({path:item.path,name:item.path.split('/').pop(),size:file.size,modified:file.lastModified});
+    }
+  }catch(e){}
+  return files;
+}
+async function refreshWorkspaceHealth(info,token){
+  if(!info||!info.name)return;
+  const useNative=isTauriApp();
+  const list=useNative?listNativeWorkspaceFiles:listHandleWorkspaceFiles;
+  const [json,roster,asset,fonts,backup]=await Promise.all([
+    list(info.jsonDir),
+    list(info.rosterDir),
+    list(info.assetDir),
+    list(info.fontsDir),
+    list(info.backupDir),
+  ]);
+  if(token!==workspaceHealthToken)return;
+  renderWorkspaceInfo(info,buildWorkspaceHealthRows(info,{json,roster,asset,fonts,backup}));
 }
 function updateWorkspaceLabel(info={}){
   info=info||{};
+  workspaceHealthToken++;
   const el=document.getElementById('workspaceInfo');
   if(!el)return;
+  syncWorkspaceControls(info);
   if(!isTauriApp()&&!fsExportSupported()){
-    el.innerHTML='Workspace-Sync benötigt Chrome/Edge. Safari kann lokale Ordner nicht dauerhaft verbinden.';
+    renderWorkspaceInfo({title:'Workspace nicht verfügbar',message:'Workspace-Sync benötigt Chrome/Edge. Safari kann lokale Ordner nicht dauerhaft verbinden.'});
     return;
   }
   if(!info.name){
-    el.innerHTML=isTauriApp()
-      ? 'Workspace nicht verbunden. Wähle einmal deinen iCloud-Ordner <strong>PlateForge</strong>.'
-      : 'Workspace nicht verbunden. Wähle auf jedem Mac einmal deinen iCloud-Ordner <strong>PlateForge</strong>.';
+    renderWorkspaceInfo(null);
     return;
   }
-  const rows=[
-    `Workspace: <strong>${info.name}/</strong>`,
-    workspaceStatusLine('Vorlagen',info.jsonDir),
-    workspaceStatusLine('Roster',info.rosterDir),
-    workspaceStatusLine('Bilder',info.assetDir),
-    workspaceStatusLine('Fonts',info.fontsDir),
-    workspaceStatusLine('Backups',info.backupDir),
-  ];
-  el.innerHTML=rows.join(' · ');
+  const token=workspaceHealthToken;
+  renderWorkspaceInfo(info,loadingWorkspaceRows(info));
+  refreshWorkspaceHealth(info,token);
+}
+async function openWorkspaceInFinder(){
+  if(!isTauriApp())return;
+  const root=await loadNativeWorkspacePath();
+  if(!root){showWarn('Bitte zuerst den PlateForge Workspace wählen.');return}
+  try{
+    await nativeInvoke('pf_open_path',{path:root});
+    showOk('Workspace im Finder geöffnet.');
+  }catch(e){showErr('Finder: '+(e.message||e))}
 }
 async function connectNativeWorkspace(root,{showStatus=false}={}){
   if(!root)return null;
@@ -1713,7 +1836,7 @@ async function connectNativeWorkspace(root,{showStatus=false}={}){
     const fontsDir=await getNativeChildDir(root,[PREFERRED_FONTS_FOLDER,'fonts'],{create:false});
     const backupDir=await getNativeChildDir(root,[WORKSPACE_BACKUP_FOLDER,'Backups'],{create:true});
 
-    updateWorkspaceLabel({name:nativeBasename(root),jsonDir,rosterDir,assetDir,fontsDir,backupDir});
+    updateWorkspaceLabel({name:nativeBasename(root),path:root,jsonDir,rosterDir,assetDir,fontsDir,backupDir});
     updateJsonExportDirLabel(PREFERRED_EXPORT_FOLDER);
     if(jsonDir){
       const r=await autoImportTemplatesFromNativeDir(jsonDir,true);
@@ -1732,7 +1855,7 @@ async function connectNativeWorkspace(root,{showStatus=false}={}){
       if(missing.length)showWarn('Workspace verbunden. Nicht gefunden: '+missing.join(', '));
       else showOk('Workspace verbunden: '+nativeBasename(root));
     }
-    return{path:root,jsonDir,assetDir,fontsDir,backupDir};
+    return{path:root,jsonDir,rosterDir,assetDir,fontsDir,backupDir};
   }catch(e){
     updateWorkspaceLabel(null);
     if(showStatus)showErr('Workspace: '+(e.message||e));

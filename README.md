@@ -2,24 +2,9 @@
 
 Eishockey-Garderoben-Schilder (2000×550 px, Druck **200×55 mm**) — Editor, Team-Roster, Batch-Export.
 
-## Nur eine `index.html` — reicht das?
+## Primärer Workflow: Tauri-App
 
-**Ja, für GitHub Pages und viele Nutzer reicht das völlig aus.** Es ist eine statische Seite ohne Server-Logik: ideal für kostenloses Hosting, wenig Wartung, kein Build.
-
-**Eine „richtige“ WebApp** (z. B. Vite + React/Vue, Router, API) lohnt sich eher, wenn ihr z. B. braucht:
-
-- Nutzerkonten / gespeicherte Projekte in der Cloud  
-- gemeinsame Bearbeitung, Backend, Datenbank  
-- sehr großes Team, strikte Modultests, Design-System  
-- mehrere Seiten/Routen mit geteiltem Layout  
-
-Solange alles in einem Editor bleibt und lokal im Browser läuft, ist **ein statisches Repo** die schlankste Lösung.
-
-### Optional ohne Framework
-
-Die App besteht aus **`index.html`**, **`styles.css`**, **`app.js`** und **`sw.js`** (Offline-Cache) — weiterhin **ohne Build**, gleiche GitHub-Pages-Story.
-
-### Tauri-App für macOS
+PlateForge ist ab jetzt auf die native macOS-App ausgerichtet. Die Web-/GitHub-Pages-Variante bleibt als Fallback im Repo, aber der normale Arbeitsfluss läuft über die Tauri-App mit iCloud-Workspace.
 
 Der Tauri-v2-Aufbau liegt unter `src-tauri/`. Die bestehende Web-App wird vor dem Build nach `dist/` kopiert und als native macOS-App gebündelt. In der Tauri-App wird der iCloud-Workspace über native macOS-Dateipfade gelesen und geschrieben.
 
@@ -32,10 +17,27 @@ npm run tauri:build
 Für schnelle lokale Prüfungen ohne Release-Signierung:
 
 ```bash
-npm run tauri -- build --debug
+npm run tauri:build:debug
 ```
 
-Der Debug-Build legt die App und DMG unter `src-tauri/target/debug/bundle/` ab. Für Release-Verteilung kommen später Signierung/Notarisierung dazu.
+Der Debug-Build legt die App und DMG unter `src-tauri/target/debug/bundle/` ab. Für signierte Release-DMGs siehe [docs/macos-release.md](docs/macos-release.md).
+
+## Web-Fallback: eine `index.html`
+
+**Ja, für GitHub Pages und viele Nutzer reicht das völlig aus.** Es ist eine statische Seite ohne Server-Logik: ideal für kostenloses Hosting, wenig Wartung, kein Build.
+
+**Eine „richtige“ WebApp** (z. B. Vite + React/Vue, Router, API) lohnt sich eher, wenn ihr z. B. braucht:
+
+- Nutzerkonten / gespeicherte Projekte in der Cloud
+- gemeinsame Bearbeitung, Backend, Datenbank
+- sehr großes Team, strikte Modultests, Design-System
+- mehrere Seiten/Routen mit geteiltem Layout
+
+Solange alles in einem Editor bleibt und lokal im Browser läuft, ist **ein statisches Repo** die schlankste Lösung.
+
+### Optional ohne Framework
+
+Die App besteht aus **`index.html`**, **`styles.css`**, **`app.js`** und **`sw.js`** (Offline-Cache) — weiterhin **ohne Build**, gleiche GitHub-Pages-Story.
 
 ## GitHub Pages (eine Datei im Repo-Root)
 
