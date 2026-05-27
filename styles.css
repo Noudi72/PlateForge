@@ -74,6 +74,7 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .font-opt{padding:6px 8px;background:var(--p2);border:2px solid transparent;border-radius:5px;cursor:pointer;transition:all .12s}
 .font-opt:hover,.font-opt.on{border-color:var(--gold);background:rgba(240,165,0,.07)}
 .fp{font-size:1.1rem;color:var(--txt);line-height:1;margin-bottom:1px}.fn{font-size:.57rem;color:var(--mut)}
+.font-target-info{font-size:.66rem;color:var(--gold);background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.22);border-radius:5px;padding:5px 8px;margin-bottom:7px;letter-spacing:.6px}
 .custom-badge{display:inline-flex;align-items:center;gap:3px;background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.3);border-radius:3px;padding:2px 6px;font-size:.65rem;color:var(--gold)}
 
 /* SAVED FONTS */

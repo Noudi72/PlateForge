@@ -64,6 +64,7 @@ const S={
   c:{bg1:'#041E42',bg2:'#0a1830',acc:'#C8102E',nc:'#FFFFFF',nrc:'#D4B96A'},
   font:"'Bebas Neue'",
   nrFont:'',
+  freeTextFont:'',
   layout:'L',
   textAlign:'left',
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
@@ -465,8 +466,9 @@ function hexToRgba(hex,a){
 function buildFontGrid(){
   syncFontSelectOptions();
   const g=document.getElementById('fontGrid');g.innerHTML='';
+  const active=effectiveSelectedFont();
   BUILTIN_FONTS.forEach(f=>{
-    const d=document.createElement('div');d.className='font-opt'+(S.font===f.v?' on':'');
+    const d=document.createElement('div');d.className='font-opt'+(active===f.v?' on':'');
     d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-label','Schrift '+f.l+' wählen');
     d.dataset.font=f.v;
     d.innerHTML=`<div class="fp" style="font-family:${f.v}">${f.l.split(' ')[0].toUpperCase()}</div><div class="fn">${f.l}</div>`;
@@ -474,7 +476,7 @@ function buildFontGrid(){
     g.appendChild(d);
   });
   S.savedFonts.forEach(sf=>{
-    const d=document.createElement('div');d.className='font-opt'+(S.font===sf.fontFamily?' on':'');
+    const d=document.createElement('div');d.className='font-opt'+(active===sf.fontFamily?' on':'');
     d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-label','Schrift '+sf.name+' wählen');
     d.dataset.font=sf.fontFamily;
     d.innerHTML=`<div class="fp" style="font-family:${sf.fontFamily}">${sf.name.split(/[\\s_-]/)[0].toUpperCase()}</div><div class="fn">${sf.name}</div>`;
@@ -488,8 +490,7 @@ function fontNormName(name){
 }
 function syncFontSelectOptions(){
   const sel=document.getElementById('selFont');
-  const nrSel=document.getElementById('selNrFont');
-  if(!sel&&!nrSel)return;
+  if(!sel)return;
   const makeOption=(label,value,fontFamily,group)=>{
     const opt=document.createElement('option');
     opt.value=value;opt.textContent=group?`${label} · ${group}`:label;
@@ -505,26 +506,48 @@ function syncFontSelectOptions(){
     seen.add(key);
     entries.push({label:sf.name,value:sf.fontFamily,font:sf.fontFamily,group:sf.static?'Repo':(sf.folder?'Ordner':'Eigen')});
   });
-  if(sel){
-    const cur=S.font;
-    sel.innerHTML='';
-    entries.forEach(e=>sel.appendChild(makeOption(e.label,e.value,e.font,e.group)));
-    if([...sel.options].some(o=>o.value===cur))sel.value=cur;
-    sel.style.fontFamily=cur||"'Rajdhani'";
-  }
-  if(nrSel){
-    const cur=S.nrFont||'';
-    nrSel.innerHTML='';
-    const base=makeOption('— wie Name —','',S.font,'');
-    nrSel.appendChild(base);
-    entries.forEach(e=>nrSel.appendChild(makeOption(e.label,e.value,e.font,e.group)));
-    nrSel.value=[...nrSel.options].some(o=>o.value===cur)?cur:'';
-    nrSel.style.fontFamily=cur||S.font||"'Rajdhani'";
-  }
+  const target=selectedFontTarget();
+  const raw=currentSelectedFontValue(target);
+  const effective=effectiveFontForTarget(target);
+  sel.innerHTML='';
+  if(target!=='name')sel.appendChild(makeOption('— wie Name —','__inherit__',S.font,''));
+  entries.forEach(e=>sel.appendChild(makeOption(e.label,e.value,e.font,e.group)));
+  sel.value=[...sel.options].some(o=>o.value===raw)?raw:(target==='name'?S.font:'__inherit__');
+  sel.style.fontFamily=effective||"'Rajdhani'";
+  syncFontTargetUi(target);
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
 const ACTIVE_FONT_KEY='plateforge_active_font';
+
+function selectedFontTarget(){
+  return ['name','nr','freeText'].includes(S.sel)?S.sel:'name';
+}
+function fontTargetLabel(target=selectedFontTarget()){
+  return{nr:'Nummer / Badge',freeText:'Freier Text',name:'Name'}[target]||'Name';
+}
+function currentSelectedFontValue(target=selectedFontTarget()){
+  if(target==='nr')return S.nrFont||'__inherit__';
+  if(target==='freeText')return S.freeTextFont||'__inherit__';
+  return S.font||"'Bebas Neue'";
+}
+function effectiveFontForTarget(target=selectedFontTarget()){
+  if(target==='nr')return S.nrFont||S.font||"'Bebas Neue'";
+  if(target==='freeText')return S.freeTextFont||S.font||"'Bebas Neue'";
+  return S.font||"'Bebas Neue'";
+}
+function effectiveSelectedFont(){
+  return effectiveFontForTarget(selectedFontTarget());
+}
+function syncFontTargetUi(target=selectedFontTarget()){
+  const info=document.getElementById('fontTargetInfo');
+  if(info)info.textContent='Ziel: '+fontTargetLabel(target);
+}
+function setSelectedFontTarget(key){
+  S.sel=key;
+  syncFontSelectOptions();
+  document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===effectiveSelectedFont()));
+}
 
 function persistCustomFonts(){
   try{
@@ -535,26 +558,31 @@ function persistCustomFonts(){
 }
 function persistActiveFont(){try{localStorage.setItem(ACTIVE_FONT_KEY,S.font||"'Bebas Neue'")}catch(e){}}
 function setFontFamily(fontFamily){
-  S.font=fontFamily||"'Bebas Neue'";
-  const sel=document.getElementById('selFont');
-  if(sel){sel.value=S.font;sel.style.fontFamily=S.font}
-  const nrSel=document.getElementById('selNrFont');
-  if(nrSel&&!S.nrFont)nrSel.style.fontFamily=S.font;
-  document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===S.font));
-  persistActiveFont();
+  const target=selectedFontTarget();
+  const inherit=fontFamily==='__inherit__';
+  if(target==='nr')S.nrFont=inherit?'':(fontFamily||'');
+  else if(target==='freeText')S.freeTextFont=inherit?'':(fontFamily||'');
+  else S.font=fontFamily||"'Bebas Neue'";
+  const effective=effectiveFontForTarget(target);
+  syncFontSelectOptions();
+  document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===effectiveSelectedFont()));
+  if(target==='name')persistActiveFont();
+  persistSession();
   render();
-  requestFontReady(S.font,()=>{render();refreshBatchIfVisible()});
+  requestFontReady(effective,()=>{render();refreshBatchIfVisible()});
 }
 function setNrFontFamily(fontFamily){
   S.nrFont=fontFamily||'';
-  const sel=document.getElementById('selNrFont');
-  if(sel){sel.value=S.nrFont;sel.style.fontFamily=S.nrFont||S.font}
+  syncFontSelectOptions();
   persistSession();
   render();
   requestFontReady(S.nrFont||S.font,()=>{render();refreshBatchIfVisible()});
 }
 function getNrFont(){
   return S.nrFont||S.font;
+}
+function getFreeTextFont(){
+  return S.freeTextFont||S.font;
 }
 function collapseFontGrid(){
   const g=document.getElementById('fontGrid');
@@ -673,7 +701,7 @@ function renderSavedFonts(){
     const key=fontNormName(sf.name);
     if(seen.has(key))return;
     seen.add(key);
-    const d=document.createElement('div');d.className='saved-font-item'+(S.font===sf.fontFamily?' on':'');
+    const d=document.createElement('div');d.className='saved-font-item'+(effectiveSelectedFont()===sf.fontFamily?' on':'');
     d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-label','Schrift '+sf.name+' wählen');
     d.innerHTML=`<span class="saved-font-name" style="font-family:${sf.fontFamily}">${sf.name}</span>
       ${sf.static||sf.folder?'<span style="font-size:.58rem;color:var(--mut)">Repo</span>':`<button class="saved-font-del" onclick="removeSavedFont(${i},event)">✕</button>`}`;
@@ -685,6 +713,8 @@ function renderSavedFonts(){
 function removeSavedFont(i,e){
   e.stopPropagation();
   if(S.font===S.savedFonts[i].fontFamily)S.font="'Bebas Neue'";
+  if(S.nrFont===S.savedFonts[i].fontFamily)S.nrFont='';
+  if(S.freeTextFont===S.savedFonts[i].fontFamily)S.freeTextFont='';
   S.savedFonts.splice(i,1);
   persistCustomFonts();
   persistActiveFont();
@@ -722,6 +752,7 @@ function drawTemplatePreview(cv,opts,pos){
 function templatePreviewDefaults(){
   return{
     tpl:0,c:{...TMPL[0]},font:"'Bebas Neue'",nrFont:'',layout:'L',
+    freeTextFont:'',
     textAlign:'left',textVAlign:'alphabetic',nrAlign:'left',nrVAlign:'alphabetic',
     nameMode:'last',logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
     bgOp:.4,logoOp:1,frame:true,screws:true,bar:true,logoBand:true,
@@ -1044,6 +1075,7 @@ function creativeSeedSnapshot(seed){
     c:normalizePalette(seed.c),
     font:seed.font||"'Bebas Neue'",
     nrFont:seed.nrFont||'',
+    freeTextFont:seed.freeTextFont||'',
     layout:seed.layout||'F',
     textAlign:seed.textAlign||'center',
     textVAlign:seed.textVAlign||'middle',
@@ -1137,7 +1169,7 @@ function compressImageSource(src,maxSide,quality,keepAlpha){
 }
 function getDesignSnapshotBase(){
   const snap={
-    tpl:S.tpl,c:normalizePalette(S.c),font:S.font,nrFont:S.nrFont||'',layout:S.layout,
+    tpl:S.tpl,c:normalizePalette(S.c),font:S.font,nrFont:S.nrFont||'',freeTextFont:S.freeTextFont||'',layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:normalizeHexColor(S.badgeColor,S.c.acc),badgeFillOp:S.badgeFillOp??1,badgeBorderColor:normalizeHexColor(S.badgeBorderColor,'#FFFFFF'),
     badgeScale:S.badgeScale??72,badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
@@ -1300,8 +1332,6 @@ async function syncCanvasAssetsToIdb(){
 
 function applyStateToUI(){
   document.getElementById('selLayout').value=S.layout;
-  document.getElementById('selFont').value=S.font;
-  const nf=document.getElementById('selNrFont');if(nf){nf.value=S.nrFont||'';nf.style.fontFamily=S.nrFont||S.font}
   document.getElementById('selNameMode').value=S.nameMode||'last';
   document.getElementById('iClub').value=S.club||'';
   document.getElementById('iLeague').value=S.leagueTxt||'';
@@ -1357,6 +1387,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.c=normalizePalette(snap.c);
   S.font=snap.font||"'Bebas Neue'";
   S.nrFont=snap.nrFont||'';
+  S.freeTextFont=snap.freeTextFont||'';
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
@@ -3191,7 +3222,7 @@ function readSizeOpts(){
     freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,
     badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    font:S.font,nrFont:getNrFont(),layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    font:S.font,nrFont:getNrFont(),freeTextFont:getFreeTextFont(),layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nrAlign:effectiveNrAlign(),nrVAlign:effectiveNrVAlign(),
     nameMode:getVal('selNameMode'),
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
@@ -3330,8 +3361,9 @@ function freeTextLines(text){
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz}=opts;
+  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz}=opts;
   const numberFont=nrFont||font;
+  const ftFont=freeTextFont||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
@@ -3348,7 +3380,7 @@ function getElementPlateBounds(key,anchor,opts){
   }
   if(key==='freeText'){
     const lines=freeTextLines(freeText);
-    return textLinesBounds(platePos.x,platePos.y,lines,freeTextSz||70,font,textAlign,vA);
+    return textLinesBounds(platePos.x,platePos.y,lines,freeTextSz||70,ftFont,textAlign,vA);
   }
   if(key==='nr'){
     const text=String(p.nr||'');
@@ -3382,8 +3414,9 @@ function buildDragHandles(opts){
   const cv=document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
-  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign,freeText,freeTextSz}=opts;
+  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,freeText,freeTextSz}=opts;
   const numberFont=nrFont||font;
+  const ftFont=freeTextFont||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
@@ -3415,7 +3448,7 @@ function buildDragHandles(opts){
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
       }else if(item.key==='freeText'){
-        const b=textLinesBounds(platePos.x,platePos.y,freeLines,item.fontSize,font,textAlign,vA);
+        const b=textLinesBounds(platePos.x,platePos.y,freeLines,item.fontSize,ftFont,textAlign,vA);
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
@@ -3482,7 +3515,7 @@ function buildDragHandles(opts){
     const startDrag=e=>{
       if(e.target.classList.contains('dh-resize'))return;
       e.preventDefault();
-      S.sel=item.key;
+      setSelectedFontTarget(item.key);
       document.querySelectorAll('.dh').forEach(d=>d.classList.toggle('sel',d.dataset.key===item.key));
       const plateP=getPos(item.key),pt=ptXY(e);
       dragState={key:item.key,mx:pt.x,my:pt.y,ox:plateP.x,oy:plateP.y,sc};
@@ -3604,7 +3637,7 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();return;
   }
   if(!S.sel)return;
-  if(e.key==='Escape'){S.sel=null;render();return}
+  if(e.key==='Escape'){S.sel=null;syncFontSelectOptions();render();return}
   const step=e.shiftKey?25:4;
   const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[e.key];
   if(!d)return;
@@ -3646,12 +3679,13 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign,align='left'){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c:rawC,font,nrFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
+  const{tpl,c:rawC,font,nrFont,freeTextFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
   const c=normalizePalette(rawC);
   const vA=textVAlign||'alphabetic';
   const numberFont=nrFont||font;
+  const ftFont=freeTextFont||font;
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
 
@@ -3785,9 +3819,9 @@ function drawPlate(canvas,w,h,opts,thumb){
     const ftSize=thumb?Math.min(freeTextSz||70,32):freeTextSz||70;
     const ftFontPx=Z(ftSize);
     const ftX=Z(ftPosData.x);
-    const ftYsPlate=nameLinePlateYs(ftPosData.y,ftSize,ftLines,font,thumb?'alphabetic':vA,textAlign);
+    const ftYsPlate=nameLinePlateYs(ftPosData.y,ftSize,ftLines,ftFont,thumb?'alphabetic':vA,textAlign);
     ctx.save();
-    ctx.font=`${ftFontPx}px ${font},sans-serif`;
+    ctx.font=`${ftFontPx}px ${ftFont},sans-serif`;
     ctx.textBaseline='alphabetic';
     setTextAlign(ctx,textAlign);
     if(thumb){
@@ -4754,7 +4788,7 @@ window.addEventListener('load',async()=>{
   });
   // click empty canvas area → deselect the active drag element
   document.getElementById('plateCanvas').addEventListener('pointerdown',()=>{
-    if(S.sel){S.sel=null;render()}
+    if(S.sel){S.sel=null;syncFontSelectOptions();render()}
   });
   // Upload zone drag hover
   document.querySelectorAll('.upzone').forEach(z=>{
