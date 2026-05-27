@@ -75,6 +75,7 @@ const S={
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
+  freeText:'',freeTextSz:70,
   textBoxPadX:0,textBoxPadY:0,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
@@ -162,16 +163,22 @@ function getDisplayName(p){
   if(mode==='initial') return (f?f[0]+'. ':'')+l;
   return l||f;
 }
+function setFreeText(value){
+  S.freeText=String(value||'');
+  if(!S.freeText.trim()&&S.sel==='freeText')S.sel=null;
+  render();
+  persistSession();
+}
 
 // ══════════════════════════════════════════
 // DEFAULT POSITIONS
 // ══════════════════════════════════════════
 function defPos(layout){
   const l2=Math.round(S.logo2Sz||90);
-  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168}};
-  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
-  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355}};
-  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168}};
+  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168},freeText:{x:1320,y:440}};
+  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:690,y:440}};
+  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355},freeText:{x:1000,y:455}};
+  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:1000,y:445}};
 }
 function getPos(key){
   const d=defPos(S.layout);
@@ -1137,6 +1144,7 @@ function getDesignSnapshotBase(){
     nameMode:S.nameMode||getVal('selNameMode'),
     userTplId:S.userTplId||null,
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
+    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,
     textBoxPadX:S.textBoxPadX||0,textBoxPadY:S.textBoxPadY||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
@@ -1301,6 +1309,8 @@ function applyStateToUI(){
   document.getElementById('slLogo2').value=S.logo2Sz??90;sv('slLogo2','vlLogo2');
   document.getElementById('slName').value=S.nameSz;sv('slName','vlName');
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
+  const ft=document.getElementById('iFreeText');if(ft)ft.value=S.freeText||'';
+  const fts=document.getElementById('slFreeText');if(fts){fts.value=S.freeTextSz??70;sv('slFreeText','vlFreeText')}
   const tbx=document.getElementById('slTextBoxPadX');if(tbx){tbx.value=S.textBoxPadX||0;sv('slTextBoxPadX','vlTextBoxPadX')}
   const tby=document.getElementById('slTextBoxPadY');if(tby){tby.value=S.textBoxPadY||0;sv('slTextBoxPadY','vlTextBoxPadY')}
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
@@ -1362,6 +1372,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeNrDx=snap.badgeNrDx||0;S.badgeNrDy=snap.badgeNrDy||0;
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
+  S.freeText=snap.freeText||'';S.freeTextSz=snap.freeTextSz??70;
   S.textBoxPadX=snap.textBoxPadX||0;S.textBoxPadY=snap.textBoxPadY||0;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
@@ -1471,19 +1482,25 @@ async function loadUserTemplate(id){
   persistSession();
   refreshBatchIfVisible();
 }
+function uniqueTemplateName(baseName,list){
+  const base=String(baseName||'Vorlage').trim()||'Vorlage';
+  const taken=new Set((list||[]).map(t=>String(t.name||'').toLowerCase()));
+  let name=base+' (Kopie)';
+  let i=2;
+  while(taken.has(name.toLowerCase())){
+    name=`${base} (Kopie ${i})`;
+    i++;
+  }
+  return name;
+}
 async function duplicateUserTemplate(){
   let baseName=(getVal('userTplName')||'').trim();
   if(!baseName){
     const t=S.userTplId&&loadUserTemplates().find(x=>x.id===S.userTplId);
     baseName=t?t.name:(TMPL[S.tpl]&&TMPL[S.tpl].name)||'Vorlage';
   }
-  const name=prompt('Name für die Kopie:', baseName+' (Kopie)');
-  if(!name||!name.trim())return;
-  const trimmed=name.trim();
   const list=loadUserTemplates();
-  if(list.some(t=>t.name.toLowerCase()===trimmed.toLowerCase())){
-    if(!confirm(`„${trimmed}" existiert bereits. Trotzdem als neue Vorlage anlegen?`))return;
-  }
+  const trimmed=uniqueTemplateName(baseName,list);
   const id='ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
   let fullSnap=await buildDesignSnapshot(true);
   fullSnap=await compressSnapForStorage(fullSnap);
@@ -3171,6 +3188,7 @@ function activeP(){
 function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
+    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,
     badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     font:S.font,nrFont:getNrFont(),layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
@@ -3305,11 +3323,14 @@ function badgeBoundsHalf(nrText,nrSz,font,badgeScale,shape){
   if(shape==='hexagon')return{R,halfW:R*1.34,halfH:R*1.34};
   return{R,halfW:R*1.2,halfH:R*1.2};
 }
+function freeTextLines(text){
+  return String(text||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+}
 
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale}=opts;
+  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz}=opts;
   const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
@@ -3324,6 +3345,10 @@ function getElementPlateBounds(key,anchor,opts){
   if(key==='name'){
     const lines=nameText.split('\n');
     return textLinesBounds(platePos.x,platePos.y,lines,nameSz,font,textAlign,vA);
+  }
+  if(key==='freeText'){
+    const lines=freeTextLines(freeText);
+    return textLinesBounds(platePos.x,platePos.y,lines,freeTextSz||70,font,textAlign,vA);
   }
   if(key==='nr'){
     const text=String(p.nr||'');
@@ -3357,13 +3382,14 @@ function buildDragHandles(opts){
   const cv=document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
-  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign}=opts;
+  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,textAlign,textVAlign,nrAlign,nrVAlign,freeText,freeTextSz}=opts;
   const numberFont=nrFont||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
   const p=activeP();
   const nameText=getDisplayName(p);
+  const freeLines=freeTextLines(freeText);
   const badgeOn=S.badge&&S.badge!=='none';
 
   const items=[
@@ -3371,6 +3397,7 @@ function buildDragHandles(opts){
     {key:'name',fontSize:nameSz,isText:true},
     {key:'logo',fontSize:logoSz,isText:false},
   ];
+  if(freeLines.length)items.push({key:'freeText',fontSize:freeTextSz||70,isText:true});
   if(S.logo2)items.push({key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false});
 
   items.forEach(item=>{
@@ -3384,6 +3411,11 @@ function buildDragHandles(opts){
     }else if(item.isText){
       if(item.key==='name'){
         const b=textLinesBounds(platePos.x,platePos.y,nameText.split('\n'),nameSz,font,textAlign,vA);
+        px=b.left*sc;py=b.top*sc;
+        pw=Math.max((b.right-b.left)*sc,8);
+        ph=Math.max((b.bottom-b.top)*sc,8);
+      }else if(item.key==='freeText'){
+        const b=textLinesBounds(platePos.x,platePos.y,freeLines,item.fontSize,font,textAlign,vA);
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
@@ -3411,7 +3443,7 @@ function buildDragHandles(opts){
     el.dataset.key=item.key;
     el.style.cssText=`left:${px}px;top:${py}px;width:${Math.max(pw,20)}px;height:${Math.max(ph,20)}px`;
     const tag=document.createElement('div');tag.className='dh-tag';
-    tag.textContent={nr:'✥ Nummer',name:'✥ Name',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
+    tag.textContent={nr:'✥ Nummer',name:'✥ Name',freeText:'✥ Freitext',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
     el.appendChild(tag);
 
     // resize handle for logos (mouse + touch)
@@ -3615,7 +3647,7 @@ function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
   const{tpl,c:rawC,font,nrFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
-    logoSz,logo2Sz,nameSz,nrSz,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
+    logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
   const c=normalizePalette(rawC);
   const vA=textVAlign||'alphabetic';
@@ -3744,6 +3776,29 @@ function drawPlate(canvas,w,h,opts,thumb){
       ctx.fillText(parts.join('  ·  '),nameX,Z(lastBase+nameSz*TYPO_DES+6));
       ctx.restore();
     }
+  }
+
+  // FREE TEXT
+  const ftLines=freeTextLines(freeText);
+  if(ftLines.length){
+    const ftPosData=getPos('freeText');
+    const ftSize=thumb?Math.min(freeTextSz||70,32):freeTextSz||70;
+    const ftFontPx=Z(ftSize);
+    const ftX=Z(ftPosData.x);
+    const ftYsPlate=nameLinePlateYs(ftPosData.y,ftSize,ftLines,font,thumb?'alphabetic':vA,textAlign);
+    ctx.save();
+    ctx.font=`${ftFontPx}px ${font},sans-serif`;
+    ctx.textBaseline='alphabetic';
+    setTextAlign(ctx,textAlign);
+    if(thumb){
+      ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=Z(8);
+      ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nc;
+      ftLines.forEach((line,li)=>ctx.fillText(line,ftX,Z(ftYsPlate[li])));
+      ctx.shadowColor='transparent';
+    }else{
+      ftLines.forEach((line,li)=>drawFxText(ctx,line,ftX,Z(ftYsPlate[li]),c.nc,opts,Z));
+    }
+    ctx.restore();
   }
 
   ctx.restore(); // inner clip

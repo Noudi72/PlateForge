@@ -138,6 +138,14 @@
           <button class="align-btn" id="vBot" onclick="setVAlign('bottom')">⬇ Unten</button>
         </div>
       </div>
+      <div class="fg">
+        <label class="fl">Freier Text</label>
+        <input class="fi" id="iFreeText" placeholder="z.B. PLAYOFFS" oninput="setFreeText(this.value)">
+      </div>
+      <div class="fg">
+        <label class="fl">Freitext-Grösse</label>
+        <div class="sl-row"><input type="range" min="20" max="240" value="70" id="slFreeText" oninput="S.freeTextSz=+this.value;render();sv('slFreeText','vlFreeText')"><span class="sl-v" id="vlFreeText">70</span></div>
+      </div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Schriftart</div>
