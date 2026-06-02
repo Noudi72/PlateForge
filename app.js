@@ -191,15 +191,81 @@ function getPos(key){
 function resetPos(){S.pos={};persistSession();updateUnsavedIndicator();render()}
 
 // Spielerdaten ohne Kollision mit S.pos (Layout-Koordinaten)
+function templateAdjustKey(){
+  return S.userTplId?'u:'+S.userTplId:'b:'+Number(S.tpl||0);
+}
+function normalizeNameAdjustments(value){
+  const out={};
+  if(!value||typeof value!=='object')return out;
+  Object.entries(value).forEach(([key,adj])=>{
+    if(!key||!adj||typeof adj!=='object')return;
+    const x=clampPlayerNameAdjust('x',adj.x??adj.dx);
+    const y=clampPlayerNameAdjust('y',adj.y??adj.dy);
+    if(x||y)out[key]={x,y};
+  });
+  return out;
+}
+function normalizeRosterPlayer(p={}){
+  return{
+    ...p,
+    playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),
+    nameAdjustments:normalizeNameAdjustments(p.nameAdjustments||p.nameOffsets||p.nameAdjustByTemplate),
+  };
+}
+function getPlayerNameAdjust(p,key=templateAdjustKey()){
+  const map=normalizeNameAdjustments(p&&p.nameAdjustments);
+  const adj=map[key]||{};
+  return{x:Number(adj.x||0),y:Number(adj.y||0)};
+}
+function setPlayerNameAdjustForTemplate(p,x,y,key=templateAdjustKey()){
+  if(!p)return;
+  const map=normalizeNameAdjustments(p.nameAdjustments);
+  const nx=clampPlayerNameAdjust('x',x),ny=clampPlayerNameAdjust('y',y);
+  if(nx||ny)map[key]={x:nx,y:ny};
+  else delete map[key];
+  p.nameAdjustments=map;
+  p.nameDx=0;
+  p.nameDy=0;
+}
+function copyPlayerNameAdjustmentsForTemplate(fromKey,toKey){
+  if(!fromKey||!toKey||fromKey===toKey)return false;
+  let changed=false;
+  S.roster.forEach(p=>{
+    p.nameAdjustments=normalizeNameAdjustments(p.nameAdjustments);
+    const adj=p.nameAdjustments[fromKey];
+    if(adj&&(adj.x||adj.y)){
+      p.nameAdjustments[toKey]={x:clampPlayerNameAdjust('x',adj.x),y:clampPlayerNameAdjust('y',adj.y)};
+      changed=true;
+    }
+  });
+  if(changed){persistRoster();refreshBatchIfVisible()}
+  return changed;
+}
+function migrateLegacyNameAdjustmentsToCurrentTemplate(){
+  const key=templateAdjustKey();
+  let changed=false;
+  S.roster.forEach(p=>{
+    p.nameAdjustments=normalizeNameAdjustments(p.nameAdjustments);
+    const legacyX=Number(p.nameDx||0),legacyY=Number(p.nameDy||0);
+    if((legacyX||legacyY)&&!p.nameAdjustments[key]){
+      p.nameAdjustments[key]={x:clampPlayerNameAdjust('x',legacyX),y:clampPlayerNameAdjust('y',legacyY)};
+      changed=true;
+    }
+    if(p.nameDx||p.nameDy){p.nameDx=0;p.nameDy=0;changed=true}
+  });
+  if(changed){syncPlayerAdjustUi(S.roster[S.active]);persistRoster();refreshBatchIfVisible()}
+  return changed;
+}
 function playerOpts(p){
+  const adj=getPlayerNameAdjust(p);
   return{
     first:(p.first||'').trim(),
     last:(p.last||'').trim(),
     nr:String(p.nr||'').trim(),
     playerPos:(p.playerPos!=null?p.playerPos:p.pos)||'',
     nat:(p.nat||'').trim(),
-    nameDx:Number(p.nameDx||0),
-    nameDy:Number(p.nameDy||0),
+    nameDx:adj.x,
+    nameDy:adj.y,
   };
 }
 function buildRenderOpts(){
@@ -220,7 +286,7 @@ function restoreRoster(){
   try{
     const d=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null');
     if(!d||!Array.isArray(d.roster))return false;
-    S.roster=d.roster.map(p=>({...p,playerPos:p.playerPos!=null?p.playerPos:(p.pos||'')}));
+    S.roster=d.roster.map(normalizeRosterPlayer);
     S.active=Math.min(d.active||0,Math.max(0,S.roster.length-1));
     rosterLastPersistTs=d.ts||Date.now();
     return true;
@@ -966,8 +1032,10 @@ function buildTplGrid(){
 }
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
+  S.pos={};
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
   S.badgeColor=t.acc;
+  syncPlayerAdjustUi(S.roster[S.active]);
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   setTemplateNameInput(t.name);
   document.querySelectorAll('.tpl-card').forEach(c=>{
@@ -1499,6 +1567,7 @@ async function saveUserTemplate(){
   const list=loadUserTemplates();
   const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
   if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
+  const prevAdjustKey=templateAdjustKey();
   const id=existing?existing.id:'ut_'+Date.now();
   let fullSnap=await buildDesignSnapshot(include);
   if(include)fullSnap=await compressSnapForStorage(fullSnap);
@@ -1515,6 +1584,7 @@ async function saveUserTemplate(){
     return;
   }
   const jsonNote=await autoBackupTemplateJson(backupEntry);
+  copyPlayerNameAdjustmentsForTemplate(prevAdjustKey,'u:'+id);
   finishSaveUserTemplate(entry,name);
   showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder in IndexedDB + JSON)':'')+jsonNote);
 }
@@ -1538,6 +1608,7 @@ async function loadUserTemplate(id){
   S.userTplId=id;
   const enriched=await enrichSnapFromAssetIdb(t.snap,id);
   await applyDesignSnapshot(enriched,{restoreImages:true,preserveExportSettings:true});
+  syncPlayerAdjustUi(S.roster[S.active]);
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   setTemplateNameInput(t.name);
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));
@@ -1557,6 +1628,7 @@ function uniqueTemplateName(baseName,list){
   return name;
 }
 async function duplicateUserTemplate(){
+  const prevAdjustKey=templateAdjustKey();
   let baseName=(getVal('userTplName')||'').trim();
   if(!baseName){
     const t=S.userTplId&&loadUserTemplates().find(x=>x.id===S.userTplId);
@@ -1576,6 +1648,7 @@ async function duplicateUserTemplate(){
     return;
   }
   await autoBackupTemplateJson({...entry,snap:fullSnap});
+  copyPlayerNameAdjustmentsForTemplate(prevAdjustKey,'u:'+id);
   finishSaveUserTemplate(entry,trimmed);
   showOk(`Vorlage „${trimmed}" als Kopie gespeichert.`);
 }
@@ -2099,13 +2172,14 @@ function rosterPayload(ts=Date.now()){
 }
 function normalizeRosterRows(rows){
   if(!Array.isArray(rows))return null;
-  return rows.map(p=>({
+  return rows.map(p=>normalizeRosterPlayer({
     first:String(p.first||'').trim().toUpperCase(),
     last:String(p.last||'').trim().toUpperCase(),
     nr:String(p.nr||'').trim(),
     pos:String(p.pos||p.playerPos||'').trim().toUpperCase(),
     nat:String(p.nat||'').trim().toUpperCase(),
     playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),
+    nameAdjustments:p.nameAdjustments||p.nameOffsets||p.nameAdjustByTemplate,
     nameDx:Number(p.nameDx||0),
     nameDy:Number(p.nameDy||0),
   })).filter(p=>p.first||p.last||p.nr);
@@ -2149,6 +2223,7 @@ function applyWorkspaceRosterPayload(payload,{showStatus=false,label='Workspace-
   if(!rows)return false;
   S.roster=rows;
   S.active=Math.min(payload.active||0,Math.max(0,S.roster.length-1));
+  migrateLegacyNameAdjustmentsToCurrentTemplate();
   suppressRosterWorkspaceWrite=true;
   persistRoster(payload.exported||Date.now());
   suppressRosterWorkspaceWrite=false;
@@ -2955,7 +3030,7 @@ function syncPlayerAdjustUi(p=S.roster[S.active]||{}){
   const dy=document.getElementById('slPlayerNameDy');
   const vx=document.getElementById('vlPlayerNameDx');
   const vy=document.getElementById('vlPlayerNameDy');
-  const x=Number(p.nameDx||0),y=Number(p.nameDy||0);
+  const {x,y}=getPlayerNameAdjust(p);
   if(dx)dx.value=x;
   if(dy)dy.value=y;
   if(vx)vx.textContent=x;
@@ -2982,16 +3057,16 @@ function activatePlayerForNameAdjust(p){
 function setPlayerNameAdjust(axis,value){
   if(!S.roster.length)return;
   const p=S.roster[S.active];
+  const cur=getPlayerNameAdjust(p);
   const v=clampPlayerNameAdjust(axis,value);
-  if(axis==='x')p.nameDx=v;
-  else p.nameDy=v;
+  setPlayerNameAdjustForTemplate(p,axis==='x'?v:cur.x,axis==='y'?v:cur.y);
   syncPlayerAdjustUi(p);
   persistRoster();render();refreshBatchIfVisible();
 }
 function resetPlayerNameAdjust(){
   if(!S.roster.length)return;
   const p=S.roster[S.active];
-  p.nameDx=0;p.nameDy=0;
+  setPlayerNameAdjustForTemplate(p,0,0);
   syncPlayerAdjustUi(p);
   persistRoster();render();refreshBatchIfVisible();
 }
@@ -3019,8 +3094,9 @@ function syncPlayer(){
   p.nr=getVal('iNr').trim();
   p.pos=getVal('iPos').trim().toUpperCase();
   p.nat=getVal('iNat').trim().toUpperCase();
-  p.nameDx=Number(p.nameDx||0);
-  p.nameDy=Number(p.nameDy||0);
+  p.nameAdjustments=normalizeNameAdjustments(p.nameAdjustments);
+  p.nameDx=0;
+  p.nameDy=0;
   buildRoster();persistRoster();render();
   refreshBatchIfVisible();
 }
@@ -3029,7 +3105,7 @@ function addPlayer(){
   const last=getVal('iLast').trim().toUpperCase();
   const nr=getVal('iNr').trim();
   if(!last&&!first||!nr)return;
-  S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase(),nameDx:0,nameDy:0});
+  S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase(),nameAdjustments:{}});
   S.active=S.roster.length-1;buildRoster();persistRoster();render();refreshBatchIfVisible();
 }
 function delP(i,e){e.stopPropagation();S.roster.splice(i,1);if(S.active>=S.roster.length)S.active=Math.max(0,S.roster.length-1);buildRoster();persistRoster();render();refreshBatchIfVisible()}
@@ -3297,7 +3373,8 @@ function togOpt(k){
 function activeP(){
   if(!S.roster.length)return{first:'',last:'SPIELER',nr:'##',playerPos:'',nat:''};
   const p=S.roster[Math.min(S.active,S.roster.length-1)];
-  return{first:p.first||'',last:p.last||'',nr:p.nr,playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),nat:p.nat||'',nameDx:Number(p.nameDx||0),nameDy:Number(p.nameDy||0)};
+  const adj=getPlayerNameAdjust(p);
+  return{...p,first:p.first||'',last:p.last||'',nr:p.nr,playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),nat:p.nat||'',nameDx:adj.x,nameDy:adj.y};
 }
 
 function readSizeOpts(){
@@ -3380,8 +3457,8 @@ function startPlayerNameAdjustDrag(e,p,cv,{hitTest=true}={}){
     canvas:cv,
     mx:pt.x,
     my:pt.y,
-    ox:Number(p.nameDx||0),
-    oy:Number(p.nameDy||0),
+    ox:getPlayerNameAdjust(p).x,
+    oy:getPlayerNameAdjust(p).y,
     sc:cv.width/W,
     fromBatch:cv.id!=='plateCanvas',
   };
@@ -3743,8 +3820,7 @@ function moveDrag(e){
   if(dragState.mode==='playerNameAdjust'){
     const p=dragState.player;
     if(!p)return;
-    p.nameDx=clampPlayerNameAdjust('x',ox+dx);
-    p.nameDy=clampPlayerNameAdjust('y',oy+dy);
+    setPlayerNameAdjustForTemplate(p,ox+dx,oy+dy);
     syncPlayerAdjustUi(p);
     if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
       const cv=dragState.canvas||document.getElementById('plateCanvas');
@@ -3800,6 +3876,14 @@ document.addEventListener('keydown',e=>{
   const d={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[e.key];
   if(!d)return;
   e.preventDefault();
+  if(S.sel==='name'&&isTeamNameAdjustActive()){
+    const p=S.roster[S.active];
+    const cur=getPlayerNameAdjust(p);
+    setPlayerNameAdjustForTemplate(p,cur.x+d[0],cur.y+d[1]);
+    syncPlayerAdjustUi(p);
+    persistRoster();render();refreshBatchIfVisible();
+    return;
+  }
   const cur=getPos(S.sel);
   const opts=buildRenderOpts();
   const raw={x:Math.max(0,Math.min(W,cur.x+d[0])),y:Math.max(0,Math.min(H,cur.y+d[1]))};
@@ -4919,6 +5003,7 @@ window.addEventListener('load',async()=>{
   await restoreCustomFonts();
   restoreRoster();
   await restoreSession();
+  migrateLegacyNameAdjustmentsToCurrentTemplate();
   await initWorkspace();
   await initJsonExportDir();
   await initLocalFolders();
