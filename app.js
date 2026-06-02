@@ -198,6 +198,8 @@ function playerOpts(p){
     nr:String(p.nr||'').trim(),
     playerPos:(p.playerPos!=null?p.playerPos:p.pos)||'',
     nat:(p.nat||'').trim(),
+    nameDx:Number(p.nameDx||0),
+    nameDy:Number(p.nameDy||0),
   };
 }
 function buildRenderOpts(){
@@ -2074,6 +2076,8 @@ function normalizeRosterRows(rows){
     pos:String(p.pos||p.playerPos||'').trim().toUpperCase(),
     nat:String(p.nat||'').trim().toUpperCase(),
     playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),
+    nameDx:Number(p.nameDx||0),
+    nameDy:Number(p.nameDy||0),
   })).filter(p=>p.first||p.last||p.nr);
 }
 async function getWorkspaceRosterDir({create=false}={}){
@@ -2126,6 +2130,7 @@ function applyWorkspaceRosterPayload(payload,{showStatus=false,label='Workspace-
     document.getElementById('iNr').value=p.nr||'';
     document.getElementById('iPos').value=p.pos||'';
     document.getElementById('iNat').value=p.nat||'';
+    syncPlayerAdjustUi(p);
   }
   updatePlayerNav();render();refreshBatchIfVisible();
   if(showStatus)showOk(`${label}: ${S.roster.length} Spieler übernommen.`);
@@ -2914,6 +2919,34 @@ function updatePlayerNav(){
   const nm=(p.last||p.first||'SPIELER').replace(/\n/g,' ');
   lbl.textContent=`#${p.nr} ${nm} · ${S.active+1}/${n}`;
 }
+function syncPlayerAdjustUi(p=S.roster[S.active]||{}){
+  p=p||{};
+  const dx=document.getElementById('slPlayerNameDx');
+  const dy=document.getElementById('slPlayerNameDy');
+  const vx=document.getElementById('vlPlayerNameDx');
+  const vy=document.getElementById('vlPlayerNameDy');
+  const x=Number(p.nameDx||0),y=Number(p.nameDy||0);
+  if(dx)dx.value=x;
+  if(dy)dy.value=y;
+  if(vx)vx.textContent=x;
+  if(vy)vy.textContent=y;
+}
+function setPlayerNameAdjust(axis,value){
+  if(!S.roster.length)return;
+  const p=S.roster[S.active];
+  const v=Math.round(Number(value)||0);
+  if(axis==='x')p.nameDx=v;
+  else p.nameDy=v;
+  syncPlayerAdjustUi(p);
+  persistRoster();render();refreshBatchIfVisible();
+}
+function resetPlayerNameAdjust(){
+  if(!S.roster.length)return;
+  const p=S.roster[S.active];
+  p.nameDx=0;p.nameDy=0;
+  syncPlayerAdjustUi(p);
+  persistRoster();render();refreshBatchIfVisible();
+}
 function navPlayer(delta){
   if(S.roster.length<2)return;
   S.active=(S.active+delta+S.roster.length)%S.roster.length;
@@ -2926,6 +2959,7 @@ function pickP(i){
   document.getElementById('iNr').value=p.nr;
   document.getElementById('iPos').value=p.pos||'';
   document.getElementById('iNat').value=p.nat||'';
+  syncPlayerAdjustUi(p);
   buildRoster();updatePlayerNav();persistRoster();render();
   refreshBatchIfVisible();
 }
@@ -2937,6 +2971,8 @@ function syncPlayer(){
   p.nr=getVal('iNr').trim();
   p.pos=getVal('iPos').trim().toUpperCase();
   p.nat=getVal('iNat').trim().toUpperCase();
+  p.nameDx=Number(p.nameDx||0);
+  p.nameDy=Number(p.nameDy||0);
   buildRoster();persistRoster();render();
   refreshBatchIfVisible();
 }
@@ -2945,11 +2981,11 @@ function addPlayer(){
   const last=getVal('iLast').trim().toUpperCase();
   const nr=getVal('iNr').trim();
   if(!last&&!first||!nr)return;
-  S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase()});
+  S.roster.push({first,last,nr,pos:getVal('iPos').trim().toUpperCase(),nat:getVal('iNat').trim().toUpperCase(),nameDx:0,nameDy:0});
   S.active=S.roster.length-1;buildRoster();persistRoster();render();refreshBatchIfVisible();
 }
 function delP(i,e){e.stopPropagation();S.roster.splice(i,1);if(S.active>=S.roster.length)S.active=Math.max(0,S.roster.length-1);buildRoster();persistRoster();render();refreshBatchIfVisible()}
-function clearRoster(){if(confirm('Roster leeren?')){S.roster=[];S.active=0;buildRoster();persistRoster();render();refreshBatchIfVisible()}}
+function clearRoster(){if(confirm('Roster leeren?')){S.roster=[];S.active=0;syncPlayerAdjustUi(null);buildRoster();persistRoster();render();refreshBatchIfVisible()}}
 
 // ══════════════════════════════════════════
 // CSV / EXCEL
@@ -3681,7 +3717,7 @@ function drawPlate(canvas,w,h,opts,thumb){
   const sc=w/W;const Z=v=>v*sc;
   const{tpl,c:rawC,font,nrFont,freeTextFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
-    first='',last='SPIELER',nr='##',playerPos='',nat=''}=opts;
+    first='',last='SPIELER',nr='##',playerPos='',nat='',nameDx=0,nameDy=0}=opts;
   const c=normalizePalette(rawC);
   const vA=textVAlign||'alphabetic';
   const numberFont=nrFont||font;
@@ -3778,8 +3814,10 @@ function drawPlate(canvas,w,h,opts,thumb){
   const nameText=getDisplayNameFromOpts({first,last},nameMode||'last');
   const nameFontPx=Z(thumb?44:nameSz);
   const nameLines=nameText.split('\n');
-  const nameX=Z(namePosData.x),nameY=Z(namePosData.y);
-  const nameYsPlate=thumb?nameLinePlateYs(namePosData.y,nameSz,nameLines,font,'alphabetic',textAlign):nameLinePlateYs(namePosData.y,nameSz,nameLines,font,vA,textAlign);
+  const adjNameX=namePosData.x+(thumb?0:Number(nameDx||0));
+  const adjNameY=namePosData.y+(thumb?0:Number(nameDy||0));
+  const nameX=Z(adjNameX);
+  const nameYsPlate=thumb?nameLinePlateYs(adjNameY,nameSz,nameLines,font,'alphabetic',textAlign):nameLinePlateYs(adjNameY,nameSz,nameLines,font,vA,textAlign);
   ctx.save();
   ctx.font=`${nameFontPx}px ${font},sans-serif`;
   ctx.textBaseline='alphabetic';
