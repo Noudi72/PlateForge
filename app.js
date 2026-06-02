@@ -257,7 +257,7 @@ async function restoreSession(){
       const t=loadUserTemplates().find(x=>x.id===tplId);
       if(t&&t.snap){
         const enriched=await enrichSnapFromAssetIdb(t.snap,tplId);
-        await applyDesignSnapshot(enriched,{restoreImages:true});
+        await applyDesignSnapshot(enriched,{restoreImages:true,exportSettings:sessSnap});
         S.userTplId=tplId;
         document.getElementById('tplName').textContent=t.name.toUpperCase();
         setTemplateNameInput(t.name);
@@ -1193,6 +1193,35 @@ function getDesignSnapshotBase(){
   if(S.nrVAlignExplicit&&S.nrVAlign!=null)snap.nrVAlign=S.nrVAlign;
   return snap;
 }
+function normalizeExportSettings(src={},fallback={}){
+  const boolSetting=(key,def=true)=>{
+    if(src[key]!=null)return src[key]!==false;
+    if(fallback[key]!=null)return fallback[key]!==false;
+    return def;
+  };
+  return{
+    exportScale:src.exportScale??fallback.exportScale??1,
+    exportFormat:src.exportFormat||fallback.exportFormat||'png',
+    exportNamePattern:src.exportNamePattern||fallback.exportNamePattern||'last_nr',
+    pdfSheet:src.pdfSheet||fallback.pdfSheet||'a4',
+    pdfCutMarks:boolSetting('pdfCutMarks',true),
+    pdfIncludeSingle:boolSetting('pdfIncludeSingle',true),
+    batchFilter:src.batchFilter||fallback.batchFilter||'all',
+  };
+}
+function captureExportSettings(){
+  return normalizeExportSettings(S);
+}
+function applyExportSettings(settings){
+  const exp=normalizeExportSettings(settings);
+  S.exportScale=exp.exportScale;
+  S.exportFormat=exp.exportFormat;
+  S.exportNamePattern=exp.exportNamePattern;
+  S.pdfSheet=exp.pdfSheet;
+  S.pdfCutMarks=exp.pdfCutMarks;
+  S.pdfIncludeSingle=exp.pdfIncludeSingle;
+  S.batchFilter=exp.batchFilter;
+}
 async function buildDesignSnapshot(includeImages){
   const snap=getDesignSnapshotBase();
   if(!includeImages)return snap;
@@ -1385,6 +1414,9 @@ function applyStateToUI(){
 async function applyDesignSnapshot(snap,opts={}){
   const restoreImages=opts.restoreImages!==false;
   snap=migrateSnapAlign(snap||{});
+  const exportSettings=opts.preserveExportSettings
+    ? captureExportSettings()
+    : normalizeExportSettings(opts.exportSettings||snap,opts.exportSettings?snap:S);
   S.tpl=snap.tpl??0;
   S.c=normalizePalette(snap.c);
   S.font=snap.font||"'Bebas Neue'";
@@ -1417,9 +1449,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.shBlur=snap.shBlur??10;S.shDist=snap.shDist??4;S.glowSize=snap.glowSize??26;
   S.club=snap.club||'';S.leagueTxt=snap.leagueTxt||'';
   S.pos=snap.pos?JSON.parse(JSON.stringify(snap.pos)):{};
-  S.exportScale=snap.exportScale??1;S.exportFormat=snap.exportFormat||'png';S.exportNamePattern=snap.exportNamePattern||'last_nr';
-  S.pdfSheet=snap.pdfSheet||'a4';S.pdfCutMarks=snap.pdfCutMarks!==false;S.pdfIncludeSingle=snap.pdfIncludeSingle!==false;
-  S.batchFilter=snap.batchFilter||S.batchFilter||'all';
+  applyExportSettings(exportSettings);
   persistActiveFont();
   applyStateToUI();
   setBadge(S.badge);
@@ -1507,7 +1537,7 @@ async function loadUserTemplate(id){
   if(!t)return;
   S.userTplId=id;
   const enriched=await enrichSnapFromAssetIdb(t.snap,id);
-  await applyDesignSnapshot(enriched,{restoreImages:true});
+  await applyDesignSnapshot(enriched,{restoreImages:true,preserveExportSettings:true});
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   setTemplateNameInput(t.name);
   document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('on',c.dataset.user===id));

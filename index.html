@@ -417,7 +417,7 @@
       <div class="sb-ttl">Export</div>
       <div class="frow">
         <div class="fg"><label class="fl">Auflösung</label>
-          <select class="fi" id="selExpScale" onchange="S.exportScale=+this.value">
+          <select class="fi" id="selExpScale" onchange="S.exportScale=+this.value;persistSession()">
             <option value="1">1× · 2000px</option>
             <option value="2">2× · 4000px</option>
           </select></div>
