@@ -186,7 +186,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 .batch-wrap{padding:20px;flex:1;overflow-y:auto}
 .batch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:10px;margin-top:14px}
 .batch-item{border-radius:6px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.55);position:relative;aspect-ratio:2000/550}
-.batch-item canvas{display:block;width:100%;height:100%;object-fit:contain}
+.batch-item canvas{display:block;width:100%;height:100%;object-fit:contain;cursor:grab}
+.batch-item.dragging canvas{cursor:grabbing}
 .batch-lbl{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);border-radius:3px;font-size:.6rem;color:#fff;padding:2px 5px;letter-spacing:1px}
 .batch-dl{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:3px;padding:2px 6px;font-size:.6rem;cursor:pointer}
 .batch-dl:hover{background:var(--gold);color:#000}

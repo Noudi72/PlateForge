@@ -2961,10 +2961,28 @@ function syncPlayerAdjustUi(p=S.roster[S.active]||{}){
   if(vx)vx.textContent=x;
   if(vy)vy.textContent=y;
 }
+function clampPlayerNameAdjust(axis,value){
+  const n=Math.round(Number(value)||0);
+  const lim=axis==='x'?220:140;
+  return Math.max(-lim,Math.min(lim,n));
+}
+function activatePlayerForNameAdjust(p){
+  const i=S.roster.indexOf(p);
+  if(i<0)return;
+  S.active=i;
+  document.getElementById('iFirst').value=p.first||'';
+  document.getElementById('iLast').value=p.last||'';
+  document.getElementById('iNr').value=p.nr||'';
+  document.getElementById('iPos').value=p.pos||'';
+  document.getElementById('iNat').value=p.nat||'';
+  syncPlayerAdjustUi(p);
+  buildRoster();
+  updatePlayerNav();
+}
 function setPlayerNameAdjust(axis,value){
   if(!S.roster.length)return;
   const p=S.roster[S.active];
-  const v=Math.round(Number(value)||0);
+  const v=clampPlayerNameAdjust(axis,value);
   if(axis==='x')p.nameDx=v;
   else p.nameDy=v;
   syncPlayerAdjustUi(p);
@@ -3279,7 +3297,7 @@ function togOpt(k){
 function activeP(){
   if(!S.roster.length)return{first:'',last:'SPIELER',nr:'##',playerPos:'',nat:''};
   const p=S.roster[Math.min(S.active,S.roster.length-1)];
-  return{first:p.first||'',last:p.last||'',nr:p.nr,playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),nat:p.nat||''};
+  return{first:p.first||'',last:p.last||'',nr:p.nr,playerPos:p.playerPos!=null?p.playerPos:(p.pos||''),nat:p.nat||'',nameDx:Number(p.nameDx||0),nameDy:Number(p.nameDy||0)};
 }
 
 function readSizeOpts(){
@@ -3321,6 +3339,56 @@ function render(){
   then place the div overlay exactly over that text.
 */
 let dragState=null;
+function isTeamNameAdjustActive(){
+  return !!(S.roster.length&&document.getElementById('panelTeam')?.classList.contains('on'));
+}
+function nameBoundsForOpts(opts){
+  const namePos=getPos('name');
+  const nameText=getDisplayNameFromOpts({first:opts.first,last:opts.last},opts.nameMode||S.nameMode||'last');
+  return textLinesBounds(
+    namePos.x+Number(opts.nameDx||0),
+    namePos.y+Number(opts.nameDy||0),
+    nameText.split('\n'),
+    opts.nameSz,
+    opts.font,
+    opts.textAlign,
+    opts.textVAlign||'alphabetic'
+  );
+}
+function pointInBounds(pt,b,pad=22){
+  return pt.x>=b.left-pad&&pt.x<=b.right+pad&&pt.y>=b.top-pad&&pt.y<=b.bottom+pad;
+}
+function canvasPlatePoint(e,cv){
+  const rect=cv.getBoundingClientRect();
+  const pt=ptXY(e);
+  const sc=cv.width/W;
+  return{x:(pt.x-rect.left)/sc,y:(pt.y-rect.top)/sc};
+}
+function startPlayerNameAdjustDrag(e,p,cv,{hitTest=true}={}){
+  if(!p)return false;
+  const opts=makeFullOpts(p);
+  if(hitTest&&!pointInBounds(canvasPlatePoint(e,cv),nameBoundsForOpts(opts)))return false;
+  e.preventDefault();
+  e.stopPropagation();
+  activatePlayerForNameAdjust(p);
+  setSelectedFontTarget('name');
+  const pt=ptXY(e);
+  dragState={
+    mode:'playerNameAdjust',
+    key:'name',
+    player:p,
+    canvas:cv,
+    mx:pt.x,
+    my:pt.y,
+    ox:Number(p.nameDx||0),
+    oy:Number(p.nameDy||0),
+    sc:cv.width/W,
+    fromBatch:cv.id!=='plateCanvas',
+  };
+  cv.closest('.batch-item')?.classList.add('dragging');
+  document.querySelectorAll('.dh').forEach(d=>d.classList.toggle('sel',d.dataset.key==='name'));
+  return true;
+}
 
 function measureText(text,fontPx,fontFamily,canvas_w,canvas_h){
   const oc=document.createElement('canvas');oc.width=canvas_w;oc.height=canvas_h;
@@ -3427,7 +3495,7 @@ function freeTextLines(text){
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz}=opts;
+  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz,nameDx=0,nameDy=0}=opts;
   const numberFont=nrFont||font;
   const ftFont=freeTextFont||font;
   const vA=textVAlign||'alphabetic';
@@ -3442,7 +3510,7 @@ function getElementPlateBounds(key,anchor,opts){
   }
   if(key==='name'){
     const lines=nameText.split('\n');
-    return textLinesBounds(platePos.x,platePos.y,lines,nameSz,font,textAlign,vA);
+    return textLinesBounds(platePos.x+Number(nameDx||0),platePos.y+Number(nameDy||0),lines,nameSz,font,textAlign,vA);
   }
   if(key==='freeText'){
     const lines=freeTextLines(freeText);
@@ -3509,7 +3577,7 @@ function buildDragHandles(opts){
       px=(platePos.x-bb.halfW)*sc;py=(platePos.y-bb.halfH)*sc;pw=2*bb.halfW*sc;ph=2*bb.halfH*sc;
     }else if(item.isText){
       if(item.key==='name'){
-        const b=textLinesBounds(platePos.x,platePos.y,nameText.split('\n'),nameSz,font,textAlign,vA);
+        const b=textLinesBounds(platePos.x+Number(opts.nameDx||0),platePos.y+Number(opts.nameDy||0),nameText.split('\n'),nameSz,font,textAlign,vA);
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
@@ -3542,7 +3610,7 @@ function buildDragHandles(opts){
     el.dataset.key=item.key;
     el.style.cssText=`left:${px}px;top:${py}px;width:${Math.max(pw,20)}px;height:${Math.max(ph,20)}px`;
     const tag=document.createElement('div');tag.className='dh-tag';
-    tag.textContent={nr:'✥ Nummer',name:'✥ Name',freeText:'✥ Freitext',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
+    tag.textContent={nr:'✥ Nummer',name:isTeamNameAdjustActive()?'✥ Name-Offset':'✥ Name',freeText:'✥ Freitext',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
     el.appendChild(tag);
 
     // resize handle for logos (mouse + touch)
@@ -3583,6 +3651,10 @@ function buildDragHandles(opts){
       e.preventDefault();
       setSelectedFontTarget(item.key);
       document.querySelectorAll('.dh').forEach(d=>d.classList.toggle('sel',d.dataset.key===item.key));
+      if(item.key==='name'&&isTeamNameAdjustActive()&&startPlayerNameAdjustDrag(e,S.roster[S.active],document.getElementById('plateCanvas'),{hitTest:false})){
+        el.classList.add('active');
+        return;
+      }
       const plateP=getPos(item.key),pt=ptXY(e);
       dragState={key:item.key,mx:pt.x,my:pt.y,ox:plateP.x,oy:plateP.y,sc};
       el.classList.add('active');
@@ -3668,6 +3740,20 @@ function moveDrag(e){
   const{key,mx,my,ox,oy,sc}=dragState;
   const pt=ptXY(e);
   const dx=(pt.x-mx)/sc,dy=(pt.y-my)/sc;
+  if(dragState.mode==='playerNameAdjust'){
+    const p=dragState.player;
+    if(!p)return;
+    p.nameDx=clampPlayerNameAdjust('x',ox+dx);
+    p.nameDy=clampPlayerNameAdjust('y',oy+dy);
+    syncPlayerAdjustUi(p);
+    if(!dragState.raf)dragState.raf=requestAnimationFrame(()=>{
+      const cv=dragState.canvas||document.getElementById('plateCanvas');
+      drawPlate(cv,cv.width,cv.height,makeFullOpts(p),false);
+      if(!dragState.fromBatch)buildDragHandles(buildRenderOpts());
+      if(dragState)dragState.raf=null;
+    });
+    return;
+  }
   const cur=getPos(key);
   let nx=Math.max(0,Math.min(W,ox+dx)),ny=Math.max(0,Math.min(H,oy+dy));
   const sn=applySnap(nx,ny);
@@ -3686,6 +3772,12 @@ function moveDrag(e){
 function endDrag(){
   if(!dragState)return;
   document.querySelectorAll('.dh').forEach(e=>e.classList.remove('active'));
+  if(dragState.mode==='playerNameAdjust'){
+    document.querySelectorAll('.batch-item.dragging').forEach(e=>e.classList.remove('dragging'));
+    persistRoster();
+    render();
+    refreshBatchIfVisible();
+  }
   dragState=null;hideSnap();
   persistSession();
 }
@@ -4762,6 +4854,9 @@ function renderBatch(){
     const wrap=document.createElement('div');wrap.className='batch-item';
     const cv=document.createElement('canvas');cv.width=bw;cv.height=bh;
     drawPlate(cv,bw,bh,makeFullOpts(p),false);
+    cv.title='Name ziehen: Spieler-Feinjustierung';
+    cv.addEventListener('mousedown',e=>startPlayerNameAdjustDrag(e,p,cv));
+    cv.addEventListener('touchstart',e=>startPlayerNameAdjustDrag(e,p,cv),{passive:false});
     const lbl=document.createElement('div');lbl.className='batch-lbl';lbl.textContent=`#${p.nr} ${(p.last||p.first)}`;
     const dlb=document.createElement('button');dlb.className='batch-dl';dlb.textContent='💾';
     dlb.onclick=()=>{
