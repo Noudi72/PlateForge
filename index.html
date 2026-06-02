@@ -43,7 +43,7 @@
 
   <!-- ── DESIGN PANEL ── -->
   <div class="side-panel on" id="panelDesign">
-    <div class="sb-sec">
+    <div class="sb-sec design-templates">
       <div class="sb-ttl">Vorlage</div>
       <div class="tpl-toolbar">
         <input class="fi" id="tplSearch" type="search" placeholder="Suchen…" oninput="buildTplGrid()" autocomplete="off" aria-label="Vorlagen suchen">
@@ -62,7 +62,7 @@
       </div>
       <div class="tpl-grid" id="tplGrid"></div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-assets">
       <div class="sb-ttl">Asset-Bibliothek</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
         <button class="btn btn-g btn-sm" type="button" onclick="pickAssetFolder()">📁 Vorlagen-Bilder</button>
@@ -82,7 +82,7 @@
       <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div id="assetGrid" class="asset-grid"></div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-own">
       <div class="sb-ttl">Eigene Vorlagen</div>
       <div class="fg">
         <label class="fl">Name</label>
@@ -111,8 +111,8 @@
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut);max-height:210px;overflow-y:auto">Noch keine gespeicherten Vorlagen.</div>
     </div>
-    <div class="sb-sec">
-      <div class="sb-ttl">Layout</div>
+    <div class="sb-sec design-layout">
+      <div class="sb-ttl">Schnellbearbeitung</div>
       <div class="fg">
         <label class="fl">Ausrichtung</label>
         <select class="fi" id="selLayout" onchange="resetPos()">
@@ -120,6 +120,15 @@
           <option value="R">Logo Rechts</option>
           <option value="S">Split (Nr | Name)</option>
           <option value="F">Fullscreen</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Namensformat</label>
+        <select class="fi" id="selNameMode" onchange="S.nameMode=this.value;render();persistSession()">
+          <option value="last">Nur Nachname</option>
+          <option value="first">Nur Vorname</option>
+          <option value="both">Vor- und Nachname</option>
+          <option value="firstlast">Vorname + Nachname</option>
+          <option value="initial">Initiale + Nachname</option>
         </select>
       </div>
       <div class="fg">
@@ -147,7 +156,7 @@
         <div class="sl-row"><input type="range" min="20" max="240" value="70" id="slFreeText" oninput="S.freeTextSz=+this.value;render();sv('slFreeText','vlFreeText')"><span class="sl-v" id="vlFreeText">70</span></div>
       </div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-font">
       <div class="sb-ttl">Schriftart</div>
       <div id="fontTargetInfo" class="font-target-info">Ziel: Name</div>
       <select class="fi" id="selFont" style="margin-bottom:7px" onchange="setFontFamily(this.value)">
@@ -180,7 +189,7 @@
       <button class="btn btn-g btn-sm" type="button" id="fontGridToggle" style="margin-bottom:7px" onclick="toggleFontGrid()">Kacheln anzeigen</button>
       <div class="font-grid collapsed" id="fontGrid"></div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-colors">
       <div class="sb-ttl">Farben</div>
       <div class="fg"><label class="fl">Hintergrund 1</label><div class="sw-row" id="swBg1"></div></div>
       <div class="fg"><label class="fl">Hintergrund 2</label><div class="sw-row" id="swBg2"></div></div>
@@ -188,8 +197,31 @@
       <div class="fg"><label class="fl">Name</label><div class="sw-row" id="swNc"></div></div>
       <div class="fg"><label class="fl">Nummer</label><div class="sw-row" id="swNrc"></div></div>
     </div>
-    <div class="sb-sec">
-      <div class="sb-ttl">Badge &amp; Grössen</div>
+    <div class="sb-sec design-sizes">
+      <div class="sb-ttl">Grössen &amp; Badge</div>
+      <div class="quick-grid">
+        <div class="fg"><label class="fl">Name</label>
+          <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
+        </div>
+        <div class="fg"><label class="fl">Nummer</label>
+          <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div>
+        </div>
+        <div class="fg"><label class="fl">Logo 1</label>
+          <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
+        </div>
+        <div class="fg"><label class="fl">Logo 2</label>
+          <div class="sl-row"><input type="range" min="20" max="900" value="90" id="slLogo2" oninput="render();sv('slLogo2','vlLogo2')"><span class="sl-v" id="vlLogo2">90</span></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Rahmen</label>
+        <div class="sl-row"><input type="range" min="0" max="32" value="10" id="slFrame" oninput="render();sv('slFrame','vlFrame')"><span class="sl-v" id="vlFrame">10</span></div>
+      </div>
+      <div class="fg"><label class="fl">Logo-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="10" max="100" value="100" id="slLogoOp" oninput="render();sv('slLogoOp','vlLogoOp','%')"><span class="sl-v" id="vlLogoOp">100%</span></div>
+      </div>
+      <div class="fg"><label class="fl">Hintergrund-Deckkraft</label>
+        <div class="sl-row"><input type="range" min="0" max="100" value="40" id="slBgOp" oninput="render();sv('slBgOp','vlBgOp','%')"><span class="sl-v" id="vlBgOp">40%</span></div>
+      </div>
       <div class="fg">
         <label class="fl">Badge-Form</label>
         <div class="badge-btns" id="badgeBtns">
@@ -216,34 +248,13 @@
         <div class="sl-row"><input type="range" min="-80" max="80" value="0" id="slBadgeNrDx" oninput="S.badgeNrDx=+this.value;render();sv('slBadgeNrDx','vlBadgeNrDx')"><span class="sl-v" id="vlBadgeNrDx">0</span></div>
         <div class="sl-row"><input type="range" min="-80" max="80" value="0" id="slBadgeNrDy" oninput="S.badgeNrDy=+this.value;render();sv('slBadgeNrDy','vlBadgeNrDy')"><span class="sl-v" id="vlBadgeNrDy">0</span></div>
       </div>
-      <div class="fg"><label class="fl">Nummer (Schrift)</label>
-        <div class="sl-row"><input type="range" min="40" max="440" value="260" id="slNrSz" oninput="render();sv('slNrSz','vlNrSz')"><span class="sl-v" id="vlNrSz">260</span></div>
-      </div>
-      <div class="fg"><label class="fl">Name</label>
-        <div class="sl-row"><input type="range" min="40" max="340" value="190" id="slName" oninput="render();sv('slName','vlName')"><span class="sl-v" id="vlName">190</span></div>
-      </div>
       <div class="fg">
         <label class="fl">Textbox-Rand X / Y</label>
         <div class="sl-row"><input type="range" min="-80" max="120" value="0" id="slTextBoxPadX" oninput="S.textBoxPadX=+this.value;render();sv('slTextBoxPadX','vlTextBoxPadX')"><span class="sl-v" id="vlTextBoxPadX">0</span></div>
         <div class="sl-row"><input type="range" min="-80" max="120" value="0" id="slTextBoxPadY" oninput="S.textBoxPadY=+this.value;render();sv('slTextBoxPadY','vlTextBoxPadY')"><span class="sl-v" id="vlTextBoxPadY">0</span></div>
       </div>
-      <div class="fg"><label class="fl">Logo 1 (längste Seite)</label>
-        <div class="sl-row"><input type="range" min="20" max="900" value="140" id="slLogo" oninput="render();sv('slLogo','vlLogo')"><span class="sl-v" id="vlLogo">140</span></div>
-      </div>
-      <div class="fg"><label class="fl">Logo 2 (längste Seite)</label>
-        <div class="sl-row"><input type="range" min="20" max="900" value="90" id="slLogo2" oninput="render();sv('slLogo2','vlLogo2')"><span class="sl-v" id="vlLogo2">90</span></div>
-      </div>
-      <div class="fg"><label class="fl">Rahmen</label>
-        <div class="sl-row"><input type="range" min="0" max="32" value="10" id="slFrame" oninput="render();sv('slFrame','vlFrame')"><span class="sl-v" id="vlFrame">10</span></div>
-      </div>
-      <div class="fg"><label class="fl">Logo-Deckkraft</label>
-        <div class="sl-row"><input type="range" min="10" max="100" value="100" id="slLogoOp" oninput="render();sv('slLogoOp','vlLogoOp','%')"><span class="sl-v" id="vlLogoOp">100%</span></div>
-      </div>
-      <div class="fg"><label class="fl">Hintergrund-Deckkraft</label>
-        <div class="sl-row"><input type="range" min="0" max="100" value="40" id="slBgOp" oninput="render();sv('slBgOp','vlBgOp','%')"><span class="sl-v" id="vlBgOp">40%</span></div>
-      </div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-logo1">
       <div class="sb-ttl">Club-Logo 1</div>
       <div class="upzone" id="logoZone">
         <input type="file" accept="image/*" onchange="loadLogo(this)">
@@ -255,7 +266,7 @@
         <button class="btn btn-g btn-sm" onclick="clearLogo()">✕</button>
       </div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-logo2">
       <div class="sb-ttl">Club-Logo 2</div>
       <div class="upzone" id="logo2Zone">
         <input type="file" accept="image/*" onchange="loadLogo2(this)">
@@ -266,7 +277,7 @@
         <button class="btn btn-g btn-sm" onclick="clearLogo2()">✕ Entfernen</button>
       </div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-bg">
       <div class="sb-ttl">Hintergrundbild</div>
       <div class="upzone">
         <input type="file" accept="image/*" onchange="loadBg(this)">
@@ -277,7 +288,7 @@
         <button class="btn btn-g btn-sm" onclick="clearBg()">✕ Entfernen</button>
       </div>
     </div>
-    <div class="sb-sec">
+    <div class="sb-sec design-club">
       <div class="sb-ttl">Klub & Liga</div>
       <div class="fg"><label class="fl">Klubname</label><input class="fi" id="iClub" value="EHC BIEL-BIENNE" oninput="render()"></div>
       <div class="fg"><label class="fl">Liga</label><input class="fi" id="iLeague" value="NATIONAL LEAGUE" oninput="render()"></div>
@@ -297,11 +308,13 @@
         <div class="fg"><label class="fl">Pos.</label><input class="fi" id="iPos" placeholder="G" oninput="syncPlayer()"></div>
       </div>
       <div class="fg"><label class="fl">Nationalität</label><input class="fi" id="iNat" placeholder="SUI" maxlength="3" oninput="syncPlayer()"></div>
-      <div class="fg">
-        <label class="fl">Name-Feinjustierung X / Y</label>
+      <div class="fg player-adjust-card">
+        <div class="adjust-head">
+          <label class="fl">Name-Offset Spieler</label>
+          <button class="mini-reset" type="button" onclick="resetPlayerNameAdjust()">Zurücksetzen</button>
+        </div>
         <div class="sl-row"><input type="range" min="-220" max="220" value="0" id="slPlayerNameDx" oninput="setPlayerNameAdjust('x',this.value)"><span class="sl-v" id="vlPlayerNameDx">0</span></div>
         <div class="sl-row"><input type="range" min="-140" max="140" value="0" id="slPlayerNameDy" oninput="setPlayerNameAdjust('y',this.value)"><span class="sl-v" id="vlPlayerNameDy">0</span></div>
-        <button class="btn btn-g btn-sm" type="button" onclick="resetPlayerNameAdjust()" style="margin-top:5px">↺ Name-Offset</button>
       </div>
       <button class="btn btn-r" style="width:100%;margin-top:2px" onclick="addPlayer()">＋ Hinzufügen</button>
     </div>
@@ -342,18 +355,6 @@
         <button class="btn btn-g btn-sm" id="workspaceFinderBtn" type="button" onclick="openWorkspaceInFinder()" data-tauri-only disabled>📂 Finder</button>
       </div>
       <div id="workspaceInfo" class="storage-panel">Workspace nicht verbunden.</div>
-    </div>
-    <div class="sb-sec">
-      <div class="sb-ttl">Namensformat</div>
-      <div class="fg"><label class="fl">Anzeige</label>
-        <select class="fi" id="selNameMode" onchange="S.nameMode=this.value;render();persistSession()">
-          <option value="last">Nur Nachname</option>
-          <option value="first">Nur Vorname</option>
-          <option value="both">Vor- und Nachname</option>
-          <option value="firstlast">Vorname + Nachname</option>
-          <option value="initial">Initiale + Nachname</option>
-        </select>
-      </div>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Eigene Schriftart</div>
