@@ -122,12 +122,17 @@ function normalizeHexColor(value,fallback='#000000'){
 }
 function normalizePalette(c={}){
   const base=TMPL[0];
+  const nc=normalizeHexColor(c.nc,base.nc);
+  const nrc=normalizeHexColor(c.nrc,base.nrc);
+  const ftc=normalizeHexColor(c.ftc||c.freeTextColor,nc);
   return{
     bg1:normalizeHexColor(c.bg1,base.bg1),
     bg2:normalizeHexColor(c.bg2,base.bg2),
     acc:normalizeHexColor(c.acc,base.acc),
-    nc:normalizeHexColor(c.nc,base.nc),
-    nrc:normalizeHexColor(c.nrc,base.nrc),
+    nc,
+    nrc,
+    ftc,
+    ft2c:normalizeHexColor(c.ft2c||c.freeText2Color,ftc),
   };
 }
 function cssStr(value){
@@ -518,17 +523,37 @@ function mkSwatchG(cid,getV,setV){
     const sw=normalizeHexColor(h,'#000000');
     const d=document.createElement('div');d.className='sw'+(cur===sw?' sel':'');
     d.style.background=sw;d.title=sw;
-    d.onclick=()=>{setV(sw);c.querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');render()};
+    d.onclick=()=>{setV(sw);c.querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');render();persistSession()};
     c.appendChild(d);
   });
   const inp=document.createElement('input');inp.type='color';inp.value=cur;
-  inp.oninput=()=>{setV(normalizeHexColor(inp.value,cur));render()};
+  inp.oninput=()=>{setV(normalizeHexColor(inp.value,cur));render();persistSession()};
   c.appendChild(inp);
 }
 function mkSwatch(cid,key){mkSwatchG(cid,()=>S.c[key],v=>S.c[key]=v)}
 
+function selectedTextColorTarget(){
+  return ['name','nr','freeText','freeText2'].includes(S.sel)?S.sel:'name';
+}
+function textColorKey(target=selectedTextColorTarget()){
+  return{nr:'nrc',freeText:'ftc',freeText2:'ft2c',name:'nc'}[target]||'nc';
+}
+function syncColorTargetUi(target=selectedTextColorTarget()){
+  const info=document.getElementById('colorTargetInfo');
+  if(info)info.textContent='Ziel: '+fontTargetLabel(target);
+}
+function refreshTextColorSwatch(){
+  const target=selectedTextColorTarget();
+  syncColorTargetUi(target);
+  mkSwatchG('swText',()=>normalizePalette(S.c)[textColorKey(target)],v=>{
+    const key=textColorKey(target);
+    S.c={...normalizePalette(S.c),[key]:normalizeHexColor(v,'#FFFFFF')};
+  });
+}
+
 function refreshSwatches(){
-  [['swBg1','bg1'],['swBg2','bg2'],['swAcc','acc'],['swNc','nc'],['swNrc','nrc']].forEach(([id,k])=>mkSwatch(id,k));
+  [['swBg1','bg1'],['swBg2','bg2'],['swAcc','acc']].forEach(([id,k])=>mkSwatch(id,k));
+  refreshTextColorSwatch();
   mkSwatchG('swGlow', ()=>S.glowColor, v=>S.glowColor=v);
   mkSwatchG('swBadge',()=>S.badgeColor,v=>S.badgeColor=v);
   mkSwatchG('swBadgeBorder',()=>S.badgeBorderColor||'#FFFFFF',v=>S.badgeBorderColor=v);
@@ -595,6 +620,7 @@ function syncFontSelectOptions(){
   sel.value=[...sel.options].some(o=>o.value===raw)?raw:(target==='name'?S.font:'__inherit__');
   sel.style.fontFamily=effective||"'Rajdhani'";
   syncFontTargetUi(target);
+  refreshTextColorSwatch();
 }
 
 const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
@@ -628,6 +654,7 @@ function syncFontTargetUi(target=selectedFontTarget()){
 function setSelectedFontTarget(key){
   S.sel=key;
   syncFontSelectOptions();
+  refreshTextColorSwatch();
   document.querySelectorAll('.font-opt').forEach(x=>x.classList.toggle('on',x.dataset.font===effectiveSelectedFont()));
 }
 
@@ -4145,11 +4172,12 @@ function drawPlate(canvas,w,h,opts,thumb){
     setTextAlign(ctx,textAlign);
     if(thumb){
       ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=Z(8);
-      ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nc;
+      ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=key==='freeText2'?c.ft2c:c.ftc;
       ftLines.forEach((line,li)=>ctx.fillText(line,0,Z(ftYsPlate[li]-ftPosData.y)));
       ctx.shadowColor='transparent';
     }else{
-      ftLines.forEach((line,li)=>drawFxText(ctx,line,0,Z(ftYsPlate[li]-ftPosData.y),c.nc,opts,Z));
+      const textColor=key==='freeText2'?c.ft2c:c.ftc;
+      ftLines.forEach((line,li)=>drawFxText(ctx,line,0,Z(ftYsPlate[li]-ftPosData.y),textColor,opts,Z));
     }
     ctx.restore();
   };
