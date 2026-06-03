@@ -65,6 +65,7 @@ const S={
   font:"'Bebas Neue'",
   nrFont:'',
   freeTextFont:'',
+  freeText2Font:'',
   layout:'L',
   textAlign:'left',
   textVAlign:'alphabetic', // alphabetic | middle | bottom — typografische Linie / vertikal zentriert / unten
@@ -76,7 +77,8 @@ const S={
   logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
-  freeText:'',freeTextSz:70,
+  freeText:'',freeTextSz:70,freeTextRot:0,
+  freeText2:'',freeText2Sz:70,freeText2Rot:0,
   textBoxPadX:0,textBoxPadY:0,
   // text effects
   shadowOn:true,glowOn:false,glowColor:'#00BFFF',
@@ -164,9 +166,19 @@ function getDisplayName(p){
   if(mode==='initial') return (f?f[0]+'. ':'')+l;
   return l||f;
 }
-function setFreeText(value){
-  S.freeText=String(value||'');
-  if(!S.freeText.trim()&&S.sel==='freeText')S.sel=null;
+function setFreeTextLine(line,value){
+  const key=line===2?'freeText2':'freeText';
+  S[key]=String(value||'');
+  if(!S[key].trim()&&S.sel===key)S.sel=null;
+  render();
+  persistSession();
+}
+function setFreeText(value){setFreeTextLine(1,value)}
+function setFreeTextRotation(line,value){
+  const key=line===2?'freeText2Rot':'freeTextRot';
+  S[key]=Math.max(-180,Math.min(180,Number(value)||0));
+  const id=line===2?'vlFreeText2Rot':'vlFreeTextRot';
+  const el=document.getElementById(id);if(el)el.textContent=S[key]+'°';
   render();
   persistSession();
 }
@@ -176,10 +188,10 @@ function setFreeText(value){
 // ══════════════════════════════════════════
 function defPos(layout){
   const l2=Math.round(S.logo2Sz||90);
-  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168},freeText:{x:1320,y:440}};
-  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:690,y:440}};
-  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355},freeText:{x:1000,y:455}};
-  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:1000,y:445}};
+  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168},freeText:{x:1320,y:440},freeText2:{x:1320,y:500}};
+  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:690,y:440},freeText2:{x:690,y:500}};
+  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355},freeText:{x:1000,y:455},freeText2:{x:1000,y:505}};
+  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:1000,y:445},freeText2:{x:1000,y:505}};
 }
 function getPos(key){
   const d=defPos(S.layout);
@@ -589,19 +601,21 @@ const CUSTOM_FONTS_KEY='plateforge_custom_fonts';
 const ACTIVE_FONT_KEY='plateforge_active_font';
 
 function selectedFontTarget(){
-  return ['name','nr','freeText'].includes(S.sel)?S.sel:'name';
+  return ['name','nr','freeText','freeText2'].includes(S.sel)?S.sel:'name';
 }
 function fontTargetLabel(target=selectedFontTarget()){
-  return{nr:'Nummer / Badge',freeText:'Freier Text',name:'Name'}[target]||'Name';
+  return{nr:'Nummer / Badge',freeText:'Freier Text 1',freeText2:'Freier Text 2',name:'Name'}[target]||'Name';
 }
 function currentSelectedFontValue(target=selectedFontTarget()){
   if(target==='nr')return S.nrFont||'__inherit__';
   if(target==='freeText')return S.freeTextFont||'__inherit__';
+  if(target==='freeText2')return S.freeText2Font||'__inherit__';
   return S.font||"'Bebas Neue'";
 }
 function effectiveFontForTarget(target=selectedFontTarget()){
   if(target==='nr')return S.nrFont||S.font||"'Bebas Neue'";
   if(target==='freeText')return S.freeTextFont||S.font||"'Bebas Neue'";
+  if(target==='freeText2')return S.freeText2Font||S.font||"'Bebas Neue'";
   return S.font||"'Bebas Neue'";
 }
 function effectiveSelectedFont(){
@@ -630,6 +644,7 @@ function setFontFamily(fontFamily){
   const inherit=fontFamily==='__inherit__';
   if(target==='nr')S.nrFont=inherit?'':(fontFamily||'');
   else if(target==='freeText')S.freeTextFont=inherit?'':(fontFamily||'');
+  else if(target==='freeText2')S.freeText2Font=inherit?'':(fontFamily||'');
   else S.font=fontFamily||"'Bebas Neue'";
   const effective=effectiveFontForTarget(target);
   syncFontSelectOptions();
@@ -651,6 +666,9 @@ function getNrFont(){
 }
 function getFreeTextFont(){
   return S.freeTextFont||S.font;
+}
+function getFreeText2Font(){
+  return S.freeText2Font||S.font;
 }
 function collapseFontGrid(){
   const g=document.getElementById('fontGrid');
@@ -783,6 +801,7 @@ function removeSavedFont(i,e){
   if(S.font===S.savedFonts[i].fontFamily)S.font="'Bebas Neue'";
   if(S.nrFont===S.savedFonts[i].fontFamily)S.nrFont='';
   if(S.freeTextFont===S.savedFonts[i].fontFamily)S.freeTextFont='';
+  if(S.freeText2Font===S.savedFonts[i].fontFamily)S.freeText2Font='';
   S.savedFonts.splice(i,1);
   persistCustomFonts();
   persistActiveFont();
@@ -820,9 +839,10 @@ function drawTemplatePreview(cv,opts,pos){
 function templatePreviewDefaults(){
   return{
     tpl:0,c:{...TMPL[0]},font:"'Bebas Neue'",nrFont:'',layout:'L',
-    freeTextFont:'',
+    freeTextFont:'',freeText2Font:'',
     textAlign:'left',textVAlign:'alphabetic',nrAlign:'left',nrVAlign:'alphabetic',
     nameMode:'last',logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
+    freeText:'',freeTextSz:70,freeTextRot:0,freeText2:'',freeText2Sz:70,freeText2Rot:0,
     bgOp:.4,logoOp:1,frame:true,screws:true,bar:true,logoBand:true,
     showPos:true,showNat:false,showLeague:true,shadowOn:true,glowOn:false,glowSize:26,shBlur:10,shDist:4,
     badge:'none',badgeScale:72,badgeNrDx:0,badgeNrDy:0,badgeFillOp:1,badgeColor:'#C8102E',badgeBorderColor:'#FFFFFF',
@@ -1146,6 +1166,7 @@ function creativeSeedSnapshot(seed){
     font:seed.font||"'Bebas Neue'",
     nrFont:seed.nrFont||'',
     freeTextFont:seed.freeTextFont||'',
+    freeText2Font:seed.freeText2Font||'',
     layout:seed.layout||'F',
     textAlign:seed.textAlign||'center',
     textVAlign:seed.textVAlign||'middle',
@@ -1164,6 +1185,12 @@ function creativeSeedSnapshot(seed){
     logo2Sz:seed.logo2Sz??120,
     nameSz:seed.nameSz??190,
     nrSz:seed.nrSz??260,
+    freeText:seed.freeText||'',
+    freeTextSz:seed.freeTextSz??70,
+    freeTextRot:seed.freeTextRot||0,
+    freeText2:seed.freeText2||'',
+    freeText2Sz:seed.freeText2Sz??70,
+    freeText2Rot:seed.freeText2Rot||0,
     textBoxPadX:0,
     textBoxPadY:0,
     frameW:seed.frameW??10,
@@ -1239,14 +1266,15 @@ function compressImageSource(src,maxSide,quality,keepAlpha){
 }
 function getDesignSnapshotBase(){
   const snap={
-    tpl:S.tpl,c:normalizePalette(S.c),font:S.font,nrFont:S.nrFont||'',freeTextFont:S.freeTextFont||'',layout:S.layout,
+    tpl:S.tpl,c:normalizePalette(S.c),font:S.font,nrFont:S.nrFont||'',freeTextFont:S.freeTextFont||'',freeText2Font:S.freeText2Font||'',layout:S.layout,
     textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     badge:S.badge,badgeColor:normalizeHexColor(S.badgeColor,S.c.acc),badgeFillOp:S.badgeFillOp??1,badgeBorderColor:normalizeHexColor(S.badgeBorderColor,'#FFFFFF'),
     badgeScale:S.badgeScale??72,badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     nameMode:S.nameMode||getVal('selNameMode'),
     userTplId:S.userTplId||null,
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),
-    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,
+    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,freeTextRot:S.freeTextRot||0,
+    freeText2:String(S.freeText2||''),freeText2Sz:getInt('slFreeText2')||S.freeText2Sz||70,freeText2Rot:S.freeText2Rot||0,
     textBoxPadX:S.textBoxPadX||0,textBoxPadY:S.textBoxPadY||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
@@ -1440,6 +1468,10 @@ function applyStateToUI(){
   document.getElementById('slNrSz').value=S.nrSz;sv('slNrSz','vlNrSz');
   const ft=document.getElementById('iFreeText');if(ft)ft.value=S.freeText||'';
   const fts=document.getElementById('slFreeText');if(fts){fts.value=S.freeTextSz??70;sv('slFreeText','vlFreeText')}
+  const ftr=document.getElementById('slFreeTextRot');if(ftr){ftr.value=S.freeTextRot||0;sv('slFreeTextRot','vlFreeTextRot','°')}
+  const ft2=document.getElementById('iFreeText2');if(ft2)ft2.value=S.freeText2||'';
+  const fts2=document.getElementById('slFreeText2');if(fts2){fts2.value=S.freeText2Sz??70;sv('slFreeText2','vlFreeText2')}
+  const ftr2=document.getElementById('slFreeText2Rot');if(ftr2){ftr2.value=S.freeText2Rot||0;sv('slFreeText2Rot','vlFreeText2Rot','°')}
   const tbx=document.getElementById('slTextBoxPadX');if(tbx){tbx.value=S.textBoxPadX||0;sv('slTextBoxPadX','vlTextBoxPadX')}
   const tby=document.getElementById('slTextBoxPadY');if(tby){tby.value=S.textBoxPadY||0;sv('slTextBoxPadY','vlTextBoxPadY')}
   document.getElementById('slBadgeScale').value=S.badgeScale??72;sv('slBadgeScale','vlBadgeScale','%');
@@ -1490,6 +1522,7 @@ async function applyDesignSnapshot(snap,opts={}){
   S.font=snap.font||"'Bebas Neue'";
   S.nrFont=snap.nrFont||'';
   S.freeTextFont=snap.freeTextFont||'';
+  S.freeText2Font=snap.freeText2Font||'';
   S.layout=snap.layout||'L';
   S.textAlign=snap.textAlign||'left';
   S.textVAlign=snap.textVAlign||'alphabetic';
@@ -1505,7 +1538,8 @@ async function applyDesignSnapshot(snap,opts={}){
   S.badgeNrDx=snap.badgeNrDx||0;S.badgeNrDy=snap.badgeNrDy||0;
   S.nameMode=snap.nameMode||'last';
   S.logoSz=snap.logoSz??140;S.logo2Sz=snap.logo2Sz??90;S.nameSz=snap.nameSz??190;S.nrSz=snap.nrSz??260;
-  S.freeText=snap.freeText||'';S.freeTextSz=snap.freeTextSz??70;
+  S.freeText=snap.freeText||'';S.freeTextSz=snap.freeTextSz??70;S.freeTextRot=snap.freeTextRot||0;
+  S.freeText2=snap.freeText2||'';S.freeText2Sz=snap.freeText2Sz??70;S.freeText2Rot=snap.freeText2Rot||0;
   S.textBoxPadX=snap.textBoxPadX||0;S.textBoxPadY=snap.textBoxPadY||0;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
@@ -3385,10 +3419,11 @@ function activeP(){
 function readSizeOpts(){
   return{
     logoSz:getInt('slLogo'),logo2Sz:getInt('slLogo2'),nameSz:getInt('slName'),nrSz:getInt('slNrSz'),badgeScale:getInt('slBadgeScale'),
-    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,
+    freeText:String(S.freeText||''),freeTextSz:getInt('slFreeText')||S.freeTextSz||70,freeTextRot:S.freeTextRot||0,
+    freeText2:String(S.freeText2||''),freeText2Sz:getInt('slFreeText2')||S.freeText2Sz||70,freeText2Rot:S.freeText2Rot||0,
     badgeNrDx:S.badgeNrDx||0,badgeNrDy:S.badgeNrDy||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
-    font:S.font,nrFont:getNrFont(),freeTextFont:getFreeTextFont(),layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
+    font:S.font,nrFont:getNrFont(),freeTextFont:getFreeTextFont(),freeText2Font:getFreeText2Font(),layout:getVal('selLayout'),textAlign:S.textAlign,textVAlign:S.textVAlign||'alphabetic',
     nrAlign:effectiveNrAlign(),nrVAlign:effectiveNrVAlign(),
     nameMode:getVal('selNameMode'),
     shBlur:getInt('slShBlur'),shDist:getInt('slShDist'),glowSize:getInt('slGlow'),
@@ -3542,6 +3577,24 @@ function textLinesBounds(anchorX,anchorY,lines,fontPx,fontFamily,align,vAlign){
   const padX=textBoxPad(fontPx,'x'),padY=textBoxPad(fontPx,'y');
   return{left:left-padX,top:top-padY,right:right+padX,bottom:bottom+padY};
 }
+function rotateBounds(bounds,cx,cy,deg){
+  const rad=(Number(deg)||0)*Math.PI/180;
+  if(!rad)return bounds;
+  const cos=Math.cos(rad),sin=Math.sin(rad);
+  const pts=[
+    {x:bounds.left,y:bounds.top},{x:bounds.right,y:bounds.top},
+    {x:bounds.right,y:bounds.bottom},{x:bounds.left,y:bounds.bottom},
+  ].map(p=>{
+    const dx=p.x-cx,dy=p.y-cy;
+    return{x:cx+dx*cos-dy*sin,y:cy+dx*sin+dy*cos};
+  });
+  return{
+    left:Math.min(...pts.map(p=>p.x)),
+    top:Math.min(...pts.map(p=>p.y)),
+    right:Math.max(...pts.map(p=>p.x)),
+    bottom:Math.max(...pts.map(p=>p.y)),
+  };
+}
 
 // pointer coords – works for mouse AND touch events
 function ptXY(e){
@@ -3577,9 +3630,11 @@ function freeTextLines(text){
 // Bounding-Box eines Elements in Plate-Koordinaten (für Druckrand)
 function getElementPlateBounds(key,anchor,opts){
   const platePos={...getPos(key),...anchor};
-  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,freeText,freeTextSz,nameDx=0,nameDy=0}=opts;
+  const{nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,freeText2Font,textAlign,textVAlign,nrAlign,nrVAlign,badge,badgeScale,
+    freeText,freeTextSz,freeTextRot=0,freeText2,freeText2Sz,freeText2Rot=0,nameDx=0,nameDy=0}=opts;
   const numberFont=nrFont||font;
   const ftFont=freeTextFont||font;
+  const ft2Font=freeText2Font||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
@@ -3596,7 +3651,13 @@ function getElementPlateBounds(key,anchor,opts){
   }
   if(key==='freeText'){
     const lines=freeTextLines(freeText);
-    return textLinesBounds(platePos.x,platePos.y,lines,freeTextSz||70,ftFont,textAlign,vA);
+    const b=textLinesBounds(platePos.x,platePos.y,lines,freeTextSz||70,ftFont,textAlign,vA);
+    return rotateBounds(b,platePos.x,platePos.y,freeTextRot);
+  }
+  if(key==='freeText2'){
+    const lines=freeTextLines(freeText2);
+    const b=textLinesBounds(platePos.x,platePos.y,lines,freeText2Sz||70,ft2Font,textAlign,vA);
+    return rotateBounds(b,platePos.x,platePos.y,freeText2Rot);
   }
   if(key==='nr'){
     const text=String(p.nr||'');
@@ -3630,15 +3691,18 @@ function buildDragHandles(opts){
   const cv=document.getElementById('plateCanvas');
   const sc=cv.width/W; // scale factor preview→plate
 
-  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,textAlign,textVAlign,nrAlign,nrVAlign,freeText,freeTextSz}=opts;
+  const {nameSz,nrSz,logoSz,logo2Sz,font,nrFont,freeTextFont,freeText2Font,textAlign,textVAlign,nrAlign,nrVAlign,
+    freeText,freeTextSz,freeTextRot=0,freeText2,freeText2Sz,freeText2Rot=0}=opts;
   const numberFont=nrFont||font;
   const ftFont=freeTextFont||font;
+  const ft2Font=freeText2Font||font;
   const vA=textVAlign||'alphabetic';
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
   const p=activeP();
   const nameText=getDisplayName(p);
   const freeLines=freeTextLines(freeText);
+  const freeLines2=freeTextLines(freeText2);
   const badgeOn=S.badge&&S.badge!=='none';
 
   const items=[
@@ -3646,7 +3710,8 @@ function buildDragHandles(opts){
     {key:'name',fontSize:nameSz,isText:true},
     {key:'logo',fontSize:logoSz,isText:false},
   ];
-  if(freeLines.length)items.push({key:'freeText',fontSize:freeTextSz||70,isText:true});
+  if(freeLines.length)items.push({key:'freeText',fontSize:freeTextSz||70,isText:true,lines:freeLines,font:ftFont,rot:freeTextRot||0});
+  if(freeLines2.length)items.push({key:'freeText2',fontSize:freeText2Sz||70,isText:true,lines:freeLines2,font:ft2Font,rot:freeText2Rot||0});
   if(S.logo2)items.push({key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false});
 
   items.forEach(item=>{
@@ -3663,8 +3728,9 @@ function buildDragHandles(opts){
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
-      }else if(item.key==='freeText'){
-        const b=textLinesBounds(platePos.x,platePos.y,freeLines,item.fontSize,ftFont,textAlign,vA);
+      }else if(item.key==='freeText'||item.key==='freeText2'){
+        const b0=textLinesBounds(platePos.x,platePos.y,item.lines,item.fontSize,item.font,textAlign,vA);
+        const b=rotateBounds(b0,platePos.x,platePos.y,item.rot||0);
         px=b.left*sc;py=b.top*sc;
         pw=Math.max((b.right-b.left)*sc,8);
         ph=Math.max((b.bottom-b.top)*sc,8);
@@ -3692,7 +3758,7 @@ function buildDragHandles(opts){
     el.dataset.key=item.key;
     el.style.cssText=`left:${px}px;top:${py}px;width:${Math.max(pw,20)}px;height:${Math.max(ph,20)}px`;
     const tag=document.createElement('div');tag.className='dh-tag';
-    tag.textContent={nr:'✥ Nummer',name:isTeamNameAdjustActive()?'✥ Name-Offset':'✥ Name',freeText:'✥ Freitext',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
+    tag.textContent={nr:'✥ Nummer',name:isTeamNameAdjustActive()?'✥ Name-Offset':'✥ Name',freeText:'✥ Freitext 1',freeText2:'✥ Freitext 2',logo:'✥ Logo 1',logo2:'✥ Logo 2'}[item.key];
     el.appendChild(tag);
 
     // resize handle for logos (mouse + touch)
@@ -3926,13 +3992,14 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign,align='left'){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c:rawC,font,nrFont,freeTextFont,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
-    logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
+  const{tpl,c:rawC,font,nrFont,freeTextFont,freeText2Font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
+    logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,freeTextRot=0,freeText2,freeText2Sz,freeText2Rot=0,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat='',nameDx=0,nameDy=0}=opts;
   const c=normalizePalette(rawC);
   const vA=textVAlign||'alphabetic';
   const numberFont=nrFont||font;
   const ftFont=freeTextFont||font;
+  const ft2Font=freeText2Font||font;
   const nrA=nrAlign||textAlign||'left';
   const nrVA=nrVAlign||vA;
 
@@ -4062,27 +4129,32 @@ function drawPlate(canvas,w,h,opts,thumb){
   }
 
   // FREE TEXT
-  const ftLines=freeTextLines(freeText);
-  if(ftLines.length){
-    const ftPosData=getPos('freeText');
-    const ftSize=thumb?Math.min(freeTextSz||70,32):freeTextSz||70;
+  const drawFreeTextBlock=(key,text,size,fontFamily,rotation)=>{
+    const ftLines=freeTextLines(text);
+    if(!ftLines.length)return;
+    const ftPosData=getPos(key);
+    const ftSize=thumb?Math.min(size||70,32):size||70;
     const ftFontPx=Z(ftSize);
     const ftX=Z(ftPosData.x);
-    const ftYsPlate=nameLinePlateYs(ftPosData.y,ftSize,ftLines,ftFont,thumb?'alphabetic':vA,textAlign);
+    const ftYsPlate=nameLinePlateYs(ftPosData.y,ftSize,ftLines,fontFamily,thumb?'alphabetic':vA,textAlign);
     ctx.save();
-    ctx.font=`${ftFontPx}px ${ftFont},sans-serif`;
+    ctx.translate(ftX,Z(ftPosData.y));
+    ctx.rotate((Number(rotation)||0)*Math.PI/180);
+    ctx.font=`${ftFontPx}px ${fontFamily},sans-serif`;
     ctx.textBaseline='alphabetic';
     setTextAlign(ctx,textAlign);
     if(thumb){
       ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=Z(8);
       ctx.shadowOffsetX=Z(2);ctx.shadowOffsetY=Z(3);ctx.fillStyle=c.nc;
-      ftLines.forEach((line,li)=>ctx.fillText(line,ftX,Z(ftYsPlate[li])));
+      ftLines.forEach((line,li)=>ctx.fillText(line,0,Z(ftYsPlate[li]-ftPosData.y)));
       ctx.shadowColor='transparent';
     }else{
-      ftLines.forEach((line,li)=>drawFxText(ctx,line,ftX,Z(ftYsPlate[li]),c.nc,opts,Z));
+      ftLines.forEach((line,li)=>drawFxText(ctx,line,0,Z(ftYsPlate[li]-ftPosData.y),c.nc,opts,Z));
     }
     ctx.restore();
-  }
+  };
+  drawFreeTextBlock('freeText',freeText,freeTextSz,ftFont,freeTextRot);
+  drawFreeTextBlock('freeText2',freeText2,freeText2Sz,ft2Font,freeText2Rot);
 
   ctx.restore(); // inner clip
 

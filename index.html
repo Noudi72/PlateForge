@@ -155,12 +155,28 @@
         </div>
       </div>
       <div class="fg">
-        <label class="fl">Freier Text</label>
-        <input class="fi" id="iFreeText" placeholder="z.B. PLAYOFFS" oninput="setFreeText(this.value)">
+        <label class="fl">Freier Text 1</label>
+        <input class="fi" id="iFreeText" placeholder="z.B. PLAYOFFS" oninput="setFreeTextLine(1,this.value)">
       </div>
       <div class="fg">
-        <label class="fl">Freitext-Grösse</label>
+        <label class="fl">Freitext 1 Grösse</label>
         <div class="sl-row"><input type="range" min="20" max="240" value="70" id="slFreeText" oninput="S.freeTextSz=+this.value;render();sv('slFreeText','vlFreeText')"><span class="sl-v" id="vlFreeText">70</span></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Freitext 1 Drehung</label>
+        <div class="sl-row"><input type="range" min="-180" max="180" value="0" id="slFreeTextRot" oninput="setFreeTextRotation(1,this.value)"><span class="sl-v" id="vlFreeTextRot">0°</span></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Freier Text 2</label>
+        <input class="fi" id="iFreeText2" placeholder="z.B. SWISS CHAMPION" oninput="setFreeTextLine(2,this.value)">
+      </div>
+      <div class="fg">
+        <label class="fl">Freitext 2 Grösse</label>
+        <div class="sl-row"><input type="range" min="20" max="240" value="70" id="slFreeText2" oninput="S.freeText2Sz=+this.value;render();sv('slFreeText2','vlFreeText2')"><span class="sl-v" id="vlFreeText2">70</span></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Freitext 2 Drehung</label>
+        <div class="sl-row"><input type="range" min="-180" max="180" value="0" id="slFreeText2Rot" oninput="setFreeTextRotation(2,this.value)"><span class="sl-v" id="vlFreeText2Rot">0°</span></div>
       </div>
     </div>
     <div class="sb-sec design-font">
