@@ -1560,7 +1560,12 @@ async function applyDesignSnapshot(snap,opts={}){
   render();
 }
 async function saveUserTemplate(){
-  const name=(getVal('userTplName')||'').trim();
+  let name=(getVal('userTplName')||'').trim();
+  if(!name){
+    const activeUser=S.userTplId&&loadUserTemplates().find(t=>t.id===S.userTplId);
+    name=(activeUser&&activeUser.name)||(TMPL[S.tpl]&&TMPL[S.tpl].name)||'Vorlage';
+    setTemplateNameInput(name);
+  }
   if(!name){alert('Bitte einen Namen für die Vorlage eingeben.');return}
   const include=true;
   const inc=document.getElementById('userTplIncImg');if(inc)inc.checked=true;
