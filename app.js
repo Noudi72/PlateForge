@@ -3033,8 +3033,8 @@ function syncPlayerAdjustUi(p=S.roster[S.active]||{}){
   const {x,y}=getPlayerNameAdjust(p);
   if(dx)dx.value=x;
   if(dy)dy.value=y;
-  if(vx)vx.textContent=x;
-  if(vy)vy.textContent=y;
+  if(vx)vx.value=x;
+  if(vy)vy.value=y;
 }
 function clampPlayerNameAdjust(axis,value){
   const n=Math.round(Number(value)||0);

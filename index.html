@@ -27,6 +27,13 @@
     <button class="btn btn-g btn-sm" onclick="switchMain('editor')" id="tabEditor">🎨 Editor</button>
     <button class="btn btn-g btn-sm" onclick="switchMain('batch')" id="tabBatch">📋 Batch</button>
     <div class="vdiv"></div>
+    <button class="btn btn-y btn-sm" type="button" onclick="saveUserTemplate()" title="Aktuelle Vorlage speichern">💾 Speichern</button>
+    <button class="btn btn-g btn-sm" type="button" onclick="duplicateUserTemplate()" title="Aktuelle Vorlage duplizieren">📋 Duplizieren</button>
+    <label class="btn btn-g btn-sm top-file-btn" title="Vorlagen aus JSON wiederherstellen">
+      📥 Wiederherstellen
+      <input type="file" accept=".json,application/json" multiple onchange="importTemplatesJson(this)">
+    </label>
+    <div class="vdiv"></div>
     <button class="btn btn-g btn-sm" onclick="exportCurrent()" id="btnExportCurrent">💾 PNG</button>
     <button class="btn btn-y btn-sm" onclick="exportAll()" id="btnExportAll">📦 Alle</button>
   </div>
@@ -313,8 +320,8 @@
           <label class="fl">Name-Offset Spieler</label>
           <button class="mini-reset" type="button" onclick="resetPlayerNameAdjust()">Zurücksetzen</button>
         </div>
-        <div class="sl-row"><input type="range" min="-220" max="220" value="0" id="slPlayerNameDx" oninput="setPlayerNameAdjust('x',this.value)"><span class="sl-v" id="vlPlayerNameDx">0</span></div>
-        <div class="sl-row"><input type="range" min="-140" max="140" value="0" id="slPlayerNameDy" oninput="setPlayerNameAdjust('y',this.value)"><span class="sl-v" id="vlPlayerNameDy">0</span></div>
+        <div class="sl-row"><input type="range" min="-220" max="220" value="0" id="slPlayerNameDx" oninput="setPlayerNameAdjust('x',this.value)"><input class="offset-num" type="number" min="-220" max="220" step="1" value="0" id="vlPlayerNameDx" onchange="setPlayerNameAdjust('x',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></div>
+        <div class="sl-row"><input type="range" min="-140" max="140" value="0" id="slPlayerNameDy" oninput="setPlayerNameAdjust('y',this.value)"><input class="offset-num" type="number" min="-140" max="140" step="1" value="0" id="vlPlayerNameDy" onchange="setPlayerNameAdjust('y',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></div>
       </div>
       <button class="btn btn-r" style="width:100%;margin-top:2px" onclick="addPlayer()">＋ Hinzufügen</button>
     </div>

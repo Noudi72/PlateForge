@@ -10,13 +10,15 @@ body:not(.is-tauri) [data-tauri-only]{display:none!important}
 .logo-mark{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:3px;color:var(--gold);flex-shrink:0}.logo-mark span{color:var(--acc)}
 .plate-size{font-size:.72rem;color:var(--mut);white-space:nowrap}
 .vdiv{width:1px;height:22px;background:var(--bdr);flex-shrink:0}
-.tbar-btns{display:flex;gap:5px;margin-left:auto}
+.tbar-btns{display:flex;gap:5px;margin-left:auto;align-items:center}
 .btn{border:none;border-radius:5px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:1px;padding:6px 12px;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .btn:focus-visible,.side-tab:focus-visible,.align-btn:focus-visible,.tog:focus-visible,.tpl-card:focus-visible,.tpl-star:focus-visible,.tpl-del:focus-visible,.tpl-reset:focus-visible,.font-opt:focus-visible,.saved-font-item:focus-visible,.ri:focus-visible,.batch-dl:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .btn-g{background:transparent;border:1px solid var(--bdr);color:var(--mut)}.btn-g:hover{border-color:var(--gold);color:var(--gold)}
 .btn-r{background:var(--acc);color:#fff}.btn-r:hover{background:#c42d42}
 .btn-y{background:var(--gold);color:#000}.btn-y:hover{background:#d4920a}
 .btn-sm{padding:4px 9px;font-size:.7rem}
+.top-file-btn{position:relative;overflow:hidden}
+.top-file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 
 /* LAYOUT */
 .app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px);min-height:0}
@@ -96,6 +98,8 @@ input[type=color]{width:20px;height:20px;border:2px solid var(--bdr);border-radi
 /* SLIDER */
 .sl-row{display:flex;align-items:center;gap:6px}.sl-row input[type=range]{flex:1;accent-color:var(--gold);height:3px}
 .sl-v{min-width:32px;font-size:.76rem;color:var(--gold);text-align:right}
+.offset-num{width:48px;background:#151a26;border:1px solid rgba(240,165,0,.34);border-radius:4px;color:var(--gold);font-family:'Rajdhani',sans-serif;font-weight:800;font-size:.76rem;text-align:right;padding:3px 5px;outline:none}
+.offset-num:focus{border-color:var(--gold);box-shadow:0 0 0 1px rgba(240,165,0,.22)}
 
 /* ALIGN BUTTONS */
 .align-btns{display:flex;gap:3px}
