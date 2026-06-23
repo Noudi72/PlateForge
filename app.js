@@ -60,7 +60,7 @@ const BUILTIN_FONTS=[
 const STATIC_ASSETS=[
   '1.png','2.png','3.png','4.png','5.png','6.png','7.png','8.png','9.png','10.png','11.png','12.png','13.png',
   'background 1.png','background 2.png','background 3.png','background 6.png','background 7.png','background 8.png','background 9.png','background 10.png','background 11.png','background 12.png','background 13.png','background 14.png','background 15.png','background 16.png','background 17.png','background 18.png','background 19.png','background 20.png','background 21.png','background 22.png','background 23.png','background 24.png','background 25.png','background 26.png','background 27.svg','background 28.webp','background 29.png','background 30.png','background 31.png','background 72.png',
-  'EHCB Logo.png','EHCB Logo.svg','EHCB Logo.webp','EHCB_Spirit Viking.PNG','Logo Spirit.png','Logo VK.png','Logo VK 1.png','Logo VK.svg','Logo_EHCB.png','Spirit Viking.PNG','Spirit Viking 3x.webp',
+  'EHCB Logo.png','EHCB Logo.svg','EHCB Logo.webp','EHCB_Spirit Viking.PNG','Logo Spirit.png','Logo VK.png','Logo VK 1.png','Logo VK.svg','Logo_EHCB.png','Pokal.png','Spirit Viking.PNG','Spirit Viking 3x.webp',
   'ehcb blau.png','ehcb gelb.png','ehcb gelb.svg','ehcb rot.png','ehcb rot.svg',
 ].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
 const STATIC_MASTER_TEMPLATES='Vorlagen json/plateforge_vorlagen_master.json';
