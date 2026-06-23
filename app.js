@@ -4149,7 +4149,6 @@ function drawPlate(canvas,w,h,opts,thumb){
   const lsz=Z(thumb?52:effLogoSz);
   const lx=Z(logoPosData.x),ly=Z(logoPosData.y);
   if(logo)drawLogoOnPlate(ctx,logo,lx,ly,lsz,!!logoIsSvg,thumb);
-  else if(!thumb&&!logo2)ehcLogo(ctx,lx,ly,lsz/2);
   if(logo2&&!thumb){
     const l2sz=Z(effLogo2Sz);
     const l2x=Z(logo2PosData.x),l2y=Z(logo2PosData.y);
@@ -5280,7 +5279,6 @@ window.addEventListener('load',async()=>{
   document.getElementById('slBadgeScale').value=S.badgeScale;sv('slBadgeScale','vlBadgeScale','%');
   const bdx=document.getElementById('slBadgeNrDx');if(bdx){bdx.value=S.badgeNrDx||0;sv('slBadgeNrDx','vlBadgeNrDx')}
   const bdy=document.getElementById('slBadgeNrDy');if(bdy){bdy.value=S.badgeNrDy||0;sv('slBadgeNrDy','vlBadgeNrDy')}
-  if(!S.logo)useEHCLogo();
   if(S.roster.length)pickP(S.active);
   else render();
   updatePlayerNav();
