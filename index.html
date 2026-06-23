@@ -456,6 +456,11 @@
           </select></div>
       </div>
       <div id="pdfOptsRow" style="display:none;margin-top:6px">
+        <div class="fg"><label class="fl">Druckformat</label>
+          <select class="fi" id="selPrintFormat" onchange="S.printFormat=this.value;syncExportUi();persistSession()">
+            <option value="200x55">200×55 mm (Garderobe)</option>
+            <option value="289x36">289×36 mm (Namenschild)</option>
+          </select></div>
         <div class="frow">
           <div class="fg"><label class="fl">PDF-Bogen</label>
             <select class="fi" id="selPdfSheet" onchange="S.pdfSheet=this.value;syncExportUi();persistSession()">
@@ -466,7 +471,7 @@
         <div class="tog-row" style="margin-top:4px"><span class="tog-lbl">Schnittmarken</span><div class="tog on" id="togPdfCutMarks" onclick="togPdfCutMarks()"></div></div>
         <div class="tog-row"><span class="tog-lbl">+ Einzelseiten (Canva)</span><div class="tog on" id="togPdfSingle" onclick="togPdfSingle()"></div></div>
       </div>
-      <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="exportPrintPdfCurrent()">📄 PDF Druck (200×55 mm)</button>
+      <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="exportPrintPdfCurrent()" id="btnPrintPdf">📄 PDF Druck (200×55 mm)</button>
       <div class="fg" style="margin-top:8px">
         <label class="fl">Dateiname</label>
         <select class="fi" id="selExpNamePattern" onchange="S.exportNamePattern=this.value;persistSession()">
@@ -549,7 +554,7 @@
   </div>
 </div>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 
 </body>
 </html>

@@ -74,7 +74,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Positionen:** Ungespeicherte Positionsänderungen werden unter **Eigene Vorlagen** mit einem Hinweis angezeigt — mit **💾 Speichern** in der Vorlage sichern.
 
-**Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). Batch-Export zeigt einen Fortschrittsbalken.
+**Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). Batch-Export zeigt einen Fortschrittsbalken. PDF-Druckformate: **200×55 mm** (Garderobe) und **289×36 mm** (Namenschild).
 
 **Offline:** Service Worker (`sw.js`) cached App, lokale Vendor-Bibliotheken, Webfont-CSS und nachgeladenen Assets für Nutzung ohne Netz. PapaParse, XLSX, JSZip, jsPDF und die Google-Webfonts liegen zusätzlich lokal unter `vendor/`, damit CSV/Excel/PDF auch ohne CDN erreichbar bleiben.
 
