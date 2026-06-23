@@ -457,7 +457,7 @@
       </div>
       <div class="fg" style="margin-top:6px">
         <label class="fl">Druckformat</label>
-        <select class="fi" id="selPrintFormat" onchange="S.printFormat=this.value;syncExportUi();persistSession()">
+        <select class="fi" id="selPrintFormat" onchange="setPrintFormat(this.value)">
           <option value="200x55">200×55 mm (Garderobe)</option>
           <option value="289x36">289×36 mm (Namenschild)</option>
         </select>
@@ -556,7 +556,7 @@
   </div>
 </div>
 
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 
 </body>
 </html>

@@ -1,12 +1,13 @@
 // ══════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════
-const W=2000,H=550;
-// Editor-Canvas = 200×55 mm; Druckrand = 3 mm je Seite
-const PLATE_PRINT_W_MM=200,PLATE_PRINT_H_MM=55,SAFE_MARGIN_MM=3;
+const BASE_W=2000,BASE_H=550;
+let W=BASE_W,H=BASE_H;
+// Editor-Canvas nutzt 10 px/mm; Druckrand = 3 mm je Seite
+const SAFE_MARGIN_MM=3;
 const PRINT_FORMATS={
-  '200x55':{wMm:200,hMm:55,label:'200×55 mm'},
-  '289x36':{wMm:289,hMm:36,label:'289×36 mm'},
+  '200x55':{wMm:200,hMm:55,label:'200×55 mm',canvasW:2000,canvasH:550},
+  '289x36':{wMm:289,hMm:36,label:'289×36 mm',canvasW:2890,canvasH:360},
 };
 function getPrintFormatKey(){
   return PRINT_FORMATS[S.printFormat||'200x55']?S.printFormat:'200x55';
@@ -22,6 +23,13 @@ function printPageOrientation(){
   const[w,h]=getPrintSizeMm();
   return w>=h?'landscape':'portrait';
 }
+function updatePlateDimensions(){
+  const f=getPrintFormat();
+  W=f.canvasW||Math.round(f.wMm*10);
+  H=f.canvasH||Math.round(f.hMm*10);
+  const el=document.querySelector('.plate-size');
+  if(el)el.textContent=`${W} × ${H} px · ${f.label}`;
+}
 // PDF-Bogen: mehrere Schilder pro Blatt (spart Papier beim Druck)
 const SHEET_SIZES={a4:[210,297],a3:[297,420]};
 const SHEET_MARGIN_MM=5,PLATE_GAP_MM=2;
@@ -29,9 +37,10 @@ const CUT_MARK_LEN_MM=4,CUT_MARK_OFFSET_MM=1;
 let PREV_SCALE=0.45; // recalculated on render
 
 function safeMarginPx(){
+  const[pw,ph]=getPrintSizeMm();
   return{
-    x:Math.round(SAFE_MARGIN_MM*W/PLATE_PRINT_W_MM),
-    y:Math.round(SAFE_MARGIN_MM*H/PLATE_PRINT_H_MM),
+    x:Math.round(SAFE_MARGIN_MM*W/pw),
+    y:Math.round(SAFE_MARGIN_MM*H/ph),
   };
 }
 function getSafeRect(){
@@ -211,10 +220,11 @@ function setFreeTextRotation(line,value){
 // ══════════════════════════════════════════
 function defPos(layout){
   const l2=Math.round(S.logo2Sz||90);
-  if(layout==='L') return{logo:{x:85,y:275,sz:S.logoSz},logo2:{x:1680,y:275,sz:l2},name:{x:680,y:330},nr:{x:680,y:168},freeText:{x:1320,y:440},freeText2:{x:1320,y:500}};
-  if(layout==='R') return{logo:{x:1915,y:275,sz:S.logoSz},logo2:{x:320,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:690,y:440},freeText2:{x:690,y:500}};
-  if(layout==='S') return{logo:{x:1720,y:275,sz:S.logoSz},logo2:{x:200,y:275,sz:l2},name:{x:950,y:345},nr:{x:360,y:355},freeText:{x:1000,y:455},freeText2:{x:1000,y:505}};
-  return               {logo:{x:1760,y:275,sz:S.logoSz},logo2:{x:240,y:275,sz:l2},name:{x:180,y:330},nr:{x:180,y:168},freeText:{x:1000,y:445},freeText2:{x:1000,y:505}};
+  const p=(x,y,sz)=>({x:Math.round(W*x),y:Math.round(H*y),...(sz!=null?{sz}:null)});
+  if(layout==='L') return{logo:p(.0425,.5,S.logoSz),logo2:p(.84,.5,l2),name:p(.34,.6),nr:p(.34,.305),freeText:p(.66,.8),freeText2:p(.66,.91)};
+  if(layout==='R') return{logo:p(.9575,.5,S.logoSz),logo2:p(.16,.5,l2),name:p(.09,.6),nr:p(.09,.305),freeText:p(.345,.8),freeText2:p(.345,.91)};
+  if(layout==='S') return{logo:p(.86,.5,S.logoSz),logo2:p(.1,.5,l2),name:p(.475,.627),nr:p(.18,.645),freeText:p(.5,.827),freeText2:p(.5,.918)};
+  return             {logo:p(.88,.5,S.logoSz),logo2:p(.12,.5,l2),name:p(.09,.6),nr:p(.09,.305),freeText:p(.5,.809),freeText2:p(.5,.918)};
 }
 function getPos(key){
   const d=defPos(S.layout);
@@ -224,6 +234,39 @@ function getPos(key){
   return S.pos[key]?{...base,...S.pos[key]}:base;
 }
 function resetPos(){S.pos={};persistSession();updateUnsavedIndicator();render()}
+function scalePositionMapForFormat(pos,oldW,oldH,newW,newH){
+  const sx=newW/oldW,sy=newH/oldH;
+  const next={};
+  Object.entries(pos||{}).forEach(([key,val])=>{
+    if(!val||typeof val!=='object')return;
+    next[key]={...val};
+    if(Number.isFinite(val.x))next[key].x=Math.round(val.x*sx);
+    if(Number.isFinite(val.y))next[key].y=Math.round(val.y*sy);
+    if(Number.isFinite(val.sz))next[key].sz=Math.round(val.sz*sy);
+  });
+  return next;
+}
+function scaleCurrentDesignForFormat(oldW,oldH,newW,newH){
+  const sy=newH/oldH;
+  S.pos=scalePositionMapForFormat(S.pos,oldW,oldH,newW,newH);
+  ['logoSz','logo2Sz','nameSz','nrSz','freeTextSz','freeText2Sz','frameW'].forEach(k=>{
+    if(Number.isFinite(S[k]))S[k]=Math.max(1,Math.round(S[k]*sy));
+  });
+  S.badgeNrDy=Math.round((S.badgeNrDy||0)*sy);
+  S.textBoxPadY=Math.round((S.textBoxPadY||0)*sy);
+}
+function setPrintFormat(key,{scaleDesign=true,updateUi=true}={}){
+  const oldKey=getPrintFormatKey();
+  const oldW=W,oldH=H;
+  S.printFormat=PRINT_FORMATS[key]?key:'200x55';
+  updatePlateDimensions();
+  if(scaleDesign&&oldKey!==getPrintFormatKey())scaleCurrentDesignForFormat(oldW,oldH,W,H);
+  if(updateUi)applyStateToUI();
+  syncExportUi();
+  persistSession();
+  render();
+  refreshBatchIfVisible();
+}
 
 // Spielerdaten ohne Kollision mit S.pos (Layout-Koordinaten)
 function templateAdjustKey(){
@@ -1360,6 +1403,7 @@ function applyExportSettings(settings){
   S.exportFormat=exp.exportFormat;
   S.exportNamePattern=exp.exportNamePattern;
   S.printFormat=exp.printFormat;
+  updatePlateDimensions();
   S.pdfSheet=exp.pdfSheet;
   S.pdfCutMarks=exp.pdfCutMarks;
   S.pdfIncludeSingle=exp.pdfIncludeSingle;
@@ -4755,6 +4799,7 @@ function getSheetSizeMm(sheet){
   return SHEET_SIZES[sheet||S.pdfSheet||'a4']||SHEET_SIZES.a4;
 }
 function syncExportUi(){
+  updatePlateDimensions();
   const fmt=S.exportFormat||'png';
   const pdfOn=fmt==='pdf';
   const pdfRow=document.getElementById('pdfOptsRow');
