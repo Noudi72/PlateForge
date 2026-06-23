@@ -3425,6 +3425,7 @@ function loadLogo(inp){
 function loadBg(inp){if(!inp.files[0])return;loadImgFile(inp.files[0],(img,src)=>{S.bgImg=img;const p=document.getElementById('bgPrev');p.src=src;p.style.display='block';scheduleAssetIdbSync();persistSession();render()});inp.value=''}
 function clearLogo(){
   clearLogoRasterCache(S.logo);S.logo=null;S.logoIsSvg=false;
+  if(S.sel==='logo')S.sel=null;
   const p=document.getElementById('logoPrev');if(p){p.style.display='none';p.removeAttribute('src')}
   syncCanvasAssetsToIdb();persistSession();render();
 }
@@ -3443,6 +3444,15 @@ function clearLogo2(){
   clearLogoRasterCache(S.logo2);S.logo2=null;S.logo2IsSvg=false;if(S.sel==='logo2')S.sel=null;
   const p2=document.getElementById('logo2Prev');if(p2){p2.style.display='none';p2.removeAttribute('src')}
   syncCanvasAssetsToIdb();persistSession();render();
+}
+function clearAllLogos(){
+  clearLogoRasterCache(S.logo);clearLogoRasterCache(S.logo2);
+  S.logo=null;S.logoIsSvg=false;S.logo2=null;S.logo2IsSvg=false;
+  if(S.sel==='logo'||S.sel==='logo2')S.sel=null;
+  const p=document.getElementById('logoPrev');if(p){p.style.display='none';p.removeAttribute('src')}
+  const p2=document.getElementById('logo2Prev');if(p2){p2.style.display='none';p2.removeAttribute('src')}
+  syncCanvasAssetsToIdb();persistSession();render();
+  showOk('Club-Logos entfernt. Mit 💾 Speichern dauerhaft in der Vorlage sichern.');
 }
 function clearBg(){
   S.bgImg=null;
