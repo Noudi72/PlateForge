@@ -4787,7 +4787,7 @@ function syncExportUi(){
       const canva=S.pdfIncludeSingle!==false&&n>0?` · danach <strong>Einzelseiten</strong> (${pf.label}, Canva)`:n<1?` · je Schild <strong>${pf.label}</strong> pro Seite`:'';
       const tile=n>0?`bis <strong>${n}</strong>/Bogen`:'Einzelseiten';
       hint.innerHTML=`PDF <strong>${sh}</strong> · <strong>${pf.label}</strong>: ${tile}${cuts}${canva}. Auflösung = Bildschärfe.`;
-    }else hint.innerHTML='„📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.';
+    }else hint.innerHTML='<strong>Druckformat</strong> gilt für <strong>📄 PDF Druck</strong> und Format <strong>PDF (Druck)</strong>. „📦 Alle" exportiert gebündelt als ZIP.';
   }
 }
 const JSPDF_SCRIPTS=['vendor/js/jspdf.umd.min.js'];

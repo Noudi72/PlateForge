@@ -455,12 +455,14 @@
             <option value="pdf">PDF (Druck)</option>
           </select></div>
       </div>
+      <div class="fg" style="margin-top:6px">
+        <label class="fl">Druckformat</label>
+        <select class="fi" id="selPrintFormat" onchange="S.printFormat=this.value;syncExportUi();persistSession()">
+          <option value="200x55">200×55 mm (Garderobe)</option>
+          <option value="289x36">289×36 mm (Namenschild)</option>
+        </select>
+      </div>
       <div id="pdfOptsRow" style="display:none;margin-top:6px">
-        <div class="fg"><label class="fl">Druckformat</label>
-          <select class="fi" id="selPrintFormat" onchange="S.printFormat=this.value;syncExportUi();persistSession()">
-            <option value="200x55">200×55 mm (Garderobe)</option>
-            <option value="289x36">289×36 mm (Namenschild)</option>
-          </select></div>
         <div class="frow">
           <div class="fg"><label class="fl">PDF-Bogen</label>
             <select class="fi" id="selPdfSheet" onchange="S.pdfSheet=this.value;syncExportUi();persistSession()">
@@ -482,7 +484,7 @@
         </select>
       </div>
       <div id="expFormatHint" style="font-size:.65rem;color:var(--mut);margin-top:6px;line-height:1.5">
-        „📦 Alle" exportiert alle Schilder gebündelt als ZIP-Archiv.
+        <strong>Druckformat</strong> gilt für <strong>📄 PDF Druck</strong> und Format <strong>PDF (Druck)</strong>. „📦 Alle" exportiert gebündelt als ZIP.
       </div>
       <div id="storageInfo" class="storage-panel"></div>
       <button class="btn btn-g btn-sm" type="button" style="width:100%;margin-top:6px" onclick="refreshStorageInfo()">🔄 Speicher aktualisieren</button>
@@ -554,7 +556,7 @@
   </div>
 </div>
 
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 
 </body>
 </html>
