@@ -3811,8 +3811,8 @@ function buildDragHandles(opts){
   const items=[
     {key:'nr',  fontSize:nrSz,  isText:!badgeOn},
     {key:'name',fontSize:nameSz,isText:true},
-    {key:'logo',fontSize:logoSz,isText:false},
   ];
+  if(S.logo)items.push({key:'logo',fontSize:logoSz,isText:false});
   if(freeLines.length)items.push({key:'freeText',fontSize:freeTextSz||70,isText:true,lines:freeLines,font:ftFont,rot:freeTextRot||0});
   if(freeLines2.length)items.push({key:'freeText2',fontSize:freeText2Sz||70,isText:true,lines:freeLines2,font:ft2Font,rot:freeText2Rot||0});
   if(S.logo2)items.push({key:'logo2',fontSize:logo2Sz||S.logo2Sz||90,isText:false});
