@@ -74,7 +74,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Positionen:** Ungespeicherte Positionsänderungen werden unter **Eigene Vorlagen** mit einem Hinweis angezeigt — mit **💾 Speichern** in der Vorlage sichern.
 
-**Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). **Druckformat** (200×55 mm / 289×36 mm) ist dort direkt sichtbar und stellt auch den Editor-Canvas um, damit Vorschau, Drag-Positionen und PDF-Ausgabe dasselbe Seitenverhältnis nutzen. Batch-Export zeigt einen Fortschrittsbalken.
+**Export:** Dateinamen-Schema wählbar unter **Optionen → Export** (z. B. `22_KUHN_EHCB`). **Druckformat** (200×55 mm / 289×36 mm) ist dort direkt sichtbar und stellt auch den Editor-Canvas um, damit Vorschau, Drag-Positionen und PDF-Ausgabe dasselbe Seitenverhältnis nutzen. Bei 289×36 mm werden auf A4 quer mehrere Schilder pro Bogen mit Schnittmarken platziert; separate Canva-Einzelseiten werden für dieses Format nicht angehängt. Batch-Export zeigt einen Fortschrittsbalken.
 
 **Offline:** Service Worker (`sw.js`) cached App, lokale Vendor-Bibliotheken, Webfont-CSS und nachgeladenen Assets für Nutzung ohne Netz. PapaParse, XLSX, JSZip, jsPDF und die Google-Webfonts liegen zusätzlich lokal unter `vendor/`, damit CSV/Excel/PDF auch ohne CDN erreichbar bleiben.
 

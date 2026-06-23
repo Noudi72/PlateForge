@@ -259,6 +259,7 @@ function setPrintFormat(key,{scaleDesign=true,updateUi=true}={}){
   const oldKey=getPrintFormatKey();
   const oldW=W,oldH=H;
   S.printFormat=PRINT_FORMATS[key]?key:'200x55';
+  if(oldKey!==S.printFormat&&S.printFormat==='289x36')S.pdfIncludeSingle=false;
   updatePlateDimensions();
   if(scaleDesign&&oldKey!==getPrintFormatKey())scaleCurrentDesignForFormat(oldW,oldH,W,H);
   if(updateUi)applyStateToUI();
@@ -4811,8 +4812,14 @@ function syncExportUi(){
   if(b2)b2.textContent=pdfOn?'📄 Alle PDF':fmt==='jpg'?'📦 Alle JPG':'📦 Alle';
   if(bb)bb.textContent=pdfOn?'📄 Alle PDF':fmt==='jpg'?'📦 Alle JPG':'📦 Alle PNG';
   const pf=getPrintFormat();
+  const pfKey=getPrintFormatKey();
   const btnPrint=document.getElementById('btnPrintPdf');
   if(btnPrint)btnPrint.textContent='📄 PDF Druck ('+pf.label+')';
+  const singleToggle=document.getElementById('togPdfSingle');
+  if(singleToggle){
+    const row=singleToggle.closest('.tog-row');
+    if(row)row.style.display=pfKey==='289x36'?'none':'';
+  }
   const sel=document.getElementById('selPdfSheet');
   if(sel){
     const l4=sheetLayout('a4'),l3=sheetLayout('a3');
@@ -4829,7 +4836,7 @@ function syncExportUi(){
       const layout=sheetLayout();
       const n=layout.perPage;
       const cuts=S.pdfCutMarks!==false?' · Schnittmarken':'';
-      const canva=S.pdfIncludeSingle!==false&&n>0?` · danach <strong>Einzelseiten</strong> (${pf.label}, Canva)`:n<1?` · je Schild <strong>${pf.label}</strong> pro Seite`:'';
+      const canva=pfKey!=='289x36'&&S.pdfIncludeSingle!==false&&n>0?` · danach <strong>Einzelseiten</strong> (${pf.label}, Canva)`:n<1?` · je Schild <strong>${pf.label}</strong> pro Seite`:'';
       const tile=n>0?`bis <strong>${n}</strong>/Bogen`:'Einzelseiten';
       hint.innerHTML=`PDF <strong>${sh}</strong> · <strong>${pf.label}</strong>: ${tile}${cuts}${canva}. Auflösung = Bildschärfe.`;
     }else hint.innerHTML='<strong>Druckformat</strong> gilt für <strong>📄 PDF Druck</strong> und Format <strong>PDF (Druck)</strong>. „📦 Alle" exportiert gebündelt als ZIP.';
@@ -4888,9 +4895,21 @@ function sheetLayout(sheetKey){
   const g=PLATE_GAP_MM,m=SHEET_MARGIN_MM;
   const[baseW,baseH]=getSheetSizeMm(sheet);
   function calc(sw,sh){
-    const cols=Math.max(0,Math.floor((sw-2*m+g)/(pw+g)));
-    const rows=Math.max(0,Math.floor((sh-2*m+g)/(ph+g)));
-    return{cols,rows,perPage:cols*rows,sw,sh};
+    function fitCount(page,plate){
+      const withMargin=Math.floor((page-2*m+g)/(plate+g));
+      if(withMargin>0)return withMargin;
+      // 289 mm passt auf A4 quer nur mit ca. 4 mm Seitenrand.
+      return plate<=page?1:0;
+    }
+    const cols=Math.max(0,fitCount(sw,pw));
+    const rows=Math.max(0,fitCount(sh,ph));
+    const gridW=cols*pw+Math.max(0,cols-1)*g;
+    const gridH=rows*ph+Math.max(0,rows-1)*g;
+    return{
+      cols,rows,perPage:cols*rows,sw,sh,gridW,gridH,
+      originX:(sw-gridW)/2,
+      originY:(sh-gridH)/2,
+    };
   }
   let layout=calc(baseW,baseH);
   let orient='p';
@@ -4898,8 +4917,6 @@ function sheetLayout(sheetKey){
     layout=calc(baseH,baseW);
     orient='l';
   }
-  const gridW=layout.cols*pw+(layout.cols-1)*g;
-  const gridH=layout.rows*ph+(layout.rows-1)*g;
   return{
     sheet,
     orient,
@@ -4909,8 +4926,8 @@ function sheetLayout(sheetKey){
     perPage:layout.perPage,
     sheetW:layout.sw,
     sheetH:layout.sh,
-    originX:m+(layout.sw-2*m-gridW)/2,
-    originY:m+(layout.sh-2*m-gridH)/2,
+    originX:layout.originX,
+    originY:layout.originY,
   };
 }
 function plateSlotXY(slot,layout){
@@ -4920,48 +4937,63 @@ function plateSlotXY(slot,layout){
     y:layout.originY+row*(layout.ph+PLATE_GAP_MM),
   };
 }
-function drawCutMarks(doc,x,y,w,h){
+function drawCutMarks(doc,x,y,w,h,pageW=null,pageH=null){
   if(S.pdfCutMarks===false)return;
   const L=CUT_MARK_LEN_MM,o=CUT_MARK_OFFSET_MM;
   const mx=x+w/2,my=y+h/2;
+  const canLeft=pageW==null||x-o-L>=0;
+  const canRight=pageW==null||x+w+o+L<=pageW;
+  const canTop=pageH==null||y-o-L>=0;
+  const canBottom=pageH==null||y+h+o+L<=pageH;
   doc.setDrawColor(0);
   doc.setLineWidth(0.15);
-  // Ecken (L-förmig, ausserhalb der Schildkante)
-  doc.line(x-o-L,y-o,x-o,y-o);doc.line(x-o,y-o-L,x-o,y-o);
-  doc.line(x+w+o,y-o,x+w+o+L,y-o);doc.line(x+w+o,y-o-L,x+w+o,y-o);
-  doc.line(x-o-L,y+h+o,x-o,y+h+o);doc.line(x-o,y+h+o,x-o,y+h+o+L);
-  doc.line(x+w+o,y+h+o,x+w+o+L,y+h+o);doc.line(x+w+o,y+h+o,x+w+o,y+h+o+L);
+  const corner=(sx,sy)=>{
+    const left=sx<0,top=sy<0;
+    const cx=left?x:x+w,cy=top?y:y+h;
+    const outsideX=left?canLeft:canRight;
+    const outsideY=top?canTop:canBottom;
+    const hx0=outsideX?cx+sx*(o+L):cx;
+    const hx1=outsideX?cx+sx*o:cx-sx*L;
+    const hy=outsideY?cy+sy*o:cy;
+    const vx=outsideX?cx+sx*o:cx;
+    const vy0=outsideY?cy+sy*(o+L):cy;
+    const vy1=outsideY?cy+sy*o:cy-sy*L;
+    doc.line(hx0,hy,hx1,hy);
+    doc.line(vx,vy0,vx,vy1);
+  };
+  // Ecken: ausserhalb, bei knappen A4-Rändern nach innen gelegt.
+  corner(-1,-1);corner(1,-1);corner(-1,1);corner(1,1);
   // Mitte der Kanten
-  doc.line(mx-L/2,y-o,mx+L/2,y-o);
-  doc.line(mx-L/2,y+h+o,mx+L/2,y+h+o);
-  doc.line(x-o,my-L/2,x-o,my+L/2);
-  doc.line(x+w+o,my-L/2,x+w+o,my+L/2);
+  doc.line(mx-L/2,canTop?y-o:y,mx+L/2,canTop?y-o:y);
+  doc.line(mx-L/2,canBottom?y+h+o:y+h,mx+L/2,canBottom?y+h+o:y+h);
+  doc.line(canLeft?x-o:x,my-L/2,canLeft?x-o:x,my+L/2);
+  doc.line(canRight?x+w+o:x+w,my-L/2,canRight?x+w+o:x+w,my+L/2);
 }
 function addPlateToPdfPage(doc,cv,slot,layout){
   const{x,y}=plateSlotXY(slot,layout);
   const w=layout.pw,h=layout.ph;
   doc.addImage(cv.toDataURL('image/png',1),'PNG',x,y,w,h,undefined,'FAST');
-  drawCutMarks(doc,x,y,w,h);
+  drawCutMarks(doc,x,y,w,h,layout.sheetW,layout.sheetH);
 }
 function addSinglePlatePdfPage(doc,cv){
   const[w,h]=getPrintSizeMm();
   const orient=printPageOrientation();
   doc.addPage([w,h],orient);
   doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
-  if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h);
+  if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h,w,h);
 }
 function addExactPlatePdfPage(doc,cv,isFirst){
   const[w,h]=getPrintSizeMm();
   const orient=printPageOrientation();
   if(!isFirst)doc.addPage([w,h],orient);
   doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
-  if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h);
+  if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h,w,h);
 }
 async function buildPdfFromPlayers(players,filename){
   const sheet=S.pdfSheet||'a4';
   const layout=sheetLayout(sheet);
   const pf=getPrintFormat();
-  const withSingle=S.pdfIncludeSingle!==false&&layout.perPage>0;
+  const withSingle=getPrintFormatKey()!=='289x36'&&S.pdfIncludeSingle!==false&&layout.perPage>0;
   const total=layout.perPage>0?players.length+(withSingle?players.length:0):players.length;
   let step=0;
   if(layout.perPage<1){
