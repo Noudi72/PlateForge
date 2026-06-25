@@ -1146,6 +1146,10 @@ function buildTplGrid(){
 function selectTpl(i){
   S.tpl=i;S.userTplId=null;const t=TMPL[i];
   S.pos={};
+  clearLogoRasterCache(S.logo);clearLogoRasterCache(S.logo2);
+  S.logo=null;S.logoIsSvg=false;S.logo2=null;S.logo2IsSvg=false;S.bgImg=null;
+  if(S.sel==='logo'||S.sel==='logo2'||S.sel==='bg')S.sel=null;
+  ['logoPrev','logo2Prev','bgPrev'].forEach(id=>{const p=document.getElementById(id);if(p){p.style.display='none';p.removeAttribute('src')}});
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
   S.badgeColor=t.acc;
   syncPlayerAdjustUi(S.roster[S.active]);
