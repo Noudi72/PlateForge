@@ -57,7 +57,9 @@ const TMPL=[
   {name:'Minimal',      bg1:'#F0F0F0',bg2:'#E0E0E0',acc:'#1a1a3e',nc:'#111',   nrc:'#C8102E'},
   {name:'Neon Night',   bg1:'#080012',bg2:'#12001a',acc:'#FF00FF',nc:'#FFFFFF',nrc:'#00FFFF'},
   {name:'Championship', bg1:'#1a0a00',bg2:'#2a1400',acc:'#D4B96A',nc:'#FFFFFF',nrc:'#D4B96A'},
-  {name:'EHCB Nameplate Pro',bg1:'#061225',bg2:'#01050d',acc:'#8F1024',nc:'#FFFFFF',nrc:'#FF9700'},
+  {name:'EHCB Nameplate Pro',bg1:'#0B2440',bg2:'#061225',acc:'#8F1024',nc:'#FFFFFF',nrc:'#FF9700'},
+  {name:'EHCB Ice Beam',bg1:'#123B63',bg2:'#071A30',acc:'#1E88C8',nc:'#FFFFFF',nrc:'#FF9700'},
+  {name:'EHCB Red Edge',bg1:'#102B48',bg2:'#061225',acc:'#C8102E',nc:'#FFFFFF',nrc:'#FF9700'},
 ];
 
 const SWATCHES=['#041E42','#C8102E','#D4B96A','#FFFFFF','#000000','#1a3a6e','#006400','#FF8C00','#4B0082','#00BFFF','#FF00FF','#888888','#FFE066','#8B0000','#2d2d2d'];
@@ -4365,26 +4367,30 @@ function drawTplBg(ctx,tpl,x,y,w,h,c,sc,thumb){
   else if(tpl===5){ctx.fillStyle='rgba(0,0,0,.035)';for(let i=0;i<150;i++)ctx.fillRect(x+Math.random()*w,y+Math.random()*h,Z(2),Z(2))}
   else if(tpl===6){['#FF00FF','#00FFFF'].forEach((cc,i)=>{const g=ctx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,'transparent');g.addColorStop(.5,cc+'2a');g.addColorStop(1,'transparent');ctx.globalAlpha=.24;ctx.strokeStyle=g;ctx.lineWidth=Z(i*20+10);ctx.beginPath();ctx.moveTo(x,y+(i?h:0));ctx.lineTo(x+w,y+(i?0:h));ctx.stroke();ctx.globalAlpha=1})}
   else if(tpl===7){ctx.fillStyle='rgba(212,185,106,.048)';for(let i=0;i<9;i++){starPath(ctx,x+(i/8)*w,y+h/2,Z(28),Z(11),5);ctx.fill()}}
-  else if(tpl===8)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb);
+  else if(tpl===8)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'pro');
+  else if(tpl===9)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'ice');
+  else if(tpl===10)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'red');
   ctx.restore();
 }
 
-function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb){
+function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,variant='pro'){
   const Z=v=>v*sc;
+  const ice=variant==='ice';
+  const redEdge=variant==='red';
 
   // Ruhige, druckfreundliche Basis: dunkles Eisblau mit leichtem Lichtzug in der Mitte.
   const base=ctx.createLinearGradient(x,y,x+w,y+h);
-  base.addColorStop(0,'#020712');
-  base.addColorStop(.18,'#06162b');
-  base.addColorStop(.54,'#0b1d35');
-  base.addColorStop(.78,'#071224');
-  base.addColorStop(1,'#02050c');
+  base.addColorStop(0,ice?'#09213B':'#04101F');
+  base.addColorStop(.18,ice?'#123B63':'#0B2440');
+  base.addColorStop(.54,ice?'#17517F':'#12345A');
+  base.addColorStop(.78,ice?'#0B2B4D':'#0C203A');
+  base.addColorStop(1,'#020711');
   ctx.fillStyle=base;
   ctx.fillRect(x,y,w,h);
 
   const midGlow=ctx.createRadialGradient(x+w*.48,y+h*.5,0,x+w*.48,y+h*.5,w*.48);
-  midGlow.addColorStop(0,'rgba(95,150,205,.20)');
-  midGlow.addColorStop(.45,'rgba(32,75,120,.10)');
+  midGlow.addColorStop(0,ice?'rgba(125,205,255,.30)':'rgba(105,175,230,.26)');
+  midGlow.addColorStop(.45,ice?'rgba(55,120,180,.16)':'rgba(42,95,150,.13)');
   midGlow.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=midGlow;
   ctx.fillRect(x,y,w,h);
@@ -4392,8 +4398,8 @@ function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb){
   // Linker Nummernblock: dunkel und ruhig, damit Orange gut lesbar bleibt.
   const numW=w*(thumb ? .18 : .22);
   const numGrad=ctx.createLinearGradient(x,y,x+numW,y);
-  numGrad.addColorStop(0,'rgba(0,0,0,.72)');
-  numGrad.addColorStop(.76,'rgba(2,10,24,.56)');
+  numGrad.addColorStop(0,'rgba(0,0,0,.64)');
+  numGrad.addColorStop(.76,ice?'rgba(7,28,52,.48)':'rgba(2,14,30,.50)');
   numGrad.addColorStop(1,'rgba(2,10,24,0)');
   ctx.fillStyle=numGrad;
   ctx.fillRect(x,y,numW,h);
@@ -4402,16 +4408,30 @@ function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb){
   const rx=x+w*.78;
   const red=ctx.createLinearGradient(rx,y,x+w,y);
   red.addColorStop(0,'rgba(143,16,36,0)');
-  red.addColorStop(.34,'rgba(143,16,36,.50)');
-  red.addColorStop(1,'rgba(105,9,24,.92)');
+  red.addColorStop(.34,redEdge?'rgba(200,16,46,.64)':'rgba(143,16,36,.46)');
+  red.addColorStop(1,redEdge?'rgba(156,12,32,.96)':'rgba(105,9,24,.86)');
   ctx.fillStyle=red;
   ctx.beginPath();
-  ctx.moveTo(x+w*.70,y);
+  ctx.moveTo(x+w*(redEdge ? .64 : .70),y);
   ctx.lineTo(x+w,y);
   ctx.lineTo(x+w,y+h);
-  ctx.lineTo(x+w*.82,y+h);
+  ctx.lineTo(x+w*(redEdge ? .78 : .82),y+h);
   ctx.closePath();
   ctx.fill();
+
+  if(redEdge){
+    ctx.save();
+    ctx.globalAlpha=.18;
+    ctx.fillStyle='#D4B96A';
+    ctx.beginPath();
+    ctx.moveTo(x+w*.655,y);
+    ctx.lineTo(x+w*.69,y);
+    ctx.lineTo(x+w*.83,y+h);
+    ctx.lineTo(x+w*.80,y+h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Dunkle Logo-Vignette, damit Logos nicht auf zu hellem Rot flimmern.
   const logoShade=ctx.createRadialGradient(x+w*.92,y+h*.5,0,x+w*.92,y+h*.5,w*.22);
@@ -4423,9 +4443,9 @@ function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb){
 
   // Diagonaler Separator im EHCB-Gold als kleine Kante zwischen Name und Logo.
   ctx.save();
-  ctx.globalAlpha=.78;
-  ctx.strokeStyle='#D4B96A';
-  ctx.lineWidth=Z(3);
+  ctx.globalAlpha=redEdge ? .88 : .72;
+  ctx.strokeStyle=redEdge?'#FFD66B':'#D4B96A';
+  ctx.lineWidth=Z(redEdge?4:3);
   ctx.beginPath();
   ctx.moveTo(x+w*.765,y+Z(7));
   ctx.lineTo(x+w*.825,y+h-Z(7));
@@ -4435,22 +4455,37 @@ function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb){
   // Subtile Eislinien nur horizontal, damit der Namensbereich ruhig bleibt.
   ctx.save();
   ctx.globalCompositeOperation='screen';
-  for(let i=0;i<8;i++){
+  for(let i=0;i<(ice?11:8);i++){
     const yy=y+h*(.18+i*.085);
-    const a=.035+(i%3)*.018;
-    const lg=ctx.createLinearGradient(x+w*.16,yy,x+w*.78,yy);
+    const a=(ice ? .055 : .04)+(i%3)*(ice ? .022 : .018);
+    const lg=ctx.createLinearGradient(x+w*.12,yy,x+w*.78,yy);
     lg.addColorStop(0,'rgba(255,255,255,0)');
-    lg.addColorStop(.22,`rgba(140,205,255,${a})`);
-    lg.addColorStop(.62,`rgba(255,255,255,${a*.7})`);
+    lg.addColorStop(.22,`rgba(155,220,255,${a})`);
+    lg.addColorStop(.62,`rgba(255,255,255,${a*(ice ? .86 : .7)})`);
     lg.addColorStop(1,'rgba(255,255,255,0)');
     ctx.strokeStyle=lg;
-    ctx.lineWidth=Z(i%2?1.2:2.1);
+    ctx.lineWidth=Z(i%2?1.2:(ice?2.8:2.1));
     ctx.beginPath();
     ctx.moveTo(x+w*.08,yy);
     ctx.lineTo(x+w*.86,yy+Math.sin(i)*Z(3));
     ctx.stroke();
   }
   ctx.restore();
+
+  if(ice){
+    const beam=ctx.createLinearGradient(x+w*.18,y+h*.18,x+w*.74,y+h*.82);
+    beam.addColorStop(0,'rgba(255,255,255,0)');
+    beam.addColorStop(.45,'rgba(135,220,255,.11)');
+    beam.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.strokeStyle=beam;
+    ctx.lineWidth=Z(18);
+    ctx.beginPath();
+    ctx.moveTo(x+w*.18,y+h*.12);
+    ctx.lineTo(x+w*.74,y+h*.84);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Wenige deterministische Kratzer/Grunge im Rotbereich, nicht hinter dem Namen.
   ctx.save();

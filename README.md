@@ -109,7 +109,7 @@ Unter **Design → Eigene Vorlagen** das aktuelle Layout speichern (Farben, Schr
 
 **Echte Vorschau:** Die Vorlagen-Kacheln werden als kleine komplette Schilder gerendert, inklusive gespeicherter Logos, Hintergründe, Positionen, Badge und aktuellem Spielertext.
 
-**Namensschild-Hintergrund:** Die Vorlage **EHCB Nameplate Pro** ist speziell für das Format **289×36 mm** optimiert: ruhiger Namensbereich, dunkler Nummernblock, kontrollierter roter Logo-Keil und dezente Schnitt-/Eislinien.
+**Namensschild-Hintergrund:** Die Vorlagen **EHCB Nameplate Pro**, **EHCB Ice Beam** und **EHCB Red Edge** sind speziell für das Format **289×36 mm** optimiert: hellerer/eisiger Namensbereich, dunkler Nummernblock, kontrollierte Logo-Zone und dezente Schnitt-/Eislinien.
 
 **Scrollbare Design-Seite:** Die linke Design-Spalte scrollt unabhängig vom Editor, auch wenn viele grosse Vorschau-Kacheln vorhanden sind.
 
