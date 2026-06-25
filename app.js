@@ -76,6 +76,7 @@ const STATIC_ASSETS=[
   'ehcb blau.png','ehcb gelb.png','ehcb gelb.svg','ehcb rot.png','ehcb rot.svg',
 ].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}));
 const STATIC_MASTER_TEMPLATES='Vorlagen json/plateforge_vorlagen_master.json';
+const MASTER_TEMPLATES_FILE='plateforge_vorlagen_master.json';
 const STATIC_MASTER_IMPORT_KEY='plateforge_static_master_import_ts';
 const STATIC_MASTER_IMPORT_TTL_MS=24*60*60*1000;
 const STATIC_ROSTER_FILES=[
@@ -1719,12 +1720,23 @@ async function saveUserTemplate(){
     existing=activeExisting;
   }
   if(existing)list[list.indexOf(existing)]=entry;else list.push(entry);
+  const payload=await buildMasterTemplatesPayload(backupEntry,list);
+  let workspaceSaved={master:false,backup:false};
+  if(templatesUseFileFirst()){
+    workspaceSaved=await saveMasterTemplatesJson(payload,{backup:true});
+    if(!workspaceSaved.master){
+      showErr('Speichern fehlgeschlagen: Master-JSON konnte nicht in den Workspace geschrieben werden.');
+      return;
+    }
+  }
   let ok=persistUserTemplates(list);
   if(!ok){
     showErr('Speichern fehlgeschlagen. Ältere Vorlagen löschen oder JSON-Export nutzen.');
     return;
   }
-  const jsonNote=await autoBackupTemplateJson(backupEntry);
+  const jsonNote=templatesUseFileFirst()
+    ?(workspaceSaved.backup?' → Workspace + Backup':' → Workspace')
+    :await autoBackupTemplateJson(backupEntry);
   copyPlayerNameAdjustmentsForTemplate(prevAdjustKey,'u:'+id);
   finishSaveUserTemplate(entry,name);
   showOk(`Vorlage „${name}" gespeichert.`+(include?' (Bilder in IndexedDB + JSON)':'')+jsonNote);
@@ -1784,11 +1796,20 @@ async function duplicateUserTemplate(){
   await storeSnapAssetsInIdb(fullSnap,id);
   const entry={id,name:trimmed,updated:Date.now(),snap:stripSnapImages(fullSnap)};
   list.push(entry);
+  const backupEntry={...entry,snap:fullSnap};
+  if(templatesUseFileFirst()){
+    const payload=await buildMasterTemplatesPayload(backupEntry,list);
+    const saved=await saveMasterTemplatesJson(payload,{backup:true});
+    if(!saved.master){
+      showErr('Duplizieren fehlgeschlagen: Master-JSON konnte nicht geschrieben werden.');
+      return;
+    }
+  }
   if(!persistUserTemplates(list)){
     showErr('Duplizieren fehlgeschlagen (Speicher voll).');
     return;
   }
-  await autoBackupTemplateJson({...entry,snap:fullSnap});
+  if(!templatesUseFileFirst())await autoBackupTemplateJson(backupEntry);
   copyPlayerNameAdjustmentsForTemplate(prevAdjustKey,'u:'+id);
   finishSaveUserTemplate(entry,trimmed);
   showOk(`Vorlage „${trimmed}" als Kopie gespeichert.`);
@@ -1797,6 +1818,14 @@ async function deleteUserTemplate(id,e){
   e.stopPropagation();
   if(!confirm('Vorlage löschen?'))return;
   const list=loadUserTemplates().filter(t=>t.id!==id);
+  if(templatesUseFileFirst()){
+    const payload=await buildMasterTemplatesPayload(null,list);
+    const saved=await saveMasterTemplatesJson(payload,{backup:true});
+    if(!saved.master){
+      showErr('Löschen fehlgeschlagen: Master-JSON konnte nicht aktualisiert werden.');
+      return;
+    }
+  }
   persistUserTemplates(list);
   const fav=loadTplFavorites();
   fav.delete(tplFavKey('u',id));
@@ -1805,7 +1834,7 @@ async function deleteUserTemplate(id,e){
   await idbAssetDel(k.logo);await idbAssetDel(k.logo2);await idbAssetDel(k.bg);
   if(S.userTplId===id){S.userTplId=null;document.getElementById('tplName').textContent=TMPL[S.tpl].name.toUpperCase();setTemplateNameInput(TMPL[S.tpl].name)}
   buildTplGrid();renderUserTplList();render();
-  await saveMasterTemplatesJson(await buildMasterTemplatesPayload(),{backup:true});
+  if(!templatesUseFileFirst())await saveMasterTemplatesJson(await buildMasterTemplatesPayload(),{backup:true});
 }
 function setTemplateNameInput(name){
   const inp=document.getElementById('userTplName');
@@ -1861,6 +1890,7 @@ function tauriCore(){
   return null;
 }
 function isTauriApp(){return !!tauriCore()}
+function templatesUseFileFirst(){return isTauriApp()&&!!nativeWorkspacePathSync()}
 async function nativeInvoke(command,args={}){
   const core=tauriCore();
   if(!core)throw new Error('Tauri-API nicht verfügbar.');
@@ -2133,8 +2163,13 @@ async function connectNativeWorkspace(root,{showStatus=false}={}){
     updateWorkspaceLabel({name:nativeBasename(root),path:root,jsonDir,rosterDir,assetDir,fontsDir,backupDir});
     updateJsonExportDirLabel(PREFERRED_EXPORT_FOLDER);
     if(jsonDir){
-      const r=await autoImportTemplatesFromNativeDir(jsonDir,true);
+      const r=templatesUseFileFirst()
+        ?await loadMasterTemplatesFromNativeDir(jsonDir)
+        :await autoImportTemplatesFromNativeDir(jsonDir,true);
       applyImportResult(r,'Workspace',{reloadActive:false});
+      if(templatesUseFileFirst()&&S.userTplId&&loadUserTemplates().some(x=>x.id===S.userTplId)){
+        await loadUserTemplate(S.userTplId);
+      }
     }
     if(rosterDir)await importWorkspaceRoster({dir:rosterDir,force:false,showStatus:false});
     if(assetDir)await scanNativeAssetFolder(assetDir,nativeBasename(assetDir));
@@ -2544,9 +2579,9 @@ function buildTemplatesExportPayload(onlyId){
   if(onlyId)list=list.filter(t=>t.id===onlyId);
   return{plateforge:TPL_JSON_VER,exported:Date.now(),app:'PlateForge',templates:list};
 }
-async function buildMasterTemplatesPayload(extraEntry){
+async function buildMasterTemplatesPayload(extraEntry,listOverride){
   const byId=new Map();
-  loadUserTemplates().forEach(t=>byId.set(t.id,t));
+  (listOverride||loadUserTemplates()).forEach(t=>byId.set(t.id,t));
   if(extraEntry)byId.set(extraEntry.id,extraEntry);
   const templates=[];
   for(const t of byId.values()){
@@ -2595,7 +2630,7 @@ async function initJsonExportDir(){
   if(isTauriApp()){
     const root=await loadNativeWorkspacePath();
     updateJsonExportDirLabel(root?PREFERRED_EXPORT_FOLDER:null);
-    if(root)await syncTemplatesFromJsonFolder(false);
+    if(root&&!templatesUseFileFirst())await syncTemplatesFromJsonFolder(false);
     return;
   }
   if(!fsExportSupported()){updateJsonExportDirLabel(null);return}
@@ -2959,6 +2994,45 @@ function normalizeImportedTemplates(data){
   if(data.tpl!==undefined||data.c)return [{id:'ut_'+Date.now(),name:data.name||'Import',updated:Date.now(),snap:data}];
   return null;
 }
+async function importMasterTemplatesFile(jsonText){
+  try{
+    const raw=JSON.parse(jsonText);
+    const incoming=normalizeImportedTemplates(raw)||[];
+    const valid=incoming.filter(t=>t&&t.snap&&(t.name||t.snap.club));
+    if(!valid.length)return{ok:true,added:0,over:0};
+    const list=[];
+    for(const t of valid){
+      const name=String(t.name||'Import').trim();
+      const id=t.id&&String(t.id).startsWith('ut_')?t.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      let snap=migrateSnapAlign(t.snap||{});
+      snap.c=normalizePalette(snap.c);
+      snap.badgeColor=normalizeHexColor(snap.badgeColor,snap.c.acc);
+      snap.badgeBorderColor=normalizeHexColor(snap.badgeBorderColor,'#FFFFFF');
+      snap.glowColor=normalizeHexColor(snap.glowColor,'#00BFFF');
+      if(snap.logoData||snap.logo2Data||snap.bgData)snap=await compressSnapForStorage(snap);
+      snap=withAssetFlags(snap);
+      await storeSnapAssetsInIdb(snap,id);
+      list.push({id,name,updated:t.updated||Date.now(),snap:stripSnapImages(snap)});
+    }
+    list.sort((a,b)=>(b.updated||0)-(a.updated||0));
+    if(!persistUserTemplates(list))return{ok:false,added:0,over:0};
+    return{ok:true,added:list.length,over:0};
+  }catch(e){
+    console.warn('importMasterTemplatesFile',e);
+    return{ok:false,added:0,over:0};
+  }
+}
+async function loadMasterTemplatesFromNativeDir(jsonDir){
+  if(!jsonDir)return null;
+  try{
+    const text=await nativeInvoke('pf_read_text',{path:nativePathJoin(jsonDir,MASTER_TEMPLATES_FILE)});
+    if(!text)return null;
+    return importMasterTemplatesFile(text);
+  }catch(e){
+    console.warn('loadMasterTemplatesFromNativeDir',e);
+    return null;
+  }
+}
 async function upsertImportedTemplates(valid,opts={}){
   const list=loadUserTemplates();
   let added=0,over=0;
@@ -3054,7 +3128,9 @@ async function syncTemplatesFromJsonFolder(forcePicker,dir){
     }
     const jsonDir=await getNativeChildDir(root,[PREFERRED_EXPORT_FOLDER,'templates'],{create:true});
     updateJsonExportDirLabel(PREFERRED_EXPORT_FOLDER);
-    const r=await autoImportTemplatesFromNativeDir(jsonDir,true);
+    const r=templatesUseFileFirst()
+      ?await loadMasterTemplatesFromNativeDir(jsonDir)
+      :await autoImportTemplatesFromNativeDir(jsonDir,true);
     applyImportResult(r,'JSON-Ordner',{reloadActive:!!forcePicker});
     if(forcePicker&&r&&r.ok&&!r.added&&!r.over)showWarn('Im JSON-Ordner wurden keine neuen Vorlagen gefunden.');
     return r;
@@ -3077,6 +3153,7 @@ async function syncTemplatesFromJsonFolder(forcePicker,dir){
   return r;
 }
 function shouldAutoImportStaticTemplates(force){
+  if(templatesUseFileFirst())return false;
   if(force)return true;
   if(!loadUserTemplates().length)return true;
   try{
@@ -5432,13 +5509,23 @@ window.addEventListener('load',async()=>{
   refreshSwatches();
   await restoreCustomFonts();
   restoreRoster();
-  await restoreSession();
-  migrateLegacyNameAdjustmentsToCurrentTemplate();
   await initWorkspace();
+  if(!templatesUseFileFirst()){
+    await restoreSession();
+    migrateLegacyNameAdjustmentsToCurrentTemplate();
+  }
   await initJsonExportDir();
   await initLocalFolders();
-  await autoImportStaticTemplates();
-  seedCreativeUserTemplates();
+  if(!templatesUseFileFirst()){
+    await autoImportStaticTemplates();
+    seedCreativeUserTemplates();
+  }else if(!loadUserTemplates().length){
+    seedCreativeUserTemplates();
+  }
+  if(templatesUseFileFirst()){
+    await restoreSession();
+    migrateLegacyNameAdjustmentsToCurrentTemplate();
+  }
   buildTplGrid();buildFontGrid();buildRoster();renderUserTplList();
   syncVAlignUi();
   setBadge(S.badge);
