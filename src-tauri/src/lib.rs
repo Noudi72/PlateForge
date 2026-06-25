@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
+use tauri::Manager;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -172,6 +173,62 @@ fn pf_open_path(path: String) -> Result<(), String> {
     }
 }
 
+fn workspace_settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  app.path()
+    .app_data_dir()
+    .map(|dir| dir.join("workspace_path.txt"))
+    .map_err(err_string)
+}
+
+#[tauri::command]
+fn pf_read_workspace_path(app: tauri::AppHandle) -> Result<Option<String>, String> {
+  let path = workspace_settings_path(&app)?;
+  if !path.exists() {
+    return Ok(None);
+  }
+  let text = fs::read_to_string(path).map_err(err_string)?;
+  let trimmed = text.trim().to_string();
+  if trimmed.is_empty() {
+    Ok(None)
+  } else {
+    Ok(Some(trimmed))
+  }
+}
+
+#[tauri::command]
+fn pf_write_workspace_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+  let settings_path = workspace_settings_path(&app)?;
+  if let Some(parent) = settings_path.parent() {
+    fs::create_dir_all(parent).map_err(err_string)?;
+  }
+  let trimmed = path.trim();
+  if trimmed.is_empty() {
+    if settings_path.exists() {
+      fs::remove_file(settings_path).map_err(err_string)?;
+    }
+    return Ok(());
+  }
+  fs::write(settings_path, trimmed).map_err(err_string)
+}
+
+#[tauri::command]
+fn pf_workspace_candidates() -> Vec<String> {
+  let Ok(home) = std::env::var("HOME") else {
+    return Vec::new();
+  };
+  let home = PathBuf::from(home);
+  let candidates = [
+    "Library/Mobile Documents/com~apple~CloudDocs/PlateForge",
+    "Library/Mobile Documents/com~apple~CloudDocs/PlateForge/",
+  ];
+  candidates
+    .iter()
+    .map(|rel| home.join(rel))
+    .filter(|path| path.is_dir())
+    .map(|path| path.to_string_lossy().to_string())
+    .collect()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -185,6 +242,9 @@ pub fn run() {
             pf_read_dir_recursive,
             pf_read_file_data_url,
             pf_open_path,
+            pf_read_workspace_path,
+            pf_write_workspace_path,
+            pf_workspace_candidates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PlateForge");

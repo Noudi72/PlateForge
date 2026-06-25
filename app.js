@@ -1899,12 +1899,38 @@ async function nativeInvoke(command,args={}){
 function nativeWorkspacePathSync(){
   try{return localStorage.getItem(TAURI_WORKSPACE_PATH_KEY)||''}catch(e){return ''}
 }
-async function loadNativeWorkspacePath(){return nativeWorkspacePathSync()}
+async function resolveNativeWorkspacePath(){
+  if(!isTauriApp())return '';
+  let path=nativeWorkspacePathSync();
+  if(path&&await nativeIsDir(path))return path;
+  try{
+    const stored=await nativeInvoke('pf_read_workspace_path');
+    if(stored&&await nativeIsDir(stored)){
+      await storeNativeWorkspacePath(stored);
+      return stored;
+    }
+  }catch(e){console.warn('pf_read_workspace_path',e)}
+  try{
+    const candidates=await nativeInvoke('pf_workspace_candidates');
+    for(const candidate of candidates||[]){
+      if(await nativeIsDir(candidate)){
+        await storeNativeWorkspacePath(candidate);
+        return candidate;
+      }
+    }
+  }catch(e){console.warn('pf_workspace_candidates',e)}
+  return '';
+}
+async function loadNativeWorkspacePath(){return resolveNativeWorkspacePath()}
 async function storeNativeWorkspacePath(path){
   try{
     if(path)localStorage.setItem(TAURI_WORKSPACE_PATH_KEY,path);
     else localStorage.removeItem(TAURI_WORKSPACE_PATH_KEY);
   }catch(e){}
+  if(!isTauriApp())return;
+  try{
+    await nativeInvoke('pf_write_workspace_path',{path:path||''});
+  }catch(e){console.warn('pf_write_workspace_path',e)}
 }
 function nativePathJoin(...parts){
   const clean=parts.flat().filter(p=>p!==undefined&&p!==null&&String(p)!=='').map(String);
@@ -2286,7 +2312,7 @@ async function syncWorkspaceNow(showStatus=false){
 }
 async function initWorkspace(){
   if(isTauriApp()){
-    const root=await loadNativeWorkspacePath();
+    const root=await resolveNativeWorkspacePath();
     if(!root){updateWorkspaceLabel(null);return null}
     return connectNativeWorkspace(root,{showStatus:false});
   }
