@@ -1700,8 +1700,10 @@ async function saveUserTemplate(){
   const include=true;
   const inc=document.getElementById('userTplIncImg');if(inc)inc.checked=true;
   const list=loadUserTemplates();
-  const existing=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
-  if(existing&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
+  const activeExisting=S.userTplId?list.find(t=>t.id===S.userTplId):null;
+  const sameNameExisting=list.find(t=>t.name.toLowerCase()===name.toLowerCase());
+  let existing=activeExisting||sameNameExisting;
+  if(sameNameExisting&&(!activeExisting||sameNameExisting.id!==activeExisting.id)&&!confirm(`„${name}" existiert bereits. Überschreiben?`))return;
   const prevAdjustKey=templateAdjustKey();
   const id=existing?existing.id:'ut_'+Date.now();
   let fullSnap=await buildDesignSnapshot(include);
@@ -1712,6 +1714,10 @@ async function saveUserTemplate(){
   // Im Browser bleibt die Vorlage schlank; Bilder liegen in IndexedDB und im JSON-Backup.
   const entry={id,name,updated:Date.now(),snap:stripSnapImages(fullSnap)};
   const backupEntry={...entry,snap:fullSnap};
+  if(activeExisting&&sameNameExisting&&sameNameExisting.id!==activeExisting.id){
+    list.splice(list.indexOf(sameNameExisting),1);
+    existing=activeExisting;
+  }
   if(existing)list[list.indexOf(existing)]=entry;else list.push(entry);
   let ok=persistUserTemplates(list);
   if(!ok){
