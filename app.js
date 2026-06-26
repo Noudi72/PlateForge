@@ -5272,24 +5272,43 @@ function drawCutMarks(doc,x,y,w,h,pageW=null,pageH=null){
   doc.line(x+ldir*o,my,x+ldir*(o+L),my);
   doc.line(x+w+rdir*o,my,x+w+rdir*(o+L),my);
 }
+// Verzerrungsfreie Höhen-Zugabe: die 1 mm Beschnitt wird durch Verlängern der
+// obersten/untersten Pixelzeile erzeugt (Bleed), Logo und Text bleiben unskaliert.
+function applyCutBleedCanvas(cv){
+  const allowMm=PRINT_CUT_ALLOWANCE_MM;
+  if(allowMm<=0)return cv;
+  const[,hMm]=getPrintSizeMm();
+  if(!hMm)return cv;
+  const padTotal=Math.round(allowMm*(cv.height/hMm));
+  if(padTotal<=0)return cv;
+  const padTop=Math.floor(padTotal/2),padBot=padTotal-padTop;
+  const out=document.createElement('canvas');
+  out.width=cv.width;out.height=cv.height+padTotal;
+  const ctx=out.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  if(padTop>0)ctx.drawImage(cv,0,0,cv.width,1,0,0,out.width,padTop);
+  ctx.drawImage(cv,0,0,cv.width,cv.height,0,padTop,out.width,cv.height);
+  if(padBot>0)ctx.drawImage(cv,0,cv.height-1,cv.width,1,0,padTop+cv.height,out.width,padBot);
+  return out;
+}
 function addPlateToPdfPage(doc,cv,slot,layout){
   const{x,y}=plateSlotXY(slot,layout);
   const w=layout.pw,h=layout.ph;
-  doc.addImage(cv.toDataURL('image/png',1),'PNG',x,y,w,h,undefined,'FAST');
+  doc.addImage(applyCutBleedCanvas(cv).toDataURL('image/png',1),'PNG',x,y,w,h,undefined,'FAST');
   drawCutMarks(doc,x,y,w,h,layout.sheetW,layout.sheetH);
 }
 function addSinglePlatePdfPage(doc,cv){
   const[w,h]=getPrintOutputSizeMm();
   const orient=printPageOrientation();
   doc.addPage([w,h],orient);
-  doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
+  doc.addImage(applyCutBleedCanvas(cv).toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
   if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h,w,h);
 }
 function addExactPlatePdfPage(doc,cv,isFirst){
   const[w,h]=getPrintOutputSizeMm();
   const orient=printPageOrientation();
   if(!isFirst)doc.addPage([w,h],orient);
-  doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
+  doc.addImage(applyCutBleedCanvas(cv).toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
   if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h,w,h);
 }
 async function buildPdfFromPlayers(players,filename){
