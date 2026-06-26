@@ -1089,10 +1089,13 @@ function buildTplGrid(){
   const g=document.getElementById('tplGrid');g.innerHTML='';
   const player=thumbPlayer();
   const userTemplates=[...loadUserTemplates()].filter(ut=>ut&&ut.snap);
-  const total=TMPL.length+userTemplates.length;
+  const userNames=new Set(userTemplates.map(ut=>String(ut.name||'').toLowerCase()));
+  const builtinPool=TMPL.map((t,i)=>({t,i,name:t.name,favKey:tplFavKey('b',i),builtin:true}))
+    .filter(({name})=>!userNames.has(String(name||'').toLowerCase()));
+  const total=builtinPool.length+userTemplates.length;
   let shown=0;
   const onlyFav=(getVal('tplFilterGroup')||'all')==='favorites';
-  const builtinEntries=TMPL.map((t,i)=>({t,i,name:t.name,favKey:tplFavKey('b',i),builtin:true}))
+  const builtinEntries=builtinPool
     .filter(({name,favKey,builtin})=>matchesTplFilter(name,{builtin,favKey}))
     .sort(compareTplEntries);
   builtinEntries.forEach(({t,i,name,favKey})=>{
@@ -1714,6 +1717,7 @@ async function saveUserTemplate(){
   let fullSnap=await buildDesignSnapshot(include);
   if(include)fullSnap=await compressSnapForStorage(fullSnap);
   fullSnap=withAssetFlags(fullSnap);
+  fullSnap.userTplId=id;
   await storeSnapAssetsInIdb(fullSnap,id);
   await storeSnapAssetsInIdb(fullSnap,null);
   // Im Browser bleibt die Vorlage schlank; Bilder liegen in IndexedDB und im JSON-Backup.
@@ -1764,7 +1768,7 @@ async function loadUserTemplate(id){
   if(!t)return;
   S.userTplId=id;
   const enriched=await enrichSnapFromAssetIdb(t.snap,id);
-  await applyDesignSnapshot(enriched,{restoreImages:true,preserveExportSettings:true});
+  await applyDesignSnapshot(enriched,{restoreImages:true,preserveExportSettings:false});
   syncPlayerAdjustUi(S.roster[S.active]);
   document.getElementById('tplName').textContent=t.name.toUpperCase();
   setTemplateNameInput(t.name);
@@ -2197,7 +2201,7 @@ async function connectNativeWorkspace(root,{showStatus=false}={}){
         ?await loadMasterTemplatesFromNativeDir(jsonDir)
         :await autoImportTemplatesFromNativeDir(jsonDir,true);
       applyImportResult(r,'Workspace',{reloadActive:false});
-      if(templatesUseFileFirst()&&S.userTplId&&loadUserTemplates().some(x=>x.id===S.userTplId)){
+      if(templatesUseFileFirst()&&S.userTplId&&r.changedIds&&r.changedIds.has(S.userTplId)){
         await loadUserTemplate(S.userTplId);
       }
     }
@@ -3029,11 +3033,23 @@ async function importMasterTemplatesFile(jsonText){
     const raw=JSON.parse(jsonText);
     const incoming=normalizeImportedTemplates(raw)||[];
     const valid=incoming.filter(t=>t&&t.snap&&(t.name||t.snap.club));
-    if(!valid.length)return{ok:true,added:0,over:0};
+    if(!valid.length)return{ok:true,added:0,over:0,changedIds:new Set()};
+    const current=loadUserTemplates();
+    const currentById=new Map(current.map(t=>[t.id,t]));
+    const currentByName=new Map(current.map(t=>[String(t.name||'').toLowerCase(),t]));
     const list=[];
+    const seenIds=new Set();
+    const changedIds=new Set();
+    let added=0,over=0;
     for(const t of valid){
       const name=String(t.name||'Import').trim();
-      const id=t.id&&String(t.id).startsWith('ut_')?t.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      const existing=(t.id&&currentById.get(t.id))||currentByName.get(name.toLowerCase());
+      if(existing&&(existing.updated||0)>(t.updated||0)){
+        list.push(existing);
+        seenIds.add(existing.id);
+        continue;
+      }
+      const id=existing?existing.id:(t.id&&String(t.id).startsWith('ut_')?t.id:'ut_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
       let snap=migrateSnapAlign(t.snap||{});
       snap.c=normalizePalette(snap.c);
       snap.badgeColor=normalizeHexColor(snap.badgeColor,snap.c.acc);
@@ -3042,14 +3058,19 @@ async function importMasterTemplatesFile(jsonText){
       if(snap.logoData||snap.logo2Data||snap.bgData)snap=await compressSnapForStorage(snap);
       snap=withAssetFlags(snap);
       await storeSnapAssetsInIdb(snap,id);
-      list.push({id,name,updated:t.updated||Date.now(),snap:stripSnapImages(snap)});
+      const entry={id,name,updated:t.updated||Date.now(),snap:stripSnapImages(snap)};
+      list.push(entry);
+      seenIds.add(id);
+      changedIds.add(id);
+      if(existing)over++;else added++;
     }
+    current.forEach(t=>{if(!seenIds.has(t.id))list.push(t)});
     list.sort((a,b)=>(b.updated||0)-(a.updated||0));
-    if(!persistUserTemplates(list))return{ok:false,added:0,over:0};
-    return{ok:true,added:list.length,over:0};
+    if(!persistUserTemplates(list))return{ok:false,added,over,changedIds};
+    return{ok:true,added,over,changedIds};
   }catch(e){
     console.warn('importMasterTemplatesFile',e);
-    return{ok:false,added:0,over:0};
+    return{ok:false,added:0,over:0,changedIds:new Set()};
   }
 }
 async function loadMasterTemplatesFromNativeDir(jsonDir){
