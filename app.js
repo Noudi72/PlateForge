@@ -5244,27 +5244,26 @@ function drawCutMarks(doc,x,y,w,h,pageW=null,pageH=null){
   const canBottom=pageH==null||y+h+o+L<=pageH;
   doc.setDrawColor(0);
   doc.setLineWidth(0.15);
+  // Schnittmarken liegen exakt in der Verlängerung der Schildkanten (mit kleinem Spalt o).
   const corner=(sx,sy)=>{
     const left=sx<0,top=sy<0;
     const cx=left?x:x+w,cy=top?y:y+h;
-    const outsideX=left?canLeft:canRight;
-    const outsideY=top?canTop:canBottom;
-    const hx0=outsideX?cx+sx*(o+L):cx;
-    const hx1=outsideX?cx+sx*o:cx-sx*L;
-    const hy=outsideY?cy+sy*o:cy;
-    const vx=outsideX?cx+sx*o:cx;
-    const vy0=outsideY?cy+sy*(o+L):cy;
-    const vy1=outsideY?cy+sy*o:cy-sy*L;
-    doc.line(hx0,hy,hx1,hy);
-    doc.line(vx,vy0,vx,vy1);
+    const outX=left?canLeft:canRight;
+    const outY=top?canTop:canBottom;
+    // Horizontale Marke auf der Kantenlinie y=cy (Verlängerung der oberen/unteren Kante)
+    const hdir=outX?sx:-sx;
+    doc.line(cx+hdir*o,cy,cx+hdir*(o+L),cy);
+    // Vertikale Marke auf der Kantenlinie x=cx (Verlängerung der linken/rechten Kante)
+    const vdir=outY?sy:-sy;
+    doc.line(cx,cy+vdir*o,cx,cy+vdir*(o+L));
   };
-  // Ecken: ausserhalb, bei knappen A4-Rändern nach innen gelegt.
   corner(-1,-1);corner(1,-1);corner(-1,1);corner(1,1);
-  // Mitte der Kanten
-  doc.line(mx-L/2,canTop?y-o:y,mx+L/2,canTop?y-o:y);
-  doc.line(mx-L/2,canBottom?y+h+o:y+h,mx+L/2,canBottom?y+h+o:y+h);
-  doc.line(canLeft?x-o:x,my-L/2,canLeft?x-o:x,my+L/2);
-  doc.line(canRight?x+w+o:x+w,my-L/2,canRight?x+w+o:x+w,my+L/2);
+  // Mittenmarken: Tick senkrecht zur Kante, in der Verlängerung der Mittelachsen.
+  const tdir=canTop?-1:1,bdir=canBottom?1:-1,ldir=canLeft?-1:1,rdir=canRight?1:-1;
+  doc.line(mx,y+tdir*o,mx,y+tdir*(o+L));
+  doc.line(mx,y+h+bdir*o,mx,y+h+bdir*(o+L));
+  doc.line(x+ldir*o,my,x+ldir*(o+L),my);
+  doc.line(x+w+rdir*o,my,x+w+rdir*(o+L),my);
 }
 function addPlateToPdfPage(doc,cv,slot,layout){
   const{x,y}=plateSlotXY(slot,layout);
