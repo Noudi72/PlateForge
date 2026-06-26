@@ -84,7 +84,6 @@
           📤 Fonts
           <input type="file" accept=".ttf,.otf,.woff,.woff2" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importAssetFonts(this)">
         </label>
-        <button class="btn btn-g btn-sm" type="button" onclick="pushToGithub()" title="Uploads + Master-JSON zu GitHub committen" data-web-only>📤 GitHub</button>
       </div>
       <div id="assetFolderInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div id="assetGrid" class="asset-grid"></div>
@@ -114,7 +113,7 @@
       </label>
       <div id="jsonExportDirInfo" style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:4px"></div>
       <div style="font-size:.64rem;color:var(--mut);line-height:1.4;margin-bottom:6px">
-        <strong>Backup:</strong> 💾 aktualisiert Vorlage, Master-JSON und Backup im Workspace. GitHub/Master-JSON nur für Repo oder Weitergabe.
+        <strong>Backup:</strong> 💾 aktualisiert Vorlage, Master-JSON und Backup im Workspace.
       </div>
       <div id="userTplList" style="font-size:.72rem;color:var(--mut);max-height:210px;overflow-y:auto">Noch keine gespeicherten Vorlagen.</div>
     </div>
@@ -305,7 +304,17 @@
       </div>
     </div>
     <div class="sb-sec design-bg">
-      <div class="sb-ttl">Hintergrundbild</div>
+      <div class="sb-ttl">Hintergrund</div>
+      <div class="fg">
+        <label class="fl">Neutral (ohne Design)</label>
+        <div class="neutral-bg-row" id="neutralBgRow"></div>
+        <div class="neutral-bg-tools">
+          <button class="neutral-bg-mode on" type="button" id="btnBgTemplate" onclick="setBgStyle('template')">Vorlagen-Design</button>
+          <input type="color" id="neutralBgPicker" value="#FFFFFF" title="Eigene Farbe" oninput="setNeutralBgColor(this.value)">
+        </div>
+      </div>
+      <div class="fg" style="margin-top:8px">
+        <label class="fl">Hintergrundbild</label>
       <div class="upzone">
         <input type="file" accept="image/*" onchange="loadBg(this)">
         <div class="upzone-ico">🖼️</div><div class="upzone-txt">Bild hochladen</div>
@@ -313,6 +322,7 @@
       </div>
       <div style="display:flex;gap:4px;margin-top:5px">
         <button class="btn btn-g btn-sm" onclick="clearBg()">✕ Entfernen</button>
+      </div>
       </div>
     </div>
     <div class="sb-sec design-club">
@@ -338,7 +348,10 @@
       <div class="fg player-adjust-card">
         <div class="adjust-head">
           <label class="fl">Name-Offset Spieler</label>
-          <button class="mini-reset" type="button" onclick="resetPlayerNameAdjust()">Zurücksetzen</button>
+          <div class="adjust-actions">
+            <button class="mini-reset" type="button" onclick="resetPlayerNameAdjust()" title="Offset nur für den aktuellen Spieler">Spieler</button>
+            <button class="mini-reset" type="button" onclick="resetAllPlayerNameAdjust()" title="Offsets für das gesamte Roster">Alle</button>
+          </div>
         </div>
         <div class="sl-row"><input type="range" min="-220" max="220" value="0" id="slPlayerNameDx" oninput="setPlayerNameAdjust('x',this.value)"><input class="offset-num" type="number" min="-220" max="220" step="1" value="0" id="vlPlayerNameDx" onchange="setPlayerNameAdjust('x',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></div>
         <div class="sl-row"><input type="range" min="-140" max="140" value="0" id="slPlayerNameDy" oninput="setPlayerNameAdjust('y',this.value)"><input class="offset-num" type="number" min="-140" max="140" step="1" value="0" id="vlPlayerNameDy" onchange="setPlayerNameAdjust('y',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></div>
@@ -417,29 +430,6 @@
       <div class="fg"><label class="fl">Glow-Intensität</label>
         <div class="sl-row"><input type="range" min="2" max="60" value="26" id="slGlow" oninput="render();sv('slGlow','vlGlow')"><span class="sl-v" id="vlGlow">26</span></div></div>
       <div class="fg"><label class="fl">Glow-Farbe</label><div class="sw-row" id="swGlow"></div></div>
-    </div>
-    <div class="sb-sec" id="githubSec" data-web-only>
-      <div class="sb-ttl">GitHub Push</div>
-      <div style="font-size:.62rem;color:var(--mut);line-height:1.35;margin-bottom:6px">
-        Hochgeladene Bilder und Master-Vorlagen direkt ins Repo committen. Token nur in dieser Browser-Sitzung.<br>
-        <strong>Classic Token</strong> (empfohlen): GitHub → Settings → Developer settings →
-        <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener" style="color:var(--gold)">Tokens (classic)</a>
-        → Note „PlateForge“ → Haken bei <strong>repo</strong> → Generate.
-      </div>
-      <div class="fg">
-        <label class="fl">Personal Access Token</label>
-        <input type="password" class="fi" id="githubToken" placeholder="ghp_…" autocomplete="off" onchange="saveGithubTokenFromUi()">
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="fl">Owner</label>
-          <input class="fi" id="githubOwner" placeholder="Noudi72" onchange="saveGithubCfgFromUi()"></div>
-        <div class="fg"><label class="fl">Repo</label>
-          <input class="fi" id="githubRepo" placeholder="Plate-Forge" onchange="saveGithubCfgFromUi()"></div>
-      </div>
-      <div class="fg"><label class="fl">Branch</label>
-        <input class="fi" id="githubBranch" placeholder="main" onchange="saveGithubCfgFromUi()"></div>
-      <div id="githubPushInfo" class="storage-panel">—</div>
-      <button class="btn btn-y btn-sm" type="button" style="width:100%;margin-top:6px" onclick="pushToGithub()" id="btnGithubPush">📤 Zu GitHub pushen</button>
     </div>
     <div class="sb-sec">
       <div class="sb-ttl">Export</div>
@@ -558,7 +548,7 @@
   </div>
 </div>
 
-<script src="app.js?v=28"></script>
+<script src="app.js?v=32"></script>
 
 </body>
 </html>

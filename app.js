@@ -71,9 +71,19 @@ const TMPL=[
   {name:'EHCB Nameplate Pro',bg1:'#0B2440',bg2:'#061225',acc:'#8F1024',nc:'#FFFFFF',nrc:'#FF9700'},
   {name:'EHCB Ice Beam',bg1:'#123B63',bg2:'#071A30',acc:'#1E88C8',nc:'#FFFFFF',nrc:'#FF9700'},
   {name:'EHCB Red Edge',bg1:'#102B48',bg2:'#061225',acc:'#C8102E',nc:'#FFFFFF',nrc:'#FF9700'},
+  {name:'EHCB Sticker Weiss',bg1:'#FFFFFF',bg2:'#FFFFFF',acc:'#C8102E',nc:'#0A2A5E',nrc:'#C8102E'},
 ];
 
 const SWATCHES=['#041E42','#C8102E','#D4B96A','#FFFFFF','#000000','#1a3a6e','#006400','#FF8C00','#4B0082','#00BFFF','#FF00FF','#888888','#FFE066','#8B0000','#2d2d2d'];
+const NEUTRAL_BG_PRESETS=[
+  {label:'Weiß',color:'#FFFFFF'},
+  {label:'Creme',color:'#FAF8F2'},
+  {label:'Hellgrau',color:'#E8E8E8'},
+  {label:'Grau',color:'#B8B8B8'},
+  {label:'Dunkelgrau',color:'#6B6B6B'},
+  {label:'Anthrazit',color:'#2B2B2B'},
+  {label:'Schwarz',color:'#0D0D0D'},
+];
 const BUILTIN_FONTS=[
   {l:'Bebas Neue',v:"'Bebas Neue'"},{l:'Oswald',v:"'Oswald'"},{l:'Anton',v:"'Anton'"},
   {l:'Russo One',v:"'Russo One'"},{l:'Black Ops One',v:"'Black Ops One'"},
@@ -116,7 +126,7 @@ const S={
   nrAlignExplicit:false,
   nrVAlignExplicit:false,
   nameMode:'last', // last | first | both | firstlast | initial
-  logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgOp:.4,logoOp:1,
+  logo:null,logoIsSvg:false,logo2:null,logo2IsSvg:false,bgImg:null,bgStyle:'template',bgSolid:'#FFFFFF',bgOp:.4,logoOp:1,
   frame:true,screws:true,bar:true,logoBand:true,showPos:true,showNat:false,showLeague:true,showGuides:true,showSafeMargin:true,
   logoSz:140,logo2Sz:90,nameSz:190,nrSz:260,frameW:10,
   freeText:'',freeTextSz:70,freeTextRot:0,
@@ -608,6 +618,52 @@ function mkSwatchG(cid,getV,setV){
   c.appendChild(inp);
 }
 function mkSwatch(cid,key){mkSwatchG(cid,()=>S.c[key],v=>S.c[key]=v)}
+
+function normalizeBgStyle(value){
+  return value==='solid'?'solid':'template';
+}
+function buildNeutralBgRow(){
+  const row=document.getElementById('neutralBgRow');
+  if(!row||row.dataset.built)return;
+  row.dataset.built='1';
+  NEUTRAL_BG_PRESETS.forEach(p=>{
+    const d=document.createElement('button');
+    d.type='button';
+    d.className='neutral-bg';
+    d.dataset.color=p.color;
+    d.title=p.label;
+    d.setAttribute('aria-label',p.label);
+    d.style.background=p.color;
+    d.onclick=()=>setNeutralBgColor(p.color);
+    row.appendChild(d);
+  });
+}
+function syncNeutralBgUi(){
+  buildNeutralBgRow();
+  const row=document.getElementById('neutralBgRow');
+  if(!row)return;
+  const solid=S.bgStyle==='solid';
+  const cur=normalizeHexColor(S.bgSolid||'#FFFFFF');
+  row.querySelectorAll('.neutral-bg').forEach(el=>{
+    const c=normalizeHexColor(el.dataset.color,'#FFFFFF');
+    el.classList.toggle('on',solid&&c===cur);
+  });
+  const tplBtn=document.getElementById('btnBgTemplate');
+  if(tplBtn)tplBtn.classList.toggle('on',!solid);
+  const picker=document.getElementById('neutralBgPicker');
+  if(picker)picker.value=cur;
+}
+function setBgStyle(style){
+  S.bgStyle=normalizeBgStyle(style);
+  syncNeutralBgUi();
+  persistSession();render();
+}
+function setNeutralBgColor(color){
+  S.bgStyle='solid';
+  S.bgSolid=normalizeHexColor(color,'#FFFFFF');
+  syncNeutralBgUi();
+  persistSession();render();
+}
 
 function selectedTextColorTarget(){
   return ['name','nr','freeText','freeText2'].includes(S.sel)?S.sel:'name';
@@ -1162,6 +1218,7 @@ function selectTpl(i){
   S.pos={};
   clearLogoRasterCache(S.logo);clearLogoRasterCache(S.logo2);
   S.logo=null;S.logoIsSvg=false;S.logo2=null;S.logo2IsSvg=false;S.bgImg=null;
+  S.bgStyle='template';
   if(S.sel==='logo'||S.sel==='logo2'||S.sel==='bg')S.sel=null;
   ['logoPrev','logo2Prev','bgPrev'].forEach(id=>{const p=document.getElementById(id);if(p){p.style.display='none';p.removeAttribute('src')}});
   S.c={bg1:t.bg1,bg2:t.bg2,acc:t.acc,nc:t.nc,nrc:t.nrc};
@@ -1174,6 +1231,7 @@ function selectTpl(i){
     c.classList.toggle('on',bi!==undefined&&+bi===i&&!ui);
   });
   refreshSwatches();
+  syncNeutralBgUi();
   markTemplatePosBaseline();
   persistSession();render();
   refreshBatchIfVisible();
@@ -1388,6 +1446,7 @@ function getDesignSnapshotBase(){
     freeText2:String(S.freeText2||''),freeText2Sz:getInt('slFreeText2')||S.freeText2Sz||70,freeText2Rot:S.freeText2Rot||0,
     textBoxPadX:S.textBoxPadX||0,textBoxPadY:S.textBoxPadY||0,
     frameW:getInt('slFrame'),bgOp:getInt('slBgOp')/100,logoOp:getInt('slLogoOp')/100,
+    bgStyle:normalizeBgStyle(S.bgStyle),bgSolid:normalizeHexColor(S.bgSolid,'#FFFFFF'),
     frame:S.frame,screws:S.screws,bar:S.bar,logoBand:!!S.logoBand,showGuides:!!S.showGuides,showSafeMargin:S.showSafeMargin!==false,
     showPos:S.showPos,showNat:S.showNat,showLeague:S.showLeague,
     shadowOn:S.shadowOn,glowOn:S.glowOn,glowColor:normalizeHexColor(S.glowColor,'#00BFFF'),
@@ -1623,6 +1682,7 @@ function applyStateToUI(){
     if(el)el.classList.toggle('on',!!S[prop]);
   });
   refreshSwatches();
+  syncNeutralBgUi();
   buildFontGrid();
   syncAriaControls();
 }
@@ -1657,6 +1717,8 @@ async function applyDesignSnapshot(snap,opts={}){
   S.freeText2=snap.freeText2||'';S.freeText2Sz=snap.freeText2Sz??70;S.freeText2Rot=snap.freeText2Rot||0;
   S.textBoxPadX=snap.textBoxPadX||0;S.textBoxPadY=snap.textBoxPadY||0;
   S.frameW=snap.frameW??10;S.bgOp=snap.bgOp??.4;S.logoOp=snap.logoOp??1;
+  S.bgStyle=normalizeBgStyle(snap.bgStyle);
+  S.bgSolid=normalizeHexColor(snap.bgSolid,'#FFFFFF');
   S.frame=snap.frame!==false;S.screws=snap.screws!==false;S.bar=snap.bar!==false;
   S.logoBand=snap.logoBand!==false;
   S.showPos=snap.showPos!==false;S.showNat=!!snap.showNat;S.showLeague=snap.showLeague!==false;
@@ -3350,6 +3412,21 @@ function resetPlayerNameAdjust(){
   syncPlayerAdjustUi(p);
   persistRoster();render();refreshBatchIfVisible();
 }
+function resetAllPlayerNameAdjust(){
+  if(!S.roster.length)return;
+  if(!confirm('Name-Offsets für alle Spieler in allen Vorlagen zurücksetzen?'))return;
+  let changed=false;
+  S.roster.forEach(p=>{
+    if(Object.keys(normalizeNameAdjustments(p.nameAdjustments)).length){
+      p.nameAdjustments={};
+      changed=true;
+    }
+    if(p.nameDx||p.nameDy){p.nameDx=0;p.nameDy=0;changed=true}
+  });
+  if(!changed)return;
+  syncPlayerAdjustUi(S.roster[S.active]);
+  persistRoster();render();refreshBatchIfVisible();
+}
 function navPlayer(delta){
   if(S.roster.length<2)return;
   S.active=(S.active+delta+S.roster.length)%S.roster.length;
@@ -4243,7 +4320,7 @@ function nrBaselinePlateY(yAnchor,nrSzPlate,nrText,font,vAlign,align='left'){
 function drawPlate(canvas,w,h,opts,thumb){
   const ctx=canvas.getContext('2d');
   const sc=w/W;const Z=v=>v*sc;
-  const{tpl,c:rawC,font,nrFont,freeTextFont,freeText2Font,layout,logo,logo2,bgImg,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
+  const{tpl,c:rawC,font,nrFont,freeTextFont,freeText2Font,layout,logo,logo2,bgImg,bgStyle,bgSolid,bgOp,logoOp,frame,screws,bar,logoBand,showPos,showNat,showLeague,
     logoSz,logo2Sz,nameSz,nrSz,freeText,freeTextSz,freeTextRot=0,freeText2,freeText2Sz,freeText2Rot=0,frameW,club,leagueTxt,textAlign,textVAlign,nrAlign,nrVAlign,nameMode,logoIsSvg,logo2IsSvg,
     first='',last='SPIELER',nr='##',playerPos='',nat='',nameDx=0,nameDy=0}=opts;
   const c=normalizePalette(rawC);
@@ -4271,9 +4348,14 @@ function drawPlate(canvas,w,h,opts,thumb){
   ctx.save();ctx.beginPath();ctx.rect(ix,iy,iw,ih);ctx.clip();
 
   // BG
-  const bg=ctx.createLinearGradient(ix,iy,ix+iw,iy+ih);bg.addColorStop(0,c.bg1);bg.addColorStop(1,c.bg2);
-  ctx.fillStyle=bg;ctx.fillRect(ix,iy,iw,ih);
-  drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
+  if(normalizeBgStyle(bgStyle)==='solid'){
+    ctx.fillStyle=normalizeHexColor(bgSolid||c.bg1,'#FFFFFF');
+    ctx.fillRect(ix,iy,iw,ih);
+  }else{
+    const bg=ctx.createLinearGradient(ix,iy,ix+iw,iy+ih);bg.addColorStop(0,c.bg1);bg.addColorStop(1,c.bg2);
+    ctx.fillStyle=bg;ctx.fillRect(ix,iy,iw,ih);
+    drawTplBg(ctx,tpl,ix,iy,iw,ih,c,sc,thumb);
+  }
   if(bgImg){ctx.globalAlpha=bgOp;ctx.drawImage(bgImg,ix,iy,iw,ih);ctx.globalAlpha=1}
 
   // LOGO BAND (optional, nur L/R-Layout)
@@ -4515,7 +4597,51 @@ function drawTplBg(ctx,tpl,x,y,w,h,c,sc,thumb){
   else if(tpl===8)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'pro');
   else if(tpl===9)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'ice');
   else if(tpl===10)drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,'red');
+  else if(tpl===11)drawStickerBg(ctx,x,y,w,h,c,sc,thumb);
   ctx.restore();
+}
+
+// Heller, druckfreundlicher Sticker-Stil: weisser Untergrund mit dezenten
+// marineblauen + roten Akzentlinien (oben/unten) und einer vertikalen
+// Trennlinie zwischen Logo- und Namensbereich. Liefert NUR den Hintergrund –
+// Name, Nummer und Logo werden weiterhin separat darüber gerendert.
+function drawStickerBg(ctx,x,y,w,h,c,sc,thumb){
+  const Z=v=>v*sc;
+  const navy=normalizeHexColor(c.bg1,'#0A2A5E');
+  const navyLine=(/^#FFFFFF$/i.test(navy)||/^#F/i.test(navy))?'#0A2A5E':navy;
+  const red=normalizeHexColor(c.acc,'#C8102E');
+
+  // Reinweisser Untergrund
+  ctx.fillStyle='#FFFFFF';
+  ctx.fillRect(x,y,w,h);
+
+  // Horizontale Akzentlinien oben und unten: kräftige marineblaue Linie,
+  // direkt daneben eine dünnere rote Linie (subtil wie im Referenzbild).
+  const navyW=Z(thumb?2.4:3);
+  const redW=Z(thumb?1.2:1.6);
+  const gap=Z(thumb?2:3);
+  const inset=Z(thumb?6:10);
+
+  // Oben
+  let topY=y+inset;
+  ctx.fillStyle=navyLine;
+  ctx.fillRect(x,topY,w,navyW);
+  ctx.fillStyle=red;
+  ctx.fillRect(x,topY+navyW+gap,w,redW);
+
+  // Unten (gespiegelt)
+  let botY=y+h-inset;
+  ctx.fillStyle=navyLine;
+  ctx.fillRect(x,botY-navyW,w,navyW);
+  ctx.fillStyle=red;
+  ctx.fillRect(x,botY-navyW-gap-redW,w,redW);
+
+  // Vertikale Trennlinie links (zwischen Logo-Bereich und Name)
+  const sepX=x+w*0.205;
+  const sepTop=topY+navyW+gap+redW+Z(thumb?4:8);
+  const sepBot=botY-navyW-gap-redW-Z(thumb?4:8);
+  ctx.fillStyle=navyLine;
+  ctx.fillRect(sepX,sepTop,Z(thumb?1.4:2),sepBot-sepTop);
 }
 
 function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,variant='pro'){
@@ -4845,206 +4971,24 @@ async function refreshStorageInfo(){
     }
   }catch(e){}
   el.innerHTML=`Vorlagen: <strong>${tplCount}</strong> · Eigene Fonts: <strong>${fontCount}</strong> · Hochgeladene Bilder: <strong>${userAssets.length}</strong> · Browser-Speicher: <strong>${idbMb}</strong>`;
-  refreshGithubPushInfo();
 }
 
-// ══════════════════════════════════════════
-// GITHUB PUSH
-// ══════════════════════════════════════════
-const GITHUB_DEFAULT_OWNER='Noudi72';
-const GITHUB_DEFAULT_REPO='Plate-Forge';
-const GITHUB_DEFAULT_BRANCH='main';
-const GITHUB_TOKEN_KEY='plateforge_github_token';
-const GITHUB_CFG_KEY='plateforge_github_cfg';
-const GITHUB_ASSET_PREFIX='Vorlagen Garderobenschilder/';
-
-function loadGithubCfg(){
-  try{
-    const c=JSON.parse(localStorage.getItem(GITHUB_CFG_KEY)||'{}');
-    return{
-      owner:(c.owner||GITHUB_DEFAULT_OWNER).trim(),
-      repo:(c.repo||GITHUB_DEFAULT_REPO).trim(),
-      branch:(c.branch||GITHUB_DEFAULT_BRANCH).trim(),
-    };
-  }catch(e){
-    return{owner:GITHUB_DEFAULT_OWNER,repo:GITHUB_DEFAULT_REPO,branch:GITHUB_DEFAULT_BRANCH};
-  }
-}
-function saveGithubCfg(cfg){
-  try{localStorage.setItem(GITHUB_CFG_KEY,JSON.stringify(cfg))}catch(e){}
-}
-function getGithubToken(){
-  try{return sessionStorage.getItem(GITHUB_TOKEN_KEY)||''}catch(e){return''}
-}
-function setGithubToken(tok){
-  try{
-    if(tok)sessionStorage.setItem(GITHUB_TOKEN_KEY,tok);
-    else sessionStorage.removeItem(GITHUB_TOKEN_KEY);
-  }catch(e){}
-}
-function saveGithubTokenFromUi(){
-  const inp=document.getElementById('githubToken');
-  if(!inp)return;
-  setGithubToken(inp.value.trim());
-  refreshGithubPushInfo();
-}
-function saveGithubCfgFromUi(){
-  saveGithubCfg({
-    owner:(document.getElementById('githubOwner')?.value||GITHUB_DEFAULT_OWNER).trim(),
-    repo:(document.getElementById('githubRepo')?.value||GITHUB_DEFAULT_REPO).trim(),
-    branch:(document.getElementById('githubBranch')?.value||GITHUB_DEFAULT_BRANCH).trim(),
-  });
-  refreshGithubPushInfo();
-}
-function initGithubUi(){
-  const cfg=loadGithubCfg();
-  const tokInp=document.getElementById('githubToken');
-  const ownInp=document.getElementById('githubOwner');
-  const repoInp=document.getElementById('githubRepo');
-  const brInp=document.getElementById('githubBranch');
-  if(ownInp)ownInp.value=cfg.owner;
-  if(repoInp)repoInp.value=cfg.repo;
-  if(brInp)brInp.value=cfg.branch;
-  if(tokInp){
-    const tok=getGithubToken();
-    if(tok)tokInp.placeholder='●●●● verbunden (neu eingeben zum Ändern)';
-  }
-  refreshGithubPushInfo();
-}
-function refreshGithubPushInfo(){
-  const el=document.getElementById('githubPushInfo');
-  if(!el)return;
-  const tok=getGithubToken();
-  const tpl=loadUserTemplates().length;
-  el.innerHTML=`Token: <strong>${tok?'verbunden':'fehlt'}</strong> · Upload-Bilder: <strong>${userAssets.length}</strong> · Vorlagen lokal: <strong>${tpl}</strong>`;
-}
-function dataUrlToBase64(dataUrl){
-  const i=String(dataUrl||'').indexOf(',');
-  return i>=0?dataUrl.slice(i+1):dataUrl;
-}
-async function githubFetch(path,{method='GET',body=null}={}){
-  const token=getGithubToken();
-  if(!token)throw new Error('Kein GitHub-Token — bitte PAT eingeben.');
-  const headers={
-    Accept:'application/vnd.github+json',
-    'X-GitHub-Api-Version':'2022-11-28',
-    Authorization:'Bearer '+token,
-  };
-  if(body)headers['Content-Type']='application/json';
-  const res=await fetch('https://api.github.com'+path,{
-    method,headers,
-    body:body?JSON.stringify(body):undefined,
-  });
-  if(!res.ok){
-    let msg=res.statusText;
-    try{const j=await res.json();msg=j.message||msg}catch(e){}
-    if(res.status===401)throw new Error('Token ungültig oder abgelaufen.');
-    if(res.status===403)throw new Error('Keine Schreibrechte — Classic Token mit Haken bei „repo“ nötig.');
-    throw new Error(`GitHub ${res.status}: ${msg}`);
-  }
-  if(res.status===204)return null;
-  return res.json();
-}
-function patchStaticAssetsJs(jsText,newFileNames){
-  if(!newFileNames.length)return null;
-  const existing=new Set(STATIC_ASSETS.map(a=>a.name.toLowerCase()));
-  const toAdd=[...new Set(newFileNames.map(n=>String(n||'').trim()).filter(n=>n&&!existing.has(n.toLowerCase())))];
-  if(!toAdd.length)return null;
-  const re=/const STATIC_ASSETS=\[([\s\S]*?)\]\.map\(name=>\(\{name,path:'Vorlagen Garderobenschilder\/'\+name\}\)\)/;
-  if(!re.test(jsText))return null;
-  const additions=toAdd.map(n=>`'${n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`).join(',\n  ');
-  return jsText.replace(re,(full,inner)=>{
-    const trimmed=inner.trimEnd();
-    const suffix=trimmed.endsWith(',')?'':',';
-    return `const STATIC_ASSETS=[${trimmed}${suffix}\n  ${additions}\n].map(name=>({name,path:'Vorlagen Garderobenschilder/'+name}))`;
-  });
-}
-async function collectGithubPushFiles(){
-  const files=[];
-  const assetNames=[];
-  for(const a of userAssets){
-    if(!a.name||!a.url)continue;
-    files.push({
-      path:GITHUB_ASSET_PREFIX+a.name,
-      base64:dataUrlToBase64(a.url),
-      binary:true,
-    });
-    assetNames.push(a.name);
-  }
-  const master=await buildMasterTemplatesPayload();
-  files.push({
-    path:STATIC_MASTER_TEMPLATES,
-    content:JSON.stringify(master,null,2)+'\n',
-    binary:false,
-  });
-  try{
-    const res=await fetch('./app.js?'+Date.now(),{cache:'no-store'});
-    if(res.ok){
-      const jsText=await res.text();
-      const patched=patchStaticAssetsJs(jsText,assetNames);
-      if(patched&&patched!==jsText){
-        files.push({path:'app.js',content:patched,binary:false});
-      }
-    }
-  }catch(e){}
-  return files;
-}
-async function githubCreateCommit({owner,repo,branch,message,files}){
-  const ref=await githubFetch(`/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
-  const baseSha=ref.object.sha;
-  const baseCommit=await githubFetch(`/repos/${owner}/${repo}/git/commits/${baseSha}`);
-  const treeItems=[];
-  for(const f of files){
-    const blob=await githubFetch(`/repos/${owner}/${repo}/git/blobs`,{
-      method:'POST',
-      body:{content:f.binary?f.base64:f.content,encoding:f.binary?'base64':'utf-8'},
-    });
-    treeItems.push({path:f.path,mode:'100644',type:'blob',sha:blob.sha});
-  }
-  const tree=await githubFetch(`/repos/${owner}/${repo}/git/trees`,{
-    method:'POST',
-    body:{base_tree:baseCommit.tree.sha,tree:treeItems},
-  });
-  const commit=await githubFetch(`/repos/${owner}/${repo}/git/commits`,{
-    method:'POST',
-    body:{message,tree:tree.sha,parents:[baseSha]},
-  });
-  await githubFetch(`/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,{
-    method:'PATCH',
-    body:{sha:commit.sha},
-  });
-  return commit;
-}
-async function pushToGithub(){
-  const btn=document.getElementById('btnGithubPush');
-  const info=document.getElementById('githubPushInfo');
-  const tokInp=document.getElementById('githubToken');
-  if(tokInp&&tokInp.value.trim())setGithubToken(tokInp.value.trim());
-  saveGithubCfgFromUi();
-  const token=getGithubToken();
-  if(!token){showErr('GitHub-Token fehlt — unter Optionen eingeben.');return}
-  const cfg=loadGithubCfg();
-  if(btn)btn.disabled=true;
-  if(info)info.textContent='Dateien werden vorbereitet…';
-  try{
-    const files=await collectGithubPushFiles();
-    if(!files.length){showWarn('Nichts zum Pushen.');return}
-    const assetCount=userAssets.length;
-    const msg=`Plate-Forge: ${assetCount?assetCount+' Asset(s) + ':''}Master-Vorlagen (${new Date().toISOString().slice(0,10)})`;
-    if(info)info.textContent=`Committe ${files.length} Datei(en)…`;
-    const commit=await githubCreateCommit({...cfg,message:msg,files});
-    if(info)info.innerHTML=`✓ Commit <strong>${(commit.sha||'').slice(0,7)}</strong> auf <strong>${cfg.branch}</strong> — GitHub Pages aktualisiert sich in 1–2 Min.`;
-    showOk(`GitHub Push erfolgreich (${files.length} Dateien).`);
-  }catch(e){
-    if(info)info.textContent='Push fehlgeschlagen.';
-    showErr('GitHub Push: '+(e.message||e));
-  }finally{
-    if(btn)btn.disabled=false;
-    refreshGithubPushInfo();
-  }
-}
 async function registerServiceWorker(){
   if(!('serviceWorker'in navigator))return;
+  // In der Tauri-Desktop-App bringt der Service Worker keinen Vorteil (Assets
+  // liegen lokal im Bundle) und kann veraltete Dateien ausliefern. Daher hier
+  // sämtliche SW abmelden und Caches leeren, damit immer frische Assets laden.
+  if(isTauriApp()){
+    try{
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+      if(window.caches&&caches.keys){
+        const keys=await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }
+    }catch(e){}
+    return;
+  }
   try{
     let refreshing=false;
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
@@ -5052,7 +4996,7 @@ async function registerServiceWorker(){
       refreshing=true;
       location.reload();
     });
-    const reg=await navigator.serviceWorker.register('sw.js?v=7',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('sw.js?v=8',{scope:'./'});
     const activateWaiting=()=>{
       if(reg.waiting){
         reg.waiting.postMessage({type:'SKIP_WAITING'});
@@ -5625,7 +5569,6 @@ window.addEventListener('load',async()=>{
   if(patSel)patSel.value=S.exportNamePattern||'last_nr';
   syncExportUi();
   await refreshStorageInfo();
-  initGithubUi();
   registerServiceWorker();
   let workspaceFocusTimer=0;
   window.addEventListener('focus',()=>{
