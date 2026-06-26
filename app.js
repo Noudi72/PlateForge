@@ -7,8 +7,12 @@ let W=BASE_W,H=BASE_H;
 const SAFE_MARGIN_MM=3;
 const PRINT_FORMATS={
   '200x55':{wMm:200,hMm:55,label:'200×55 mm',canvasW:2000,canvasH:550},
-  '289x36':{wMm:289,hMm:36,label:'289×36 mm',canvasW:2890,canvasH:360},
+  '289x36':{wMm:289,hMm:36,label:'289×36 mm',canvasW:2890,canvasH:360,sheetOnly:true},
+  '200x36':{wMm:200,hMm:36,label:'200×36 mm',canvasW:2000,canvasH:360,sheetOnly:true},
 };
+function printFormatIsSheetOnly(key){
+  return!!(PRINT_FORMATS[key||getPrintFormatKey()]||{}).sheetOnly;
+}
 function getPrintFormatKey(){
   return PRINT_FORMATS[S.printFormat||'200x55']?S.printFormat:'200x55';
 }
@@ -263,7 +267,7 @@ function setPrintFormat(key,{scaleDesign=true,updateUi=true}={}){
   const oldKey=getPrintFormatKey();
   const oldW=W,oldH=H;
   S.printFormat=PRINT_FORMATS[key]?key:'200x55';
-  if(oldKey!==S.printFormat&&S.printFormat==='289x36')S.pdfIncludeSingle=false;
+  if(oldKey!==S.printFormat&&printFormatIsSheetOnly(S.printFormat))S.pdfIncludeSingle=false;
   updatePlateDimensions();
   if(scaleDesign&&oldKey!==getPrintFormatKey())scaleCurrentDesignForFormat(oldW,oldH,W,H);
   if(updateUi)applyStateToUI();
@@ -5111,7 +5115,7 @@ function syncExportUi(){
   const singleToggle=document.getElementById('togPdfSingle');
   if(singleToggle){
     const row=singleToggle.closest('.tog-row');
-    if(row)row.style.display=pfKey==='289x36'?'none':'';
+    if(row)row.style.display=printFormatIsSheetOnly(pfKey)?'none':'';
   }
   const sel=document.getElementById('selPdfSheet');
   if(sel){
@@ -5129,7 +5133,7 @@ function syncExportUi(){
       const layout=sheetLayout();
       const n=layout.perPage;
       const cuts=S.pdfCutMarks!==false?' · Schnittmarken':'';
-      const canva=pfKey!=='289x36'&&S.pdfIncludeSingle!==false&&n>0?` · danach <strong>Einzelseiten</strong> (${pf.label}, Canva)`:n<1?` · je Schild <strong>${pf.label}</strong> pro Seite`:'';
+      const canva=!printFormatIsSheetOnly(pfKey)&&S.pdfIncludeSingle!==false&&n>0?` · danach <strong>Einzelseiten</strong> (${pf.label}, Canva)`:n<1?` · je Schild <strong>${pf.label}</strong> pro Seite`:'';
       const tile=n>0?`bis <strong>${n}</strong>/Bogen`:'Einzelseiten';
       hint.innerHTML=`PDF <strong>${sh}</strong> · <strong>${pf.label}</strong>: ${tile}${cuts}${canva}. Auflösung = Bildschärfe.`;
     }else hint.innerHTML='<strong>Druckformat</strong> gilt für <strong>📄 PDF Druck</strong> und Format <strong>PDF (Druck)</strong>. „📦 Alle" exportiert gebündelt als ZIP.';
@@ -5286,7 +5290,7 @@ async function buildPdfFromPlayers(players,filename){
   const sheet=S.pdfSheet||'a4';
   const layout=sheetLayout(sheet);
   const pf=getPrintFormat();
-  const withSingle=getPrintFormatKey()!=='289x36'&&S.pdfIncludeSingle!==false&&layout.perPage>0;
+  const withSingle=!printFormatIsSheetOnly()&&S.pdfIncludeSingle!==false&&layout.perPage>0;
   const total=layout.perPage>0?players.length+(withSingle?players.length:0):players.length;
   let step=0;
   if(layout.perPage<1){
