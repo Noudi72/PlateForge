@@ -3117,7 +3117,11 @@ async function importMasterTemplatesFile(jsonText){
     for(const t of valid){
       const name=String(t.name||'Import').trim();
       const existing=(t.id&&currentById.get(t.id))||currentByName.get(name.toLowerCase());
-      if(existing&&(existing.updated||0)>(t.updated||0)){
+      // Nur importieren, wenn die Datei-Version NEUER ist. Bei gleichem (oder
+      // älterem) Zeitstempel bleibt der lokale Stand erhalten – sonst würde
+      // jeder Workspace-Sync (z. B. beim Fensterfokus) alle Vorlagen als
+      // „geändert" markieren und die aktive Vorlage unnötig neu laden.
+      if(existing&&(existing.updated||0)>=(t.updated||0)){
         list.push(existing);
         seenIds.add(existing.id);
         continue;
@@ -3185,7 +3189,10 @@ async function upsertImportedTemplates(valid,opts={}){
 }
 function applyImportResult(r,label,{reloadActive=false}={}){
   if(!r||!r.ok)return;
-  buildTplGrid();renderUserTplList();
+  // Raster/Liste nur neu aufbauen, wenn sich wirklich etwas geändert hat –
+  // verhindert, dass ein Sync ohne Änderungen Klicks „frisst".
+  const hasChanges=(r.added||0)>0||(r.over||0)>0||(r.changedIds&&r.changedIds.size>0);
+  if(hasChanges){buildTplGrid();renderUserTplList()}
   if(reloadActive)(async()=>{
     let id=S.userTplId;
     if(!id){
@@ -4607,41 +4614,41 @@ function drawTplBg(ctx,tpl,x,y,w,h,c,sc,thumb){
 // Name, Nummer und Logo werden weiterhin separat darüber gerendert.
 function drawStickerBg(ctx,x,y,w,h,c,sc,thumb){
   const Z=v=>v*sc;
-  const navy=normalizeHexColor(c.bg1,'#0A2A5E');
-  const navyLine=(/^#FFFFFF$/i.test(navy)||/^#F/i.test(navy))?'#0A2A5E':navy;
+  const navyLine='#0A2A5E';
   const red=normalizeHexColor(c.acc,'#C8102E');
 
   // Reinweisser Untergrund
   ctx.fillStyle='#FFFFFF';
   ctx.fillRect(x,y,w,h);
 
-  // Horizontale Akzentlinien oben und unten: kräftige marineblaue Linie,
-  // direkt daneben eine dünnere rote Linie (subtil wie im Referenzbild).
-  const navyW=Z(thumb?2.4:3);
-  const redW=Z(thumb?1.2:1.6);
-  const gap=Z(thumb?2:3);
-  const inset=Z(thumb?6:10);
+  // Vertikale Trennlinie nach dem Logo-Bereich (wie im Referenzbild)
+  const sepX=x+w*0.20;
+  const vMargin=Z(thumb?6:16);
+  ctx.fillStyle=navyLine;
+  ctx.fillRect(sepX,y+vMargin,Z(thumb?1.2:2.4),h-2*vMargin);
+
+  // Horizontale Akzentlinien NUR über dem Namens-/Nummernbereich (rechts der
+  // Trennlinie): kräftige marineblaue Linie + dünnere rote Linie darunter,
+  // oben und unten gespiegelt.
+  const lineLeft=sepX+Z(thumb?7:18);
+  const lineRight=x+w-Z(thumb?7:18);
+  const lineW=Math.max(lineRight-lineLeft,1);
+  const navyW=Z(thumb?2:3.4);
+  const redW=Z(thumb?1.1:2);
+  const gap=Z(thumb?1.6:3.2);
+  const inset=Z(thumb?7:16);
 
   // Oben
-  let topY=y+inset;
   ctx.fillStyle=navyLine;
-  ctx.fillRect(x,topY,w,navyW);
+  ctx.fillRect(lineLeft,y+inset,lineW,navyW);
   ctx.fillStyle=red;
-  ctx.fillRect(x,topY+navyW+gap,w,redW);
+  ctx.fillRect(lineLeft,y+inset+navyW+gap,lineW,redW);
 
   // Unten (gespiegelt)
-  let botY=y+h-inset;
   ctx.fillStyle=navyLine;
-  ctx.fillRect(x,botY-navyW,w,navyW);
+  ctx.fillRect(lineLeft,y+h-inset-navyW,lineW,navyW);
   ctx.fillStyle=red;
-  ctx.fillRect(x,botY-navyW-gap-redW,w,redW);
-
-  // Vertikale Trennlinie links (zwischen Logo-Bereich und Name)
-  const sepX=x+w*0.205;
-  const sepTop=topY+navyW+gap+redW+Z(thumb?4:8);
-  const sepBot=botY-navyW-gap-redW-Z(thumb?4:8);
-  ctx.fillStyle=navyLine;
-  ctx.fillRect(sepX,sepTop,Z(thumb?1.4:2),sepBot-sepTop);
+  ctx.fillRect(lineLeft,y+h-inset-navyW-gap-redW,lineW,redW);
 }
 
 function drawEhcbNameplateBg(ctx,x,y,w,h,c,sc,thumb,variant='pro'){
