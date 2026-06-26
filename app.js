@@ -23,6 +23,13 @@ function getPrintSizeMm(){
   const f=getPrintFormat();
   return[f.wMm,f.hMm];
 }
+// Höhen-Zugabe für den Zuschnitt: Schild wird 1 mm höher gedruckt, damit nach
+// dem Schneiden exakt die Formathöhe (z. B. 36/55 mm) in der Schiene bleibt.
+const PRINT_CUT_ALLOWANCE_MM=1;
+function getPrintOutputSizeMm(){
+  const[w,h]=getPrintSizeMm();
+  return[w,h+PRINT_CUT_ALLOWANCE_MM];
+}
 function printPageOrientation(){
   const[w,h]=getPrintSizeMm();
   return w>=h?'landscape':'portrait';
@@ -5188,7 +5195,7 @@ function newPrintPdfDoc(layout){
 }
 function sheetLayout(sheetKey){
   const sheet=sheetKey||S.pdfSheet||'a4';
-  const[pw,ph]=getPrintSizeMm();
+  const[pw,ph]=getPrintOutputSizeMm();
   const g=PLATE_GAP_MM,m=SHEET_MARGIN_MM;
   const[baseW,baseH]=getSheetSizeMm(sheet);
   function calc(sw,sh){
@@ -5272,14 +5279,14 @@ function addPlateToPdfPage(doc,cv,slot,layout){
   drawCutMarks(doc,x,y,w,h,layout.sheetW,layout.sheetH);
 }
 function addSinglePlatePdfPage(doc,cv){
-  const[w,h]=getPrintSizeMm();
+  const[w,h]=getPrintOutputSizeMm();
   const orient=printPageOrientation();
   doc.addPage([w,h],orient);
   doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
   if(S.pdfCutMarks!==false)drawCutMarks(doc,0,0,w,h,w,h);
 }
 function addExactPlatePdfPage(doc,cv,isFirst){
-  const[w,h]=getPrintSizeMm();
+  const[w,h]=getPrintOutputSizeMm();
   const orient=printPageOrientation();
   if(!isFirst)doc.addPage([w,h],orient);
   doc.addImage(cv.toDataURL('image/png',1),'PNG',0,0,w,h,undefined,'FAST');
@@ -5295,7 +5302,7 @@ async function buildPdfFromPlayers(players,filename){
   if(layout.perPage<1){
     const doc=await loadJsPDF().then(jsPDF=>new jsPDF({
       unit:'mm',
-      format:getPrintSizeMm(),
+      format:getPrintOutputSizeMm(),
       orientation:printPageOrientation(),
       compress:true,
     }));
@@ -5341,7 +5348,7 @@ async function downloadExport(cv,filename,player){
       const layout=sheetLayout();
       if(layout.perPage<1){
         const doc=await loadJsPDF().then(jsPDF=>new jsPDF({
-          unit:'mm',format:getPrintSizeMm(),orientation:printPageOrientation(),compress:true,
+          unit:'mm',format:getPrintOutputSizeMm(),orientation:printPageOrientation(),compress:true,
         }));
         addExactPlatePdfPage(doc,cv,true);
         doc.save(filename.endsWith('.pdf')?filename:filename+'.pdf');
