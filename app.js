@@ -4248,20 +4248,20 @@ function drawPlate(canvas,w,h,opts,thumb){
   const nrVA=nrVAlign||vA;
 
   ctx.clearRect(0,0,w,h);
-  const fw=Z(frameW);
+  const hasFrame=frame&&!thumb;
+  // Schild füllt das Schnitt-Rechteck exakt (eckige Ecken, kein Schatten-Rand).
+  const fw=hasFrame?Z(frameW):0;
 
-  // FRAME
-  if(frame&&!thumb){
+  // FRAME – metallischer Rahmen bis exakt an die Schnittkante
+  if(hasFrame){
     const g=ctx.createLinearGradient(0,0,w,h);
     ['#d0d0d0','#888','#e0e0e0','#777','#aaa'].forEach((c,i)=>g.addColorStop(i/4,c));
-    ctx.save();rrect(ctx,0,0,w,h,Z(13));
-    ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=Z(26);ctx.shadowOffsetY=Z(5);
-    ctx.fillStyle=g;ctx.fill();ctx.shadowColor='transparent';ctx.restore();
+    ctx.save();ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
   }
 
-  // INNER CLIP
+  // INNER CLIP – Design füllt bis exakt an die Kante
   const ix=fw,iy=fw,iw=w-fw*2,ih=h-fw*2;
-  ctx.save();rrect(ctx,ix,iy,iw,ih,frame&&!thumb?Z(7):Z(13));ctx.clip();
+  ctx.save();ctx.beginPath();ctx.rect(ix,iy,iw,ih);ctx.clip();
 
   // BG
   const bg=ctx.createLinearGradient(ix,iy,ix+iw,iy+ih);bg.addColorStop(0,c.bg1);bg.addColorStop(1,c.bg2);
